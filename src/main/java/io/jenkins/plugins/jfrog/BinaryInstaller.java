@@ -8,11 +8,11 @@ import hudson.remoting.VirtualChannel;
 import hudson.tools.ToolInstallation;
 import hudson.tools.ToolInstaller;
 import hudson.tools.ToolInstallerDescriptor;
-import jenkins.MasterToSlaveFileCallable;
 import io.jenkins.plugins.jfrog.artifactoryclient.ArtifactoryClient;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
+import jenkins.MasterToSlaveFileCallable;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -22,9 +22,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -108,7 +106,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @param providedVersion version provided by the user. empty string indicates the latest version.
      * @param instance        JFrogPlatformInstance contains url and credentials needed for the downloading operation.
      * @param repository      identifies the repository in Artifactory where the CLIs binary is stored.
-     * @throws IOException    in case of any I/O error.
+     * @throws IOException in case of any I/O error.
      */
     private static void downloadJfrogCli(File toolLocation, TaskListener log, String providedVersion, JFrogPlatformInstance instance, String repository, String binaryName) throws IOException {
         // An empty string indicates the latest version.

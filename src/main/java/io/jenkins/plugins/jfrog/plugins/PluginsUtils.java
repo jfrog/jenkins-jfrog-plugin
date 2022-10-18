@@ -5,13 +5,11 @@ import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.common.*;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.model.Item;
-import hudson.model.ItemGroup;
 import hudson.security.ACL;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import jenkins.model.Jenkins;
-import org.springframework.security.core.Authentication;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 
 import java.util.Collections;

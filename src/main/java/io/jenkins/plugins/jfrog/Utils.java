@@ -3,24 +3,11 @@ package io.jenkins.plugins.jfrog;
 import hudson.FilePath;
 import hudson.model.Job;
 import hudson.model.TaskListener;
-import hudson.remoting.VirtualChannel;
-import io.jenkins.plugins.jfrog.artifactoryclient.ArtifactoryClient;
-import io.jenkins.plugins.jfrog.configuration.Credentials;
-import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
-import jenkins.MasterToSlaveFileCallable;
-import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
 import jenkins.security.MasterToSlaveCallable;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.http.client.methods.CloseableHttpResponse;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URLEncoder;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.Objects;
 
 /**
