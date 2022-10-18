@@ -12,7 +12,7 @@
                           header="JFrog Platform details" add="${%Add JFrog Platform Instance}">
                 <input type="hidden" name="stapler-class"
                        value="io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance"/>
-                <r:blockWrapper style="width:100%">
+                <div style="width:100%">
                     <f:entry title="Server ID">
                         <f:textbox field="serverId" value="${instance.serverId}"/>
                     </f:entry>
@@ -23,12 +23,12 @@
                         <f:block>
                             <input type="hidden" name="stapler-class"
                                    value="io.jenkins.plugins.jfrog.configuration.CredentialsConfig"/>
-                            <r:blockWrapper style="width:100%"
+                            <div style="width:100%"
                                             id="credentialsConfig${instance.credentialsConfig}">
                                 <f:entry title="${%Credentials}" field="credentialsId">
                                     <c:select default="${instance.credentialsConfig.credentialsId}"/>
                                 </f:entry>
-                            </r:blockWrapper>
+                            </div>
                         </f:block>
                     </f:section>
                     <f:advanced title="Advanced Configuration">
@@ -44,7 +44,7 @@
                             </f:entry>
                         </f:section>
                     </f:advanced>
-                </r:blockWrapper>
+                </div>
                 <f:block>
                     <div align="right">
                         <f:repeatableDeleteButton/>

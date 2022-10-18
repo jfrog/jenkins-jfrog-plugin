@@ -1,4 +1,4 @@
-package io.jenkins.plugins.jfrog.declarative;
+package io.jenkins.plugins.jfrog;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.EnvVars;

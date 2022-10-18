@@ -1,9 +1,8 @@
-package io.jenkins.plugins.jfrog.declarative;
+package io.jenkins.plugins.jfrog;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.model.TaskListener;
-import io.jenkins.plugins.jfrog.Utils;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionListener;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;

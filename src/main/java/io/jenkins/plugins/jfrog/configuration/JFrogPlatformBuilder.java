@@ -126,19 +126,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
             if (isEmptyUrl(jfrogInstances)) {
                 throw new FormException("Please set the The JFrog Platform URL", "URL");
             }
-            autoFillPlatformServers(jfrogInstances);
             setJfrogInstances(jfrogInstances);
-        }
-
-        public void autoFillPlatformServers(List<JFrogPlatformInstance> newJFrogInstances) {
-            if (newJFrogInstances == null) {
-                return;
-            }
-            for (JFrogPlatformInstance newInstance : newJFrogInstances) {
-                if (StringUtils.isBlank(newInstance.getUrl())) {
-                    continue;
-                }
-            }
         }
 
         /**
