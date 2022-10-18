@@ -1,3 +1,5 @@
+<img src="images/readme/jenkins-jfrog-logo.jpg">
+
 # Jenkins JFrog Plugin
 
 ## Table of contents
