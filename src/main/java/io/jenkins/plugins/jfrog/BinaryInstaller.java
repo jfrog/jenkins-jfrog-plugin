@@ -116,16 +116,13 @@ public abstract class BinaryInstaller extends ToolInstaller {
         String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, version, OsUtils.getOsDetails(), binaryName);
 
         // Getting credentials
-        String username = "", password = "", accessToken = "";
+        Credentials credentials = new Credentials();
         if (instance.getCredentialsConfig() != null) {
-            Credentials credentials = PluginsUtils.credentialsLookup(instance.getCredentialsConfig().getCredentialsId(), null);
-            username = credentials.getUsername();
-            password = credentials.getPassword();
-            accessToken = credentials.getAccessToken();
+            credentials = PluginsUtils.credentialsLookup(instance.getCredentialsConfig().getCredentialsId(), null);
         }
 
         // Downloading binary from Artifactory
-        try (ArtifactoryClient client = new ArtifactoryClient(instance.getArtifactoryUrl(), username, password, accessToken, null, log)) {
+        try (ArtifactoryClient client = new ArtifactoryClient(instance.getArtifactoryUrl(), credentials.getPlainTextUsername(), credentials.getPlainTextPassword(), credentials.getPlainTextAccessToken(), null, log)) {
             if (shouldDownloadTool(client, cliUrlSuffix, toolLocation)) {
                 try (CloseableHttpResponse downloadResponse = client.download(cliUrlSuffix)) {
                     InputStream input = downloadResponse.getEntity().getContent();

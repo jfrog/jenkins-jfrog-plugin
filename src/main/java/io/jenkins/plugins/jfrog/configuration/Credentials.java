@@ -10,7 +10,8 @@ import java.io.Serializable;
  * Credentials model object
  */
 public class Credentials implements Serializable {
-    public static final Credentials EMPTY_CREDENTIALS = new Credentials(StringUtils.EMPTY, StringUtils.EMPTY, StringUtils.EMPTY);
+    public static final Secret EMPTY_SECRET = Secret.fromString(StringUtils.EMPTY);
+    public static final Credentials EMPTY_CREDENTIALS = new Credentials(EMPTY_SECRET, EMPTY_SECRET, EMPTY_SECRET);
     private Secret username;
     private Secret password;
     private Secret accessToken;
@@ -18,25 +19,43 @@ public class Credentials implements Serializable {
     /**
      * Main constructor
      *
-     * @param username    Username
-     * @param password    Clear-text password.
-     * @param accessToken Clear-text accessToken.
+     * @param username    Secret username
+     * @param password    Secret password.
+     * @param accessToken Secret accessToken.
      */
-    public Credentials(String username, String password, String accessToken) {
-        this.username = Secret.fromString(username);
-        this.password = Secret.fromString(password);
-        this.accessToken = Secret.fromString(accessToken);
+    public Credentials(Secret username, Secret password, Secret accessToken) {
+        this.username = username;
+        this.password = password;
+        this.accessToken = accessToken;
     }
 
-    public String getUsername() {
+    public Credentials() {
+        this.username = EMPTY_SECRET;
+        this.password = EMPTY_SECRET;
+        this.accessToken = EMPTY_SECRET;
+    }
+
+    public Secret getUsername() {
+        return username;
+    }
+
+    public Secret getPassword() {
+        return password;
+    }
+
+    public Secret getAccessToken() {
+        return accessToken;
+    }
+
+    public String getPlainTextUsername() {
         return Secret.toString(username);
     }
 
-    public String getPassword() {
+    public String getPlainTextPassword() {
         return Secret.toString(password);
     }
 
-    public String getAccessToken() {
+    public String getPlainTextAccessToken() {
         return Secret.toString(accessToken);
     }
 

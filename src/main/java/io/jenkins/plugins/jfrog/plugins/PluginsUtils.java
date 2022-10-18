@@ -5,10 +5,13 @@ import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.common.*;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.model.Item;
+import hudson.model.ItemGroup;
 import hudson.security.ACL;
 import hudson.util.ListBoxModel;
+import hudson.util.Secret;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import jenkins.model.Jenkins;
+import org.springframework.security.core.Authentication;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 
 import java.util.Collections;
@@ -36,7 +39,7 @@ public class PluginsUtils {
         // Looking for accessToken
         StringCredentials accessCred = PluginsUtils.accessTokenCredentialsLookup(credentialsId);
         if (accessCred != null) {
-            return new Credentials("", "", accessCred.getSecret().getPlainText());
+            return new Credentials(Credentials.EMPTY_SECRET, Credentials.EMPTY_SECRET, accessCred.getSecret());
         } else {
             // Looking for username and password
             UsernamePasswordCredentials usernamePasswordCredentials = CredentialsMatchers.firstOrNull(
@@ -44,8 +47,8 @@ public class PluginsUtils {
                     CredentialsMatchers.withId(credentialsId)
             );
             if (usernamePasswordCredentials != null) {
-                return new Credentials(usernamePasswordCredentials.getUsername(),
-                        usernamePasswordCredentials.getPassword().getPlainText(), "");
+                return new Credentials(Secret.fromString(usernamePasswordCredentials.getUsername()),
+                        usernamePasswordCredentials.getPassword(), Credentials.EMPTY_SECRET);
             }
             return Credentials.EMPTY_CREDENTIALS;
         }
