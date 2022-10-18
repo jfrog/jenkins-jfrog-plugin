@@ -37,6 +37,7 @@ public class JFrogPlatformInstance implements Serializable {
      *
      * @return can be empty but never null.
      */
+    @SuppressWarnings("unused")
     public List<JFrogPlatformInstance> getJfrogInstances() {
         return JFrogPlatformBuilder.getJFrogPlatformInstances();
     }
@@ -45,14 +46,20 @@ public class JFrogPlatformInstance implements Serializable {
         return StringUtils.isNotEmpty(Url) ? Url : platformUrl + "/" + suffix;
     }
 
+    // Required by external plugins (JCasC).
+    @SuppressWarnings("unused")
     public String getId() {
         return id;
     }
 
+    // Required by external plugins (JCasC).
+    @SuppressWarnings("unused")
     public String getUrl() {
         return url;
     }
 
+    // Required by external plugins (JCasC).
+    @SuppressWarnings("unused")
     public void setUrl(String url) {
         this.url = url;
     }
@@ -71,38 +78,49 @@ public class JFrogPlatformInstance implements Serializable {
 
     // Required by external plugins (JCasC).
     @SuppressWarnings("unused")
-    public String getPlatformUrl() {
-        return getUrl();
-    }
-
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public void setPlatformUrl(String url) {
-        setUrl(url);
-    }
-
     public String getArtifactoryUrl() {
         return artifactoryUrl;
     }
 
+    // Required by external plugins (JCasC).
+    @SuppressWarnings("unused")
     public void setArtifactoryUrl(String artifactoryUrl) {
         this.artifactoryUrl = artifactoryUrl;
     }
 
+    // Required by external plugins (JCasC).
+    @SuppressWarnings("unused")
     public String getDistributionUrl() {
         return distributionUrl;
     }
 
+    // Required by external plugins (JCasC).
+    @SuppressWarnings("unused")
     public void setDistributionUrl(String distributionUrl) {
         this.distributionUrl = distributionUrl;
     }
 
+    // Required by external plugins (JCasC).
+    @SuppressWarnings("unused")
     public String getXrayUrl() {
         return xrayUrl;
     }
 
+    // Required by external plugins (JCasC).
+    @SuppressWarnings("unused")
     public void setXrayUrl(String xrayUrl) {
         this.xrayUrl = xrayUrl;
     }
 
+    // Required by external plugins (JCasC).
+    @SuppressWarnings("unused")
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    // Required by external plugins (JCasC).
+    @SuppressWarnings("unused")
+    public void setCredentialsConfig(CredentialsConfig credentialsConfig) {
+        this.credentialsConfig = credentialsConfig;
+    }
 }
