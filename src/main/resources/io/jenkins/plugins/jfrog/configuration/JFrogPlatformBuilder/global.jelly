@@ -2,7 +2,6 @@
 <j:jelly xmlns:j="jelly:core"
          xmlns:f="/lib/form"
          xmlns:st="jelly:stapler"
-         xmlns:r="/lib/jfrog"
          xmlns:c="/lib/credentials">
     <st:adjunct includes="lib.jfrog.repos.credentials"/>
     <f:section title="JFrog Plugin Configuration">

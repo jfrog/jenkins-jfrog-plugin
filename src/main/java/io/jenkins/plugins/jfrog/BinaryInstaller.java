@@ -67,37 +67,15 @@ public abstract class BinaryInstaller extends ToolInstaller {
     }
 
     public abstract static class DescriptorImpl<T extends BinaryInstaller> extends ToolInstallerDescriptor<T> {
-
-        @SuppressWarnings("deprecation") // intentionally adding dynamic item here
-        protected DescriptorImpl() {
-            DownloadService.Downloadable.all().add(createDownloadable());
-        }
-
-        /**
-         * function that creates a {@link DownloadService.Downloadable}.
-         *
-         * @return a downloadable object
-         */
-        public DownloadService.Downloadable createDownloadable() {
-            return new DownloadService.Downloadable(getId()) {
-                @Override
-                public JSONObject reduce(List<JSONObject> jsonList) {
-                    return super.reduce(jsonList);
-
-                }
-            };
-        }
-
         /**
          * This ID needs to be unique, and needs to match the ID token in the JSON update file.
          * <p>
-         * By default we use the fully-qualified class name of the {@link BinaryInstaller} subtype.
+         * By default, we use the fully-qualified class name of the {@link BinaryInstaller} subtype.
          */
         @Override
         public String getId() {
             return clazz.getName().replace('$', '.');
         }
-
     }
 
     /**
