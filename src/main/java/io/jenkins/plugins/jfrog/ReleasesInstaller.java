@@ -36,6 +36,10 @@ public class ReleasesInstaller extends BinaryInstaller {
         String binaryName = Utils.getJfrogCliBinaryName(!node.createLauncher(log).isUnix());
         return performJfrogCliInstallation(getToolLocation(tool, node), log, id, instance, REPOSITORY, binaryName);
     }
+
+    /**
+     * @return The JFrogPlatformInstance matches 'Releases.jfrog.io' with only the relevant Artifactory URL and no credentials.
+     */
     private JFrogPlatformInstance createReleasesPlatformInstance() {
         CredentialsConfig emptyCred = new CredentialsConfig(StringUtils.EMPTY, Credentials.EMPTY_CREDENTIALS);
         return new JFrogPlatformInstance(StringUtils.EMPTY, StringUtils.EMPTY, emptyCred, RELEASES_ARTIFACTORY_URL, StringUtils.EMPTY, StringUtils.EMPTY);
