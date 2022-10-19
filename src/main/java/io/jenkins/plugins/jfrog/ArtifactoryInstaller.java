@@ -5,8 +5,12 @@ import hudson.FilePath;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.tools.ToolInstallation;
+import io.jenkins.plugins.jfrog.configuration.Credentials;
+import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
+import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
@@ -38,7 +42,7 @@ public class ArtifactoryInstaller extends BinaryInstaller {
             throw new IOException("Server id '" + serverId + "' doesn't exists.");
         }
         String binaryName = Utils.getJfrogCliBinaryName(!node.createLauncher(log).isUnix());
-        return performJfrogCliInstallation(getToolLocation(tool, node), log, "", server, repository, binaryName);
+        return performJfrogCliInstallation(getToolLocation(tool, node), log, StringUtils.EMPTY, server, repository, binaryName);
     }
 
     /**
@@ -49,6 +53,10 @@ public class ArtifactoryInstaller extends BinaryInstaller {
         if (jfrogInstances != null && jfrogInstances.size() > 0) {
             for (JFrogPlatformInstance jfrogPlatformInstance : jfrogInstances) {
                 if (jfrogPlatformInstance.getId().equals(id)) {
+                    // Getting credentials
+                    // TODO has to be null, this is not related to a job so I dont have a parent
+                    Credentials credentials = PluginsUtils.credentialsLookup(id, null);
+                    jfrogPlatformInstance.setCredentialsConfig(new CredentialsConfig(id, credentials));
                     return jfrogPlatformInstance;
                 }
             }

@@ -5,6 +5,8 @@ import hudson.FilePath;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.tools.ToolInstallation;
+import io.jenkins.plugins.jfrog.configuration.Credentials;
+import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -30,9 +32,13 @@ public class ReleasesInstaller extends BinaryInstaller {
 
     @Override
     public FilePath performInstallation(ToolInstallation tool, Node node, TaskListener log) throws IOException, InterruptedException {
-        JFrogPlatformInstance server = new JFrogPlatformInstance(StringUtils.EMPTY, StringUtils.EMPTY, null, RELEASES_ARTIFACTORY_URL, StringUtils.EMPTY, StringUtils.EMPTY);
+        JFrogPlatformInstance instance = createReleasesPlatformInstance();
         String binaryName = Utils.getJfrogCliBinaryName(!node.createLauncher(log).isUnix());
-        return performJfrogCliInstallation(getToolLocation(tool, node), log, id, server, REPOSITORY, binaryName);
+        return performJfrogCliInstallation(getToolLocation(tool, node), log, id, instance, REPOSITORY, binaryName);
+    }
+    private JFrogPlatformInstance createReleasesPlatformInstance() {
+        CredentialsConfig emptyCred = new CredentialsConfig(StringUtils.EMPTY, Credentials.EMPTY_CREDENTIALS);
+        return new JFrogPlatformInstance(StringUtils.EMPTY, StringUtils.EMPTY, emptyCred, RELEASES_ARTIFACTORY_URL, StringUtils.EMPTY, StringUtils.EMPTY);
     }
 
     @Extension

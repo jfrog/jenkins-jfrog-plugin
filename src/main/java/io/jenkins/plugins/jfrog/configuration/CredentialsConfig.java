@@ -12,13 +12,19 @@ public class CredentialsConfig implements Serializable {
     private final String credentialsId;
 
     /**
-     * This object obtains the username, password and credentials id (used with the Credentials plugin)
+     * This object obtains the username, password, accessToken and credentials id (used with the Credentials plugin)
      * Each of these properties could be empty string if not specified but not null
      */
+    @SuppressWarnings("unused")
     @DataBoundConstructor
     public CredentialsConfig(String username, String password, String accessToken, String credentialsId) {
         this.credentials = new Credentials(username, password, accessToken);
         this.credentialsId = credentialsId;
+    }
+
+    public CredentialsConfig(String credentialsId, Credentials credentials) {
+        this.credentialsId = credentialsId;
+        this.credentials = credentials;
     }
 
     public String getUsername() {

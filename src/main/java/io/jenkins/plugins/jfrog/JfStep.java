@@ -6,12 +6,12 @@ import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractProject;
+import hudson.model.Job;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
-import io.jenkins.plugins.jfrog.Utils;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
@@ -87,7 +87,7 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
             Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
             // Configure all servers, skip if all server ids have already been configured.
             if (shouldConfig(jfrogHomeTempDir)) {
-                configAllServers(jfLauncher, jfrogBinaryPath, !launcher.isUnix());
+                configAllServers(jfLauncher, jfrogBinaryPath, !launcher.isUnix(), run.getParent());
             }
             // Running the 'jf' command
             int exitValue = jfLauncher.cmds(builder).join();
@@ -119,14 +119,14 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
     /**
      * Locally configure all servers that was configured in the Jenkins UI.
      */
-    private void configAllServers(Launcher.ProcStarter launcher, String jfrogBinaryPath, boolean isWindows) throws IOException, InterruptedException {
+    private void configAllServers(Launcher.ProcStarter launcher, String jfrogBinaryPath, boolean isWindows, Job<?, ?> parent) throws IOException, InterruptedException {
         // Config all servers using the 'jf c add' command.
         List<JFrogPlatformInstance> jfrogInstances = JFrogPlatformBuilder.getJFrogPlatformInstances();
         if (jfrogInstances != null && jfrogInstances.size() > 0) {
             for (JFrogPlatformInstance jfrogPlatformInstance : jfrogInstances) {
                 // Build 'jf' command
                 ArgumentListBuilder builder = new ArgumentListBuilder();
-                addConfigArguments(builder, jfrogPlatformInstance, jfrogBinaryPath);
+                addConfigArguments(builder, jfrogPlatformInstance, jfrogBinaryPath, parent);
                 if (isWindows) {
                     builder = builder.toWindowsCommand();
                 }
@@ -139,15 +139,15 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
         }
     }
 
-    private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, String jfrogBinaryPath) {
+    private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, String jfrogBinaryPath, Job<?, ?> parent) {
         String credentialsId = jfrogPlatformInstance.getId();
         builder.add(jfrogBinaryPath).add("c").add("add").add(credentialsId);
         // Add credentials
-        StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId);
+        StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, parent);
         if (accessTokenCredentials != null) {
             builder.addMasked("access-token=" + accessTokenCredentials.getSecret().getPlainText());
         } else {
-            Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, null);
+            Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, parent);
             builder.add("--user=" + credentials.getUsername());
             builder.addMasked("--password=" + credentials.getPassword());
         }

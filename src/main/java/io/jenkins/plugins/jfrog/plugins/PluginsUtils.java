@@ -18,9 +18,9 @@ import static com.cloudbees.plugins.credentials.CredentialsProvider.lookupCreden
 
 
 public class PluginsUtils {
-    public static StringCredentials accessTokenCredentialsLookup(String credentialsId) {
+    public static StringCredentials accessTokenCredentialsLookup(String credentialsId, Item item) {
         return CredentialsMatchers.firstOrNull(
-                lookupCredentials(StringCredentials.class, (Item) null),
+                lookupCredentials(StringCredentials.class, item),
                 CredentialsMatchers.withId(credentialsId)
         );
     }
@@ -34,7 +34,7 @@ public class PluginsUtils {
      */
     public static Credentials credentialsLookup(String credentialsId, Item item) {
         // Looking for accessToken
-        StringCredentials accessCred = PluginsUtils.accessTokenCredentialsLookup(credentialsId);
+        StringCredentials accessCred = PluginsUtils.accessTokenCredentialsLookup(credentialsId, item);
         if (accessCred != null) {
             return new Credentials("", "", accessCred.getSecret().getPlainText());
         } else {
