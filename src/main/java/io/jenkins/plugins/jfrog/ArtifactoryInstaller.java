@@ -54,7 +54,8 @@ public class ArtifactoryInstaller extends BinaryInstaller {
             for (JFrogPlatformInstance jfrogPlatformInstance : jfrogInstances) {
                 if (jfrogPlatformInstance.getId().equals(id)) {
                     // Getting credentials
-                    // TODO has to be null, this is not related to a job so I dont have a parent
+                    // We sent a null item to 'credentialsLookup' since we do not know which job will be running at the time of installation, and we don't have the relevant 'Run' object yet.
+                    // Therefore, when downloading the CLI from the user's Artifactory remote repository, we should use global credentials.
                     Credentials credentials = PluginsUtils.credentialsLookup(id, null);
                     jfrogPlatformInstance.setCredentialsConfig(new CredentialsConfig(id, credentials));
                     return jfrogPlatformInstance;
