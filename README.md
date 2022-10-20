@@ -9,7 +9,7 @@
 </div>
 
 ## Table of contents
-- [Overview?](#overview)
+- [Overview](#overview)
 - [Installing and configuring the plugin](#installing-and-configuring-the-plugin)
 - [Configuring JFrog CLI as a tool](#configuring-jfrog-cli-as-a-tool)
 - [Using JFrog CLI in your pipeline jobs](#using-jfrog-cli-in-your-pipeline-jobs)
