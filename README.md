@@ -1,4 +1,12 @@
+[![](images/readme/intro.png)](#readme)
+
+<div align="center">
+
 # Jenkins JFrog Plugin
+
+[![Tests](https://github.com/jfrog/jenkins-jfrog-plugin/actions/workflows/tests.yml/badge.svg)](https://github.com/jfrog/jenkins-jfrog-plugin/actions/workflows/tests.yml) [![Static Analysis](https://github.com/jfrog/jenkins-jfrog-plugin/actions/workflows/analysis.yml/badge.svg)](https://github.com/jfrog/jenkins-jfrog-plugin/actions/workflows/analysis.yml)
+
+</div>
 
 ## Table of contents
 - [Overview?](#overview)
