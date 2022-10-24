@@ -140,12 +140,12 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
     }
 
     private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, String jfrogBinaryPath) {
-        String credentialsId = jfrogPlatformInstance.getId();
-        builder.add(jfrogBinaryPath).add("c").add("add").add(credentialsId);
+        String credentialsId = jfrogPlatformInstance.getCredentialsConfig().getCredentialsId();
+        builder.add(jfrogBinaryPath).add("c").add("add").add(jfrogPlatformInstance.getId());
         // Add credentials
         StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId);
         if (accessTokenCredentials != null) {
-            builder.addMasked("access-token=" + accessTokenCredentials.getSecret().getPlainText());
+            builder.addMasked("--access-token=" + accessTokenCredentials.getSecret().getPlainText());
         } else {
             Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, null);
             builder.add("--user=" + credentials.getUsername());
