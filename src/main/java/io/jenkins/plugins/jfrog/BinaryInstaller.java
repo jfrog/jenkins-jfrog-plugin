@@ -1,30 +1,27 @@
 package io.jenkins.plugins.jfrog;
 
 import hudson.FilePath;
-import hudson.model.DownloadService;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.remoting.VirtualChannel;
 import hudson.tools.ToolInstallation;
 import hudson.tools.ToolInstaller;
 import hudson.tools.ToolInstallerDescriptor;
+import io.jenkins.cli.shaded.org.apache.commons.io.FileUtils;
 import jenkins.MasterToSlaveFileCallable;
-import io.jenkins.plugins.jfrog.artifactoryclient.ArtifactoryClient;
-import io.jenkins.plugins.jfrog.configuration.Credentials;
+
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
-import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
-import net.sf.json.JSONObject;
-import org.apache.commons.io.FileUtils;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.jfrog.build.client.DownloadResponse;
+import org.jfrog.build.extractor.clientConfiguration.client.artifactory.ArtifactoryManager;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -93,31 +90,38 @@ public abstract class BinaryInstaller extends ToolInstaller {
         String version = StringUtils.defaultIfBlank(providedVersion, RELEASE);
         String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, version, OsUtils.getOsDetails(), binaryName);
 
+        JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(log);
         // Downloading binary from Artifactory
-        try (ArtifactoryClient client = new ArtifactoryClient(instance.getArtifactoryUrl(), instance.getCredentialsConfig().getUsername(), instance.getCredentialsConfig().getPassword(), instance.getCredentialsConfig().getAccessToken(), null, log)) {
+        try (ArtifactoryManager client = new ArtifactoryManager(instance.getArtifactoryUrl(), instance.getCredentialsConfig().getUsername(), instance.getCredentialsConfig().getPassword(), instance.getCredentialsConfig().getAccessToken(), buildInfoLog)) {
             if (shouldDownloadTool(client, cliUrlSuffix, toolLocation)) {
-                try (CloseableHttpResponse downloadResponse = client.download(cliUrlSuffix)) {
-                    InputStream input = downloadResponse.getEntity().getContent();
-                    if (downloadResponse.getStatusLine().getStatusCode() != HttpURLConnection.HTTP_OK) {
-                        throw new IOException("Failed downloading JFrog CLI binary: " + downloadResponse.getStatusLine());
-                    }
+                try {
                     if (version.equals(RELEASE)) {
                         log.getLogger().printf("Download '%s' latest version from: %s%n", binaryName, instance.getArtifactoryUrl() + cliUrlSuffix);
                     } else {
                         log.getLogger().printf("Download '%s' version %s from: %s%n", binaryName, version, instance.getArtifactoryUrl() + cliUrlSuffix);
                     }
                     File file = new File(toolLocation, binaryName);
-                    Files.copy(input, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    if (!file.setExecutable(true)) {
+                    // TODO change name/remove file
+                    File downloadResponse = client.downloadToFile(cliUrlSuffix, file.getPath());
+//                    InputStream input = downloadResponse.getContent();
+//                    if (downloadResponse.getStatusLine().getStatusCode() != HttpURLConnection.HTTP_OK) {
+//                        throw new IOException("Failed downloading JFrog CLI binary: " + downloadResponse.getStatusLine());
+//                    }
+
+
+//                    Files.copy(input, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    if (!downloadResponse.setExecutable(true)) {
                         throw new IOException("No permission to add execution permission to binary");
                     }
                     createSha256File(toolLocation, client, cliUrlSuffix);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
             }
         }
     }
 
-    private static void createSha256File(File toolLocation, ArtifactoryClient client, String cliUrlSuffix) throws IOException {
+    private static void createSha256File(File toolLocation, ArtifactoryManager client, String cliUrlSuffix) throws IOException {
         // Getting cli binary's sha256 form Artifactory.
         String artifactorySha256 = getArtifactSha256(client, cliUrlSuffix);
         File file = new File(toolLocation, SHA256_FILE_NAME);
@@ -133,7 +137,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @param cliUrlSuffix - path to the specific JFrog CLI version in Artifactory, will be sent to Artifactory in the HEAD request.
      * @param toolLocation - expected location of the tool on the fileSystem.
      */
-    private static boolean shouldDownloadTool(ArtifactoryClient client, String cliUrlSuffix, File toolLocation) throws IOException {
+    private static boolean shouldDownloadTool(ArtifactoryManager client, String cliUrlSuffix, File toolLocation) throws IOException {
         // Looking for the sha256 file in the tool directory
         Path path = toolLocation.toPath().resolve(SHA256_FILE_NAME);
         if (!Files.exists(path)) {
@@ -153,14 +157,17 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @return binary's sha256
      * @throws IOException in case of any I/O error.
      */
-    private static String getArtifactSha256(ArtifactoryClient client, String cliUrlSuffix) throws IOException {
-        try (CloseableHttpResponse response = client.head(cliUrlSuffix)) {
-            Header[] sha256Headers = response.getHeaders("X-Checksum-Sha256");
-            if (sha256Headers.length == 0) {
-                return StringUtils.EMPTY;
+    private static String getArtifactSha256(ArtifactoryManager client, String cliUrlSuffix) throws IOException {
+            Header[] headers = client.downloadHeaders(cliUrlSuffix);
+            //Header[] sha256Headers = headers.getHeaders("X-Checksum-Sha256");
+            for (Header header : headers){
+                return "";
             }
-            return sha256Headers[0].getValue();
-        }
+//            if (sha256Headers.length == 0) {
+//                return StringUtils.EMPTY;
+//            }
+//            return sha256Headers[0].getValue();
+            return "";
     }
 
     public static FilePath performJfrogCliInstallation(FilePath toolLocation, TaskListener log, String version, JFrogPlatformInstance instance, String repository, String binaryName) throws IOException, InterruptedException {
