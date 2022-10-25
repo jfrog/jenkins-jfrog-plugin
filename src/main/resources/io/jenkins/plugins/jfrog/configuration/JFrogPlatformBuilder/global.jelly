@@ -23,7 +23,7 @@
                             <input type="hidden" name="stapler-class"
                                    value="io.jenkins.plugins.jfrog.configuration.CredentialsConfig"/>
                             <div style="width:100%"
-                                            id="credentialsConfig${instance.credentialsConfig}">
+                                 id="credentialsConfig${instance.credentialsConfig}">
                                 <f:entry title="${%Credentials}" field="credentialsId">
                                     <c:select default="${instance.credentialsConfig.credentialsId}"/>
                                 </f:entry>

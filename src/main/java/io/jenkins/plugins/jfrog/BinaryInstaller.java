@@ -8,10 +8,8 @@ import hudson.tools.ToolInstallation;
 import hudson.tools.ToolInstaller;
 import hudson.tools.ToolInstallerDescriptor;
 import io.jenkins.cli.shaded.org.apache.commons.io.FileUtils;
-import jenkins.MasterToSlaveFileCallable;
-
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
-
+import jenkins.MasterToSlaveFileCallable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.jfrog.build.extractor.clientConfiguration.client.artifactory.ArtifactoryManager;
@@ -79,7 +77,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @param providedVersion version provided by the user. empty string indicates the latest version.
      * @param instance        JFrogPlatformInstance contains url and credentials needed for the downloading operation.
      * @param repository      identifies the repository in Artifactory where the CLIs binary is stored.
-     * @throws IOException    in case of any I/O error.
+     * @throws IOException in case of any I/O error.
      */
     private static void downloadJfrogCli(File toolLocation, TaskListener log, String providedVersion, JFrogPlatformInstance instance, String repository, String binaryName) throws IOException {
         // An empty string indicates the latest version.
@@ -124,7 +122,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
      */
     private static boolean shouldDownloadTool(File toolLocation, String artifactorySha256) throws IOException {
         // In case no sha256 was provided (for example when the customer blocks headers) download the tool.
-        if (artifactorySha256.isEmpty()){
+        if (artifactorySha256.isEmpty()) {
             return true;
         }
         // Looking for the sha256 file in the tool directory.
@@ -145,13 +143,13 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @throws IOException in case of any I/O error.
      */
     private static String getArtifactSha256(ArtifactoryManager client, String cliUrlSuffix) throws IOException {
-            Header[] headers = client.downloadHeaders(cliUrlSuffix);
-            for (Header header : headers){
-                if (header.getName().equals(SHA256_HEADER_NAME)){
-                    return header.getValue();
-                }
+        Header[] headers = client.downloadHeaders(cliUrlSuffix);
+        for (Header header : headers) {
+            if (header.getName().equals(SHA256_HEADER_NAME)) {
+                return header.getValue();
             }
-            return StringUtils.EMPTY;
+        }
+        return StringUtils.EMPTY;
     }
 
     public static FilePath performJfrogCliInstallation(FilePath toolLocation, TaskListener log, String version, JFrogPlatformInstance instance, String repository, String binaryName) throws IOException, InterruptedException {
