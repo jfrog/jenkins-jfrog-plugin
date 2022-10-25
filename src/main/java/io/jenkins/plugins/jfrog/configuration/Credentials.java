@@ -11,9 +11,9 @@ import java.io.Serializable;
  */
 public class Credentials implements Serializable {
     public static final Credentials EMPTY_CREDENTIALS = new Credentials(StringUtils.EMPTY, StringUtils.EMPTY, StringUtils.EMPTY);
-    private final Secret username;
-    private final Secret password;
-    private final Secret accessToken;
+    private Secret username;
+    private Secret password;
+    private Secret accessToken;
 
     /**
      * Main constructor
@@ -38,5 +38,20 @@ public class Credentials implements Serializable {
 
     public String getAccessToken() {
         return Secret.toString(accessToken);
+    }
+
+    @SuppressWarnings("unused")
+    public void setAccessToken(Secret accessToken) {
+        this.accessToken = accessToken;
+    }
+
+    @SuppressWarnings("unused")
+    public void setUsername(Secret username) {
+        this.username = username;
+    }
+
+    @SuppressWarnings("unused")
+    public void setPassword(Secret password) {
+        this.password = password;
     }
 }

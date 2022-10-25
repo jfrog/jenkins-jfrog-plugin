@@ -1,9 +1,7 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core"
          xmlns:f="/lib/form"
-         xmlns:st="jelly:stapler"
          xmlns:c="/lib/credentials">
-    <st:adjunct includes="lib.jfrog.repos.credentials"/>
     <f:section title="JFrog Plugin Configuration">
         <f:entry title="JFrog Platform Instances"
                  description="List of JFrog Platform instances to be used by jobs">
