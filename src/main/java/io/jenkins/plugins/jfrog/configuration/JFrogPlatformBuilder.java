@@ -38,6 +38,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
     public static final class DescriptorImpl extends Descriptor<GlobalConfiguration> {
         private List<JFrogPlatformInstance> jfrogInstances;
 
+        @SuppressWarnings("unused")
         public DescriptorImpl() {
             super(JFrogPlatformBuilder.class);
             load();

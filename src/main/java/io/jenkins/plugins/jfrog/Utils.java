@@ -14,18 +14,7 @@ import java.util.Objects;
  * @author gail
  */
 public class Utils {
-    static final String JFROG_CLI_HOME_DIR = "JFROG_CLI_HOME_DIR";
     private static final String BINARY_NAME = "jf";
-    /**
-     * The tool's directory name indicates its version.
-     * To indicate the latest version, we will use constant name if no version was provided.
-     */
-    private static final String LATEST = "latest";
-
-    /**
-     * decoded "[RELEASE]" for thee download url
-     */
-    public static final String RELEASE = "[RELEASE]";
 
     public static FilePath getWorkspace(Job<?, ?> project) {
         FilePath projectJob = new FilePath(project.getRootDir());

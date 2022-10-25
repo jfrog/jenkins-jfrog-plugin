@@ -46,6 +46,7 @@ public class ReleasesInstaller extends BinaryInstaller {
     }
 
     @Extension
+    @SuppressWarnings("unused")
     public static final class DescriptorImpl extends BinaryInstaller.DescriptorImpl<ReleasesInstaller> {
         @Nonnull
         public String getDisplayName() {

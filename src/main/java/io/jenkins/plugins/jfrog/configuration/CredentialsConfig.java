@@ -39,6 +39,7 @@ public class CredentialsConfig implements Serializable {
         return this.credentials.getAccessToken();
     }
 
+    @SuppressWarnings("unused")
     public String getCredentialsId() {
         return credentialsId;
     }
