@@ -11,10 +11,11 @@ import io.jenkins.cli.shaded.org.apache.commons.io.FileUtils;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
-import org.jfrog.build.extractor.clientConfiguration.client.artifactory.ArtifactoryManager;
+import jenkins.MasterToSlaveFileCallable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
-import jenkins.MasterToSlaveFileCallable;
+import org.jfrog.build.extractor.clientConfiguration.client.artifactory.ArtifactoryManager;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -125,7 +126,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * A file named 'sha256' contains the specific binary sha256.
      * If the file sha256 has not changed, we will skip the download, otherwise we will download and overwrite the existing files.
      *
-     * @param toolLocation - expected location of the tool on the fileSystem.
+     * @param toolLocation      - expected location of the tool on the fileSystem.
      * @param artifactorySha256 - sha256 of the expected file in artifactory.
      */
     private static boolean shouldDownloadTool(File toolLocation, String artifactorySha256) throws IOException {
@@ -145,7 +146,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
     /**
      * Send REST request to Artifactory to get binary's sha256.
      *
-     * @param manager       - internal Artifactory Java manager.
+     * @param manager      - internal Artifactory Java manager.
      * @param cliUrlSuffix - path to the specific JFrog CLI version in Artifactory, will be sent to Artifactory in the request.
      * @return binary's sha256
      * @throws IOException in case of any I/O error.
