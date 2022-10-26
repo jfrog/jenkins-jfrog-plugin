@@ -7,7 +7,6 @@ import hudson.remoting.VirtualChannel;
 import hudson.tools.ToolInstallation;
 import hudson.tools.ToolInstaller;
 import hudson.tools.ToolInstallerDescriptor;
-import io.jenkins.cli.shaded.org.apache.commons.io.FileUtils;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
@@ -74,11 +73,12 @@ public abstract class BinaryInstaller extends ToolInstaller {
     /**
      * Download and locate the JFrog CLI binary in the specific build home directory.
      *
-     * @param toolLocation    location of the tool directory on the fileSystem.
-     * @param log             job task listener.
-     * @param providedVersion version provided by the user. empty string indicates the latest version.
-     * @param instance        JFrogPlatformInstance contains url and credentials needed for the downloading operation.
-     * @param repository      identifies the repository in Artifactory where the CLIs binary is stored.
+     * @param toolLocation    - location of the tool directory on the fileSystem.
+     * @param log             - job task listener.
+     * @param providedVersion - version provided by the user. empty string indicates the latest version.
+     * @param instance        - JFrogPlatformInstance contains url and credentials needed for the downloading operation.
+     * @param repository      - identifies the repository in Artifactory where the CLIs binary is stored.
+     * @param binaryName      - 'jf' or 'jf.exe'
      * @throws IOException in case of any I/O error.
      */
     private static void downloadJfrogCli(File toolLocation, TaskListener log, String providedVersion, JFrogPlatformInstance instance, String repository, String binaryName) throws IOException {
@@ -98,27 +98,23 @@ public abstract class BinaryInstaller extends ToolInstaller {
             // Getting updated cli binary's sha256 form Artifactory.
             String artifactorySha256 = getArtifactSha256(manager, cliUrlSuffix);
             if (shouldDownloadTool(toolLocation, artifactorySha256)) {
-                try {
-                    if (version.equals(RELEASE)) {
-                        log.getLogger().printf("Download '%s' latest version from: %s%n", binaryName, instance.getArtifactoryUrl() + cliUrlSuffix);
-                    } else {
-                        log.getLogger().printf("Download '%s' version %s from: %s%n", binaryName, version, instance.getArtifactoryUrl() + cliUrlSuffix);
-                    }
-                    File downloadResponse = manager.downloadToFile(cliUrlSuffix, new File(toolLocation, binaryName).getPath());
-                    if (!downloadResponse.setExecutable(true)) {
-                        throw new IOException("No permission to add execution permission to binary");
-                    }
-                    createSha256File(toolLocation, artifactorySha256);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                if (version.equals(RELEASE)) {
+                    log.getLogger().printf("Download '%s' latest version from: %s%n", binaryName, instance.getArtifactoryUrl() + cliUrlSuffix);
+                } else {
+                    log.getLogger().printf("Download '%s' version %s from: %s%n", binaryName, version, instance.getArtifactoryUrl() + cliUrlSuffix);
                 }
+                File downloadResponse = manager.downloadToFile(cliUrlSuffix, new File(toolLocation, binaryName).getPath());
+                if (!downloadResponse.setExecutable(true)) {
+                    throw new IOException("No permission to add execution permission to binary");
+                }
+                createSha256File(toolLocation, artifactorySha256);
             }
         }
     }
 
     private static void createSha256File(File toolLocation, String artifactorySha256) throws IOException {
         File file = new File(toolLocation, SHA256_FILE_NAME);
-        FileUtils.writeStringToFile(file, artifactorySha256, StandardCharsets.UTF_8);
+        Files.write(file.toPath(), artifactorySha256.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -139,7 +135,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
         if (!Files.exists(path)) {
             return true;
         }
-        String fileContent = FileUtils.readFileToString(path.toFile(), StandardCharsets.UTF_8);
+        String fileContent = Files.readString(path);
         return !StringUtils.equals(fileContent, artifactorySha256);
     }
 
