@@ -8,8 +8,6 @@ import java.util.logging.Logger;
 
 /**
  * Wrapper for Jenkins build logger, records log messages from BuildInfo
- *
- * @author Shay Yaakov
  */
 public class JenkinsBuildInfoLog implements Log {
     private static final Logger logger = Logger.getLogger(JenkinsBuildInfoLog.class.getName());

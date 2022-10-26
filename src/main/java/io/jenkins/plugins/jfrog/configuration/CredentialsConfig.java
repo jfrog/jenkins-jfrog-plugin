@@ -28,14 +28,17 @@ public class CredentialsConfig implements Serializable {
         this.credentials = credentials;
     }
 
+    @SuppressWarnings("unused")
     public Secret getUsername() {
         return this.credentials.getUsername();
     }
 
+    @SuppressWarnings("unused")
     public Secret getPassword() {
         return this.credentials.getPassword();
     }
 
+    @SuppressWarnings("unused")
     public Secret getAccessToken() {
         return this.credentials.getAccessToken();
     }

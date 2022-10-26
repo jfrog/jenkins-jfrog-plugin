@@ -93,9 +93,9 @@ public abstract class BinaryInstaller extends ToolInstaller {
         JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(log);
 
         // Downloading binary from Artifactory
-        try (ArtifactoryManager client = new ArtifactoryManager(instance.getArtifactoryUrl(), credentials.getPlainTextUsername(), credentials.getPlainTextPassword(), credentials.getPlainTextAccessToken(), buildInfoLog)) {
+        try (ArtifactoryManager manager = new ArtifactoryManager(instance.getArtifactoryUrl(), credentials.getPlainTextUsername(), credentials.getPlainTextPassword(), credentials.getPlainTextAccessToken(), buildInfoLog)) {
             // Getting updated cli binary's sha256 form Artifactory.
-            String artifactorySha256 = getArtifactSha256(client, cliUrlSuffix);
+            String artifactorySha256 = getArtifactSha256(manager, cliUrlSuffix);
             if (shouldDownloadTool(toolLocation, artifactorySha256)) {
                 try {
                     if (version.equals(RELEASE)) {
@@ -103,7 +103,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
                     } else {
                         log.getLogger().printf("Download '%s' version %s from: %s%n", binaryName, version, instance.getArtifactoryUrl() + cliUrlSuffix);
                     }
-                    File downloadResponse = client.downloadToFile(cliUrlSuffix, new File(toolLocation, binaryName).getPath());
+                    File downloadResponse = manager.downloadToFile(cliUrlSuffix, new File(toolLocation, binaryName).getPath());
                     if (!downloadResponse.setExecutable(true)) {
                         throw new IOException("No permission to add execution permission to binary");
                     }
@@ -126,6 +126,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * If the file sha256 has not changed, we will skip the download, otherwise we will download and overwrite the existing files.
      *
      * @param toolLocation - expected location of the tool on the fileSystem.
+     * @param artifactorySha256 - sha256 of the expected file in artifactory.
      */
     private static boolean shouldDownloadTool(File toolLocation, String artifactorySha256) throws IOException {
         // In case no sha256 was provided (for example when the customer blocks headers) download the tool.
@@ -144,13 +145,13 @@ public abstract class BinaryInstaller extends ToolInstaller {
     /**
      * Send REST request to Artifactory to get binary's sha256.
      *
-     * @param client       - internal Artifactory Java client.
+     * @param manager       - internal Artifactory Java manager.
      * @param cliUrlSuffix - path to the specific JFrog CLI version in Artifactory, will be sent to Artifactory in the request.
      * @return binary's sha256
      * @throws IOException in case of any I/O error.
      */
-    private static String getArtifactSha256(ArtifactoryManager client, String cliUrlSuffix) throws IOException {
-        Header[] headers = client.downloadHeaders(cliUrlSuffix);
+    private static String getArtifactSha256(ArtifactoryManager manager, String cliUrlSuffix) throws IOException {
+        Header[] headers = manager.downloadHeaders(cliUrlSuffix);
         for (Header header : headers) {
             if (header.getName().equals(SHA256_HEADER_NAME)) {
                 return header.getValue();
