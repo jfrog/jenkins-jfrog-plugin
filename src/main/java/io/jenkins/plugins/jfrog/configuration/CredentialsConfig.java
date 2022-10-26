@@ -1,5 +1,6 @@
 package io.jenkins.plugins.jfrog.configuration;
 
+import hudson.util.Secret;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.Serializable;
@@ -17,7 +18,7 @@ public class CredentialsConfig implements Serializable {
      */
     @SuppressWarnings("unused")
     @DataBoundConstructor
-    public CredentialsConfig(String username, String password, String accessToken, String credentialsId) {
+    public CredentialsConfig(Secret username, Secret password, Secret accessToken, String credentialsId) {
         this.credentials = new Credentials(username, password, accessToken);
         this.credentialsId = credentialsId;
     }
@@ -27,15 +28,15 @@ public class CredentialsConfig implements Serializable {
         this.credentials = credentials;
     }
 
-    public String getUsername() {
+    public Secret getUsername() {
         return this.credentials.getUsername();
     }
 
-    public String getPassword() {
+    public Secret getPassword() {
         return this.credentials.getPassword();
     }
 
-    public String getAccessToken() {
+    public Secret getAccessToken() {
         return this.credentials.getAccessToken();
     }
 

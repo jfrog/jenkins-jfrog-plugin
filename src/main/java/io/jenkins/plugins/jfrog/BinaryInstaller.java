@@ -9,11 +9,13 @@ import hudson.tools.ToolInstaller;
 import hudson.tools.ToolInstallerDescriptor;
 import io.jenkins.cli.shaded.org.apache.commons.io.FileUtils;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
-import jenkins.MasterToSlaveFileCallable;
+import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
+import net.sf.json.JSONObject;
+import org.jfrog.build.extractor.clientConfiguration.client.artifactory.ArtifactoryManager;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.jfrog.build.extractor.clientConfiguration.client.artifactory.ArtifactoryManager;
-
+import jenkins.MasterToSlaveFileCallable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -84,9 +86,15 @@ public abstract class BinaryInstaller extends ToolInstaller {
         String version = StringUtils.defaultIfBlank(providedVersion, RELEASE);
         String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, version, OsUtils.getOsDetails(), binaryName);
 
+        // Getting credentials
+        Credentials credentials = new Credentials();
+        if (instance.getCredentialsConfig() != null) {
+            credentials = PluginsUtils.credentialsLookup(instance.getCredentialsConfig().getCredentialsId(), null);
+        }
         JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(log);
+
         // Downloading binary from Artifactory
-        try (ArtifactoryManager client = new ArtifactoryManager(instance.getArtifactoryUrl(), instance.getCredentialsConfig().getUsername(), instance.getCredentialsConfig().getPassword(), instance.getCredentialsConfig().getAccessToken(), buildInfoLog)) {
+        try (ArtifactoryManager client = new ArtifactoryManager(instance.getArtifactoryUrl(), credentials.getPlainTextUsername(), credentials.getPlainTextPassword(), credentials.getPlainTextAccessToken(), null, buildInfoLog)) {
             // Getting updated cli binary's sha256 form Artifactory.
             String artifactorySha256 = getArtifactSha256(client, cliUrlSuffix);
             if (shouldDownloadTool(toolLocation, artifactorySha256)) {
