@@ -135,7 +135,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
         if (!Files.exists(path)) {
             return true;
         }
-        String fileContent = Files.readString(path);
+        String fileContent = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
         return !StringUtils.equals(fileContent, artifactorySha256);
     }
 

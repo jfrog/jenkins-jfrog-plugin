@@ -10,8 +10,6 @@
 
     <properties>
         <jenkins.version>2.346.3</jenkins.version>
-        <maven.compiler.source>1.11</maven.compiler.source>
-        <maven.compiler.target>1.11</maven.compiler.target>
         <buildinfo.version>2.37.2</buildinfo.version>
     </properties>
     <groupId>io.jenkins.plugins</groupId>
