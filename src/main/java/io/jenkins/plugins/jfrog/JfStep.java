@@ -98,16 +98,17 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
 
     /**
      * Configure all JFrog relevant environment variables and all servers (if they haven't been configured yet).
-     * @param run       running as a part of a specific build
-     * @param env       environment variables applicable to this step
-     * @param launcher  a way to start processes
-     * @param listener  a place to send output
-     * @param workspace a workspace to use for any file operations
+     *
+     * @param run             running as a part of a specific build
+     * @param env             environment variables applicable to this step
+     * @param launcher        a way to start processes
+     * @param listener        a place to send output
+     * @param workspace       a workspace to use for any file operations
      * @param jfrogBinaryPath path to jfrog cli binary on the filesystem
-     * @param isWindows is Windows the applicable OS
+     * @param isWindows       is Windows the applicable OS
+     * @return launcher applicable to this step.
      * @throws InterruptedException if the step is interrupted
      * @throws IOException          in case of any I/O error, or we failed to run the 'jf' command
-     * @return launcher applicable to this step.
      */
     public Launcher.ProcStarter setupJFrogEnvironment(Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener, FilePath workspace, String jfrogBinaryPath, boolean isWindows) throws IOException, InterruptedException {
         // Set relevant environment variables.
