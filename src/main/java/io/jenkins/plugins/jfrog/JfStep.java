@@ -38,6 +38,9 @@ import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 public class JfStep<T> extends Builder implements SimpleBuildStep {
     static final String STEP_NAME = "jf";
     static final String JFROG_CLI_HOME_DIR = "JFROG_CLI_HOME_DIR";
+    public static final String JFROG_CLI_BUILD_NAME = "JFROG_CLI_BUILD_NAME";
+    public static final String JFROG_CLI_BUILD_NUMBER = "JFROG_CLI_BUILD_NUMBER";
+    public static final String JFROG_CLI_BUILD_URL = "JFROG_CLI_BUILD_URL";
     protected String args;
 
     @DataBoundConstructor
@@ -81,14 +84,7 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
         }
 
         try {
-            // Set up a temporary Jfrog CLI home directory for a specific run.
-            FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
-            env.put(JFROG_CLI_HOME_DIR, jfrogHomeTempDir.getRemote());
-            Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
-            // Configure all servers, skip if all server ids have already been configured.
-            if (shouldConfig(jfrogHomeTempDir)) {
-                configAllServers(jfLauncher, jfrogBinaryPath, isWindows, run.getParent());
-            }
+            Launcher.ProcStarter jfLauncher = setupJFrogEnvironment(run, env, launcher, listener, workspace, jfrogBinaryPath, isWindows);
             // Running the 'jf' command
             int exitValue = jfLauncher.cmds(builder).join();
             if (exitValue != 0) {
@@ -98,6 +94,45 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
             String errorMessage = "Couldn't execute 'jf' command. " + ExceptionUtils.getRootCauseMessage(e);
             throw new RuntimeException(errorMessage, e);
         }
+    }
+
+    /**
+     * Configure all JFrog relevant environment variables and all servers (if they haven't been configured yet).
+     * @param run       running as a part of a specific build
+     * @param env       environment variables applicable to this step
+     * @param launcher  a way to start processes
+     * @param listener  a place to send output
+     * @param workspace a workspace to use for any file operations
+     * @param jfrogBinaryPath path to jfrog cli binary on the filesystem
+     * @param isWindows is Windows the applicable OS
+     * @throws InterruptedException if the step is interrupted
+     * @throws IOException          in case of any I/O error, or we failed to run the 'jf' command
+     * @return launcher applicable to this step.
+     */
+    public Launcher.ProcStarter setupJFrogEnvironment(Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener, FilePath workspace, String jfrogBinaryPath, boolean isWindows) throws IOException, InterruptedException {
+        // Set relevant environment variables.
+        if (env.get(JFROG_CLI_BUILD_NAME) == null) {
+            // Setting Jenkins job name as the default build-info name.
+            env.put(JFROG_CLI_BUILD_NAME, env.get("JOB_NAME"));
+        }
+        if (env.get(JFROG_CLI_BUILD_NUMBER) == null) {
+            // Setting Jenkins build number as the default build-info number.
+            env.put(JFROG_CLI_BUILD_NUMBER, env.get("BUILD_NUMBER"));
+        }
+        if (env.get(JFROG_CLI_BUILD_URL) == null) {
+            // Setting the specific build URL.
+            env.put(JFROG_CLI_BUILD_URL, env.get("BUILD_URL"));
+        }
+        // Set up a temporary Jfrog CLI home directory for a specific run.
+        FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
+        env.put(JFROG_CLI_HOME_DIR, jfrogHomeTempDir.getRemote());
+
+        Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
+        // Configure all servers, skip if all server ids have already been configured.
+        if (shouldConfig(jfrogHomeTempDir)) {
+            configAllServers(jfLauncher, jfrogBinaryPath, isWindows, run.getParent());
+        }
+        return jfLauncher;
     }
 
     /**

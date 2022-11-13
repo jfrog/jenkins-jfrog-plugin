@@ -18,6 +18,7 @@ import org.kohsuke.stapler.StaplerRequest;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +29,8 @@ public class JfrogInstallation extends ToolInstallation
         implements NodeSpecific<JfrogInstallation>, EnvironmentSpecific<JfrogInstallation> {
 
     public static final String JFROG_BINARY_PATH = "JFROG_BINARY_PATH";
+    public static final String JFROG_CLI_DEPENDENCIES_DIR = "JFROG_CLI_DEPENDENCIES_DIR";
+    public static final String JfrogDependenciesDirName = "dependencies";
 
     @DataBoundConstructor
     public JfrogInstallation(String name, String home, List<? extends ToolProperty<?>> properties) {
@@ -49,6 +52,11 @@ public class JfrogInstallation extends ToolInstallation
             return;
         }
         env.put(JFROG_BINARY_PATH, home);
+        if (env.get(JFROG_CLI_DEPENDENCIES_DIR) == null) {
+            // Jfrog CLI dependencies directory is a sibling of all the other tools directories.
+            // By doing this, we avoid downloading dependencies separately for each job in its temporary Jfrog home directory.
+            env.put(JFROG_CLI_DEPENDENCIES_DIR, Paths.get(home).getParent().resolve(JfrogDependenciesDirName).toString());
+        }
     }
 
     @Symbol("jfrog")
