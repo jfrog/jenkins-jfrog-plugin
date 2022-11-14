@@ -18,6 +18,7 @@ import org.kohsuke.stapler.StaplerRequest;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,7 +56,10 @@ public class JfrogInstallation extends ToolInstallation
         if (env.get(JFROG_CLI_DEPENDENCIES_DIR) == null) {
             // Jfrog CLI dependencies directory is a sibling of all the other tools directories.
             // By doing this, we avoid downloading dependencies separately for each job in its temporary Jfrog home directory.
-            env.put(JFROG_CLI_DEPENDENCIES_DIR, Paths.get(home).getParent().resolve(JfrogDependenciesDirName).toString());
+            Path path = Paths.get(home).getParent();
+            if (path != null) {
+                env.put(JFROG_CLI_DEPENDENCIES_DIR, path.resolve(JfrogDependenciesDirName).toString());
+            }
         }
     }
 
