@@ -29,12 +29,6 @@ public class Credentials implements Serializable {
         this.accessToken = accessToken;
     }
 
-    public Credentials() {
-        this.username = EMPTY_SECRET;
-        this.password = EMPTY_SECRET;
-        this.accessToken = EMPTY_SECRET;
-    }
-
     public Secret getUsername() {
         return username;
     }
