@@ -7,9 +7,8 @@ import hudson.remoting.VirtualChannel;
 import hudson.tools.ToolInstallation;
 import hudson.tools.ToolInstaller;
 import hudson.tools.ToolInstallerDescriptor;
-import io.jenkins.plugins.jfrog.configuration.Credentials;
+import hudson.util.Secret;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
-import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
 import jenkins.MasterToSlaveFileCallable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
@@ -86,15 +85,11 @@ public abstract class BinaryInstaller extends ToolInstaller {
         String version = StringUtils.defaultIfBlank(providedVersion, RELEASE);
         String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, version, OsUtils.getOsDetails(), binaryName);
 
-        // Getting credentials
-        Credentials credentials = new Credentials();
-        if (instance.getCredentialsConfig() != null) {
-            credentials = PluginsUtils.credentialsLookup(instance.getCredentialsConfig().getCredentialsId(), null);
-        }
         JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(log);
 
         // Downloading binary from Artifactory
-        try (ArtifactoryManager manager = new ArtifactoryManager(instance.getArtifactoryUrl(), credentials.getPlainTextUsername(), credentials.getPlainTextPassword(), credentials.getPlainTextAccessToken(), buildInfoLog)) {
+        try (ArtifactoryManager manager = new ArtifactoryManager(instance.getArtifactoryUrl(), Secret.toString(instance.getCredentialsConfig().getUsername()),
+                Secret.toString(instance.getCredentialsConfig().getPassword()), Secret.toString(instance.getCredentialsConfig().getAccessToken()), buildInfoLog)) {
             // Getting updated cli binary's sha256 form Artifactory.
             String artifactorySha256 = getArtifactSha256(manager, cliUrlSuffix);
             if (shouldDownloadTool(toolLocation, artifactorySha256)) {
