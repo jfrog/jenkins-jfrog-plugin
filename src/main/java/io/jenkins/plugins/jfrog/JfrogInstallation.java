@@ -31,6 +31,7 @@ public class JfrogInstallation extends ToolInstallation
 
     public static final String JFROG_BINARY_PATH = "JFROG_BINARY_PATH";
     public static final String JFROG_CLI_DEPENDENCIES_DIR = "JFROG_CLI_DEPENDENCIES_DIR";
+    public static final String JFROG_CLI_USER_AGENT = "JFROG_CLI_USER_AGENT";
     public static final String JfrogDependenciesDirName = "dependencies";
 
     @DataBoundConstructor
@@ -60,6 +61,9 @@ public class JfrogInstallation extends ToolInstallation
             if (path != null) {
                 env.put(JFROG_CLI_DEPENDENCIES_DIR, path.resolve(JfrogDependenciesDirName).toString());
             }
+        }
+        if (env.get(JFROG_CLI_USER_AGENT) == null) {
+            env.put(JFROG_CLI_USER_AGENT, "jenkins-jfrog-plugin");
         }
     }
 
