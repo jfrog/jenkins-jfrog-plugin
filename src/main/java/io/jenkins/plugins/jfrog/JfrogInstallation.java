@@ -3,6 +3,8 @@ package io.jenkins.plugins.jfrog;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.EnvVars;
 import hudson.Extension;
+import hudson.Plugin;
+import hudson.PluginWrapper;
 import hudson.model.EnvironmentSpecific;
 import hudson.model.Node;
 import hudson.model.TaskListener;
@@ -63,13 +65,25 @@ public class JfrogInstallation extends ToolInstallation
                 env.put(JFROG_CLI_DEPENDENCIES_DIR, path.resolve(JfrogDependenciesDirName).toString());
             }
         }
-        String version = "";
-        try {
-            version = Jenkins.getInstanceOrNull().getPlugin("jfrog").getWrapper().getVersion();
-            version = "/" + version.split(" ")[0];
-        } catch (NullPointerException | ArrayIndexOutOfBoundsException exception) {
+        env.putIfAbsent(JFROG_CLI_USER_AGENT, "jenkins-jfrog-plugin" + getPluginVersion());
+    }
+
+    private String getPluginVersion() {
+        Jenkins jenkins =  Jenkins.getInstanceOrNull();
+        if (jenkins == null) {
+            return "";
         }
-        env.putIfAbsent(JFROG_CLI_USER_AGENT, "jenkins-jfrog-plugin" + version);
+        Plugin plugin = jenkins.getPlugin("jfrog");
+        if (plugin == null) {
+            return "";
+        }
+        PluginWrapper wrapper = plugin.getWrapper();
+        if (wrapper == null) {
+            return "";
+        }
+        String version = wrapper.getVersion();
+        // Return only the version prefix, without the agent information.
+        return "/" + version.split(" ")[0];
     }
 
     @Symbol("jfrog")
