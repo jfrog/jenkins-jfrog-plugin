@@ -71,10 +71,6 @@ jf 'rt u target/ my-repo/'
 ```groovy
 pipeline {
     agent any
-    environment {
-        JFROG_CLI_BUILD_NAME = "$JOB_NAME"
-        JFROG_CLI_BUILD_NUMBER = "$BUILD_NUMBER"
-    }
     tools {
         jfrog 'jfrog-cli'
     }
