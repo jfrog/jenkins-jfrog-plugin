@@ -99,7 +99,7 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
     /**
      * Configure all JFrog relevant environment variables and all servers (if they haven't been configured yet).
      *
-     * @param run             running as a part of a specific build
+     * @param run             running as part of a specific build
      * @param env             environment variables applicable to this step
      * @param launcher        a way to start processes
      * @param listener        a place to send output
