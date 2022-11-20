@@ -67,6 +67,18 @@ jf 'rt u target/ my-repo/'
 ```
 > **_IMPORTANT:_** Notice the single quotes wrapping the command right after the **jf** step definition.  
 
+**Setting the build name and build number**
+
+The Plugin automatically sets the following environment variables: JFROG_CLI_BUILD_NAME and JFROG_CLI_BUILD_NUMBER with the Jenkins's job name and build number respectively. 
+You therefore don't need to specify the build name and build number on any of the build related JFrog CLI commands.
+If you wish to change the default values, add the following code to your pipeline script: 
+```groovy
+environment {
+    JFROG_CLI_BUILD_NAME = "name"
+    JFROG_CLI_BUILD_NUMBER = "number"
+}
+```
+
 **Example**
 ```groovy
 pipeline {
