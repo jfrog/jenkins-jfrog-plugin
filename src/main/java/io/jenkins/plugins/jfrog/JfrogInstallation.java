@@ -65,8 +65,9 @@ public class JfrogInstallation extends ToolInstallation
         }
         String version = "";
         try {
-            version = "/" + Jenkins.getInstanceOrNull().getPlugin("jfrog").getWrapper().getVersion();
-        } catch (NullPointerException exception) {
+            version = Jenkins.getInstanceOrNull().getPlugin("jfrog").getWrapper().getVersion();
+            version = "/" + version.split(" ")[0];
+        } catch (NullPointerException | ArrayIndexOutOfBoundsException exception) {
         }
         env.putIfAbsent(JFROG_CLI_USER_AGENT, "jenkins-jfrog-plugin" + version);
     }
