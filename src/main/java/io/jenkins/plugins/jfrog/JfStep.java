@@ -112,18 +112,12 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
      */
     public Launcher.ProcStarter setupJFrogEnvironment(Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener, FilePath workspace, String jfrogBinaryPath, boolean isWindows) throws IOException, InterruptedException {
         // Set relevant environment variables.
-        if (env.get(JFROG_CLI_BUILD_NAME) == null) {
-            // Setting Jenkins job name as the default build-info name.
-            env.put(JFROG_CLI_BUILD_NAME, env.get("JOB_NAME"));
-        }
-        if (env.get(JFROG_CLI_BUILD_NUMBER) == null) {
-            // Setting Jenkins build number as the default build-info number.
-            env.put(JFROG_CLI_BUILD_NUMBER, env.get("BUILD_NUMBER"));
-        }
-        if (env.get(JFROG_CLI_BUILD_URL) == null) {
-            // Setting the specific build URL.
-            env.put(JFROG_CLI_BUILD_URL, env.get("BUILD_URL"));
-        }
+        // Setting Jenkins job name as the default build-info name.
+        env.putIfAbsent(JFROG_CLI_BUILD_NAME, env.get("JOB_NAME"));
+        // Setting Jenkins build number as the default build-info number.
+        env.putIfAbsent(JFROG_CLI_BUILD_NUMBER, env.get("BUILD_NUMBER"));
+        // Setting the specific build URL.
+        env.putIfAbsent(JFROG_CLI_BUILD_URL, env.get("BUILD_URL"));
         // Set up a temporary Jfrog CLI home directory for a specific run.
         FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
         env.put(JFROG_CLI_HOME_DIR, jfrogHomeTempDir.getRemote());

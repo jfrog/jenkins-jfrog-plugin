@@ -11,6 +11,7 @@ import hudson.tools.ToolDescriptor;
 import hudson.tools.ToolInstallation;
 import hudson.tools.ToolInstaller;
 import hudson.tools.ToolProperty;
+import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -62,9 +63,12 @@ public class JfrogInstallation extends ToolInstallation
                 env.put(JFROG_CLI_DEPENDENCIES_DIR, path.resolve(JfrogDependenciesDirName).toString());
             }
         }
-        if (env.get(JFROG_CLI_USER_AGENT) == null) {
-            env.put(JFROG_CLI_USER_AGENT, "jenkins-jfrog-plugin");
+        String version = "";
+        try {
+            version = "/" + Jenkins.getInstanceOrNull().getPlugin("jfrog").getWrapper().getVersion();
+        } catch (NullPointerException exception) {
         }
+        env.putIfAbsent(JFROG_CLI_USER_AGENT, "jenkins-jfrog-plugin" + version);
     }
 
     @Symbol("jfrog")
