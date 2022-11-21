@@ -11,30 +11,33 @@ import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 // TODO un-comment tests
 class JfrogInstallationTest extends PipelineTestBase {
     // Jfrog CLI version which is accessible for all operating systems
-    public static final String jfrogCliTestVersion = "2.6.1";
+    public static final String jfrogCliTestVersion = "2.29.2";
 
     /**
      * Adds Jfrog cli tool as a global tool and verify installation.
-     * //     * @param jenkins Jenkins instance Injected automatically.
+     * @param jenkins Jenkins instance Injected automatically.
      */
-//    @Test
-//    public void testJfrogCliInstallation(JenkinsRule jenkins) throws Exception{
-//        initPipelineTest(jenkins);
-//        configureJfrogCli();
-//        WorkflowRun job = runPipeline(jenkins, "");
-//        assertTrue(job.getLog().contains("jf version "+jfrogCliTestVersion));
-//        // remove, only for testing
-//        while (true) ;
-//    }
+    @Test
+    public void testJfrogCliInstallation(JenkinsRule jenkins) throws Exception{
+        initPipelineTest(jenkins);
+        configureJfrogCli();
+        WorkflowRun job = runPipeline(jenkins, "");
+        assertTrue(job.getLog().contains("jf version "+jfrogCliTestVersion));
+        // remove, only for testing
+         //while (true) ;
+    }
     public static JfrogInstallation configureJfrogCli() throws IOException {
         Saveable NOOP = () -> {
         };
@@ -69,7 +72,7 @@ class JfrogInstallationTest extends PipelineTestBase {
                 "        stage('Build') {\n" +
                 "            steps {\n" +
                 "                echo 'Building..'\n" +
-                "                sh 'jf -v'\n" +
+                "                jf '-v'\n" +
                 "            }\n" +
                 "        }\n" +
                 "     }\n" +
@@ -77,7 +80,5 @@ class JfrogInstallationTest extends PipelineTestBase {
         project.setDefinition(new CpsFlowDefinition(file, false));
         return jenkins.buildAndAssertSuccess(project);
     }
-
-
 }
 
