@@ -1,8 +1,10 @@
 name: Tests
-# TODO change back
-#on: [ push, pull_request ]
-on: push
-
+on:
+  push:
+  # Triggers the workflow on labeled PRs only.
+  pull_request_target:
+    types: [labeled]
+# Ensures that only the latest commit is running for each PR at a time.
 jobs:
   JFrog-Jenkins-Plugin-Tests:
     name: ${{ matrix.os }}
