@@ -62,6 +62,7 @@ class JfrogInstallationTest extends PipelineTestBase {
         if (slaveWs == null) {
             throw new Exception("Slave workspace not found");
         }
+
         slaveWs.mkdirs();
         String file = "pipeline {\n" +
                 "    agent any\n" +
