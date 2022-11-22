@@ -1,5 +1,7 @@
 name: Tests
+# TODO change back
 #on: [ push, pull_request ]
+on: push
 
 jobs:
   JFrog-Jenkins-Plugin-Tests:
