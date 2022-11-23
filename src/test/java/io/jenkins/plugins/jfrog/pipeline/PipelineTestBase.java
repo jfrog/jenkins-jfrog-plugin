@@ -71,13 +71,13 @@ public class PipelineTestBase {
         }
     }
     @BeforeClass
-    public static void setUp() {
+    public void setUp() {
         //currentTime = System.currentTimeMillis();
        // verifyEnvironment();
         //createSlave();
         //setEnvVars();
         createClients();
-//        setGlobalConfiguration();
+        setGlobalConfiguration();
 //        cleanUpArtifactory(artifactoryClient);
 //        createPipelineSubstitution();
 //        // Create repositories
