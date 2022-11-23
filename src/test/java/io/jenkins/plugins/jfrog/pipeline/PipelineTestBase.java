@@ -86,8 +86,7 @@ public class PipelineTestBase {
     }
 
     /**
-     * For jfPipelines tests - Create JFrog Pipelines server in the Global configuration.
-     * For buildTrigger tests - Create an empty list of Artifactory servers.
+     * Create JFrog server in the Global configuration.
      */
     private void setGlobalConfiguration() {
         JFrogPlatformBuilder.DescriptorImpl jfrogBuilder = (JFrogPlatformBuilder.DescriptorImpl) jenkins.getInstance().getDescriptor(JFrogPlatformBuilder.class);

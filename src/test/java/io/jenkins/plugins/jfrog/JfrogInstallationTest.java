@@ -58,6 +58,7 @@ class JfrogInstallationTest extends PipelineTestBase {
      * @return the Jenkins job
      */
     WorkflowRun runPipeline(JenkinsRule jenkins, String name) throws Exception {
+        setUp();
         WorkflowJob project = jenkins.createProject(WorkflowJob.class);
         FilePath slaveWs = slave.getWorkspaceFor(project);
         if (slaveWs == null) {
