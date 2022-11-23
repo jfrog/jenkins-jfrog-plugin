@@ -75,7 +75,7 @@ class JfrogInstallationTest extends PipelineTestBase {
                 "            steps {\n" +
                 "                echo 'Building..'\n" +
                 "                jf '-v'\n" +
-                "                jf 'c add eco --user="+ARTIFACTORY_USERNAME+" --password="+ACCESS_TOKEN+" --url="+PLATFORM_URL+" --interactive=false --overwrite=true --'\n" +
+                //"                jf 'c add eco --user="+ARTIFACTORY_USERNAME+" --password="+ACCESS_TOKEN+" --url="+PLATFORM_URL+" --interactive=false --overwrite=true --'\n" +
                 "                jf 'c show'\n" +
                 "            }\n" +
                 "        }\n" +
