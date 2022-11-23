@@ -6,7 +6,7 @@ import hudson.tools.InstallSourceProperty;
 import hudson.tools.ToolProperty;
 import hudson.tools.ToolPropertyDescriptor;
 import hudson.util.DescribableList;
-import io.jenkins.plugins.jfrog.pipeline.PipelineTestBase;
+import io.jenkins.plugins.jfrog.integration.PipelineTestBase;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -66,7 +66,8 @@ class JfrogInstallationTest extends PipelineTestBase {
 
         slaveWs.mkdirs();
         String file = "pipeline {\n" +
-                "    agent any\n" +
+                "    agent {" +
+                "       label 'TestSlave'}\n" +
                 "    tools {\n" +
                 "        \"jfrog\" \"cli\"\n" +
                 "    }\n" +
