@@ -38,7 +38,8 @@ public class PipelineTestBase {
     public static final String SLAVE_LABEL = "TestSlave";
     private static final String PLATFORM_URL = System.getenv("JENKINS_PLATFORM_URL");
     public static final String ARTIFACTORY_URL = StringUtils.removeEnd(PLATFORM_URL, "/") + "/artifactory";
-    private static final String ACCESS_TOKEN = System.getenv("JENKINS_PLATFORM_ADMIN_TOKEN");
+    public static final String ARTIFACTORY_USERNAME = System.getenv("JENKINS_PLATFORM_USERNAME");
+    public static final String ACCESS_TOKEN = System.getenv("JENKINS_PLATFORM_ADMIN_TOKEN");
 
     public void initPipelineTest(JenkinsRule jenkins) {
         this.jenkins = jenkins;
