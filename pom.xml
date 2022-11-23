@@ -83,6 +83,18 @@
             <artifactId>file-specs-java</artifactId>
             <version>1.1.1</version>
         </dependency>
+        <dependency>
+            <groupId>org.jfrog.artifactory.client</groupId>
+            <artifactId>artifactory-java-client-api</artifactId>
+            <version>2.11.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jfrog.artifactory.client</groupId>
+            <artifactId>artifactory-java-client-services</artifactId>
+            <version>2.11.1</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>

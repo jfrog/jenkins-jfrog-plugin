@@ -29,4 +29,8 @@ jobs:
           GOPROXY: direct
 
       - name: Run tests
+        env:
+          JENKINS_PLATFORM_URL: ${{ secrets.JENKINS_PLATFORM_URL }}
+          JENKINS_PLATFORM_USERNAME: ${{ secrets.JENKINS_PLATFORM_USERNAME }}
+          JENKINS_PLATFORM_ADMIN_TOKEN: ${{ secrets.JENKINS_PLATFORM_ADMIN_TOKEN }}
         run: mvn -V -B -U --no-transfer-progress test

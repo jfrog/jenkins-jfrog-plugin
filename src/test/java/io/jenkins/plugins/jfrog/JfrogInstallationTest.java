@@ -34,6 +34,7 @@ class JfrogInstallationTest extends PipelineTestBase {
         initPipelineTest(jenkins);
         configureJfrogCli();
         WorkflowRun job = runPipeline(jenkins, "");
+        System.out.println(job.getLog());
         assertTrue(job.getLog().contains("jf version "+jfrogCliTestVersion));
         // remove, only for testing
          //while (true) ;
@@ -74,6 +75,7 @@ class JfrogInstallationTest extends PipelineTestBase {
                 "            steps {\n" +
                 "                echo 'Building..'\n" +
                 "                jf '-v'\n" +
+                "                jf 'c add eco --user=gail --password=pass --url="+ARTIFACTORY_URL+" --artifactory-url=https://ecosysjfrog.jfrog.io/artifactory --distribution-url=https://ecosysjfrog.jfrog.io/distribution --xray-url=https://ecosysjfrog.jfrog.io/xray --interactive=false --overwrite=true --'\n" +
                 "            }\n" +
                 "        }\n" +
                 "     }\n" +
