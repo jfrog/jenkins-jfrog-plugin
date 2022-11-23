@@ -36,8 +36,8 @@ public class PipelineTestBase {
     static ArtifactoryManager artifactoryManager;
 
     static Artifactory artifactoryClient;
-    public JenkinsRule jenkins;
-    public Slave slave;
+    public static JenkinsRule jenkins;
+    public static Slave slave;
     public static final String SLAVE_LABEL = "TestSlave";
     public static final String PLATFORM_URL = System.getenv("JENKINS_PLATFORM_URL");
     public static final String ARTIFACTORY_URL = StringUtils.removeEnd(PLATFORM_URL, "/") + "/artifactory";
@@ -46,7 +46,7 @@ public class PipelineTestBase {
 
     public void initPipelineTest(JenkinsRule jenkins) {
         this.jenkins = jenkins;
-        createSlave(jenkins);
+        setUp();
     }
 
     /**
@@ -60,7 +60,7 @@ public class PipelineTestBase {
                 .build();
     }
 
-    private void createSlave(JenkinsRule jenkins) {
+    private static void createSlave() {
         if (slave != null) {
             return;
         }
@@ -71,10 +71,10 @@ public class PipelineTestBase {
         }
     }
     @BeforeClass
-    public void setUp() {
+    public static void setUp() {
         //currentTime = System.currentTimeMillis();
        // verifyEnvironment();
-        //createSlave();
+        createSlave();
         //setEnvVars();
         createClients();
         setGlobalConfiguration();
@@ -88,7 +88,7 @@ public class PipelineTestBase {
     /**
      * Create JFrog server in the Global configuration.
      */
-    private void setGlobalConfiguration() {
+    private static void setGlobalConfiguration() {
         JFrogPlatformBuilder.DescriptorImpl jfrogBuilder = (JFrogPlatformBuilder.DescriptorImpl) jenkins.getInstance().getDescriptor(JFrogPlatformBuilder.class);
         Assert.assertNotNull(jfrogBuilder);
 //        JFrogPipelinesServer server = new JFrogPipelinesServer("http://127.0.0.1:1080", CredentialsConfig.EMPTY_CREDENTIALS_CONFIG, 300, false, 3);
