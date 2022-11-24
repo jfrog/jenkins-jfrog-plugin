@@ -1,8 +1,5 @@
 package io.jenkins.plugins.jfrog.integration;
 
-/**
- * @author yahavi
- */
 enum TestRepository {
     LOCAL_REPO1("jenkins-artifactory-tests-local-1", RepoType.LOCAL);
 //    LOCAL_REPO2("jenkins-artifactory-tests-local-2", RepoType.LOCAL),

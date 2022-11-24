@@ -15,9 +15,8 @@ pipeline {
                 // Ping Artifactory.
                 jf 'rt ping'
 
-                // Create a file and upload it to a repository named 'my-repo' in Artifactory
-                sh 'touch test-file'
-                jf 'rt u test-file my-repo/'
+                // Upload a file to a repository in Artifactory
+                jf 'rt u ${DUMMY_FILE_PATH} ${LOCAL_REPO1}/'
 
                 // Publish the build-info to Artifactory.
                 jf 'rt bp'

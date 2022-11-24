@@ -1,4 +1,4 @@
-package io.jenkins.plugins.jfrog;
+package io.jenkins.plugins.jfrog.integration;
 
 import hudson.FilePath;
 import hudson.model.Saveable;
@@ -6,7 +6,10 @@ import hudson.tools.InstallSourceProperty;
 import hudson.tools.ToolProperty;
 import hudson.tools.ToolPropertyDescriptor;
 import hudson.util.DescribableList;
+import io.jenkins.plugins.jfrog.JfrogInstallation;
+import io.jenkins.plugins.jfrog.ReleasesInstaller;
 import io.jenkins.plugins.jfrog.integration.PipelineTestBase;
+import io.jenkins.plugins.jfrog.integration.TestRepository;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -33,11 +36,11 @@ class JfrogInstallationTest extends PipelineTestBase {
     public void testJfrogCliInstallation(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
         JfrogInstallation jf = configureJfrogCli();
-        WorkflowRun job = runPipeline(jenkins, "");
+        WorkflowRun job = runPipeline(jenkins, "basic");
         System.out.println(job.getLog());
         assertTrue(job.getLog().contains("jf version "+jfrogCliTestVersion));
         // remove, only for testing
-         //while (true) ;
+        // while (true) ;
     }
     public static JfrogInstallation configureJfrogCli() throws IOException {
         Saveable NOOP = () -> {
@@ -46,44 +49,11 @@ class JfrogInstallationTest extends PipelineTestBase {
         List<ReleasesInstaller> installers = new ArrayList<>();
         installers.add(new ReleasesInstaller(jfrogCliTestVersion));
         r.add(new InstallSourceProperty(installers));
-        JfrogInstallation jf = new JfrogInstallation("cli", "", r);
+        JfrogInstallation jf = new JfrogInstallation("jfrog-cli", "", r);
         Jenkins.get().getDescriptorByType(JfrogInstallation.Descriptor.class).setInstallations(jf);
         return jf;
     }
 
-    /**
-     * Run pipeline script.
-     *
-     * @param name - Pipeline name from 'jenkins-artifactory-plugin/src/test/resources/integration/pipelines'
-     * @return the Jenkins job
-     */
-    WorkflowRun runPipeline(JenkinsRule jenkins, String name) throws Exception {
-        WorkflowJob project = jenkins.createProject(WorkflowJob.class);
-        FilePath slaveWs = slave.getWorkspaceFor(project);
-        if (slaveWs == null) {
-            throw new Exception("Slave workspace not found");
-        }
 
-        slaveWs.mkdirs();
-        String file = "pipeline {\n" +
-                "    agent {" +
-                "       label 'TestSlave'}\n" +
-                "    tools {\n" +
-                "        \"jfrog\" \"cli\"\n" +
-                "    }\n" +
-                "    stages {\n" +
-                "        stage('Build') {\n" +
-                "            steps {\n" +
-                "                echo 'Building..'\n" +
-                "                jf '-v'\n" +
-                //"                jf 'c add eco --user="+ARTIFACTORY_USERNAME+" --password="+ACCESS_TOKEN+" --url="+PLATFORM_URL+" --interactive=false --overwrite=true --'\n" +
-                "                jf 'c show'\n" +
-                "            }\n" +
-                "        }\n" +
-                "     }\n" +
-                "}";
-        project.setDefinition(new CpsFlowDefinition(file, false));
-        return jenkins.buildAndAssertSuccess(project);
-    }
 }
 
