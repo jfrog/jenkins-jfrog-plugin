@@ -8,8 +8,6 @@ import hudson.tools.ToolPropertyDescriptor;
 import hudson.util.DescribableList;
 import io.jenkins.plugins.jfrog.JfrogInstallation;
 import io.jenkins.plugins.jfrog.ReleasesInstaller;
-import io.jenkins.plugins.jfrog.integration.PipelineTestBase;
-import io.jenkins.plugins.jfrog.integration.TestRepository;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;

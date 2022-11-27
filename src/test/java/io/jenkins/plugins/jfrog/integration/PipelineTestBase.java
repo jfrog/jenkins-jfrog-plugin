@@ -8,6 +8,7 @@ import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import io.jenkins.plugins.jfrog.jenkins.EnableJenkins;
+import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -143,6 +144,7 @@ public class PipelineTestBase {
             add(new JFrogPlatformInstance("serverId", PLATFORM_URL,  platformCred, ARTIFACTORY_URL, "",""));
         }};
         jfrogBuilder.setJfrogInstances(artifactoryServers);
+        Jenkins.get().getDescriptorByType(JFrogPlatformBuilder.DescriptorImpl.class).setJfrogInstances(artifactoryServers);
     }
 
     /**
