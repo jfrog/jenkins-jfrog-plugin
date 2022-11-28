@@ -20,18 +20,6 @@ The Jenkins JFrog Plugin allows for easy integration between Jenkins and the JFr
 This integration allows your build jobs to deploy artifacts and resolve dependencies to and from Artifactory, and then have them linked to the build job that created them. It also allows you to scan your artifacts and builds with JFrog Xray and distribute your software package to remote locations using JFrog Distribution.
 This is all achieved by the plugin by wrapping JFrog CLI. Any JFrog CLI command can be executed from within your Jenkins Pipeline job using the JFrog Plugin.
 
-## How to Contribute
-
-JFrog welcomes community contribution through pull requests.
-
-### Important:
-
-The plugin code is stored in two GitHub repositories:
-https://github.com/jfrog/jenkins-jfrog-plugin and
-https://github.com/jenkinsci/jfrog-plugin
-
-Please make sure to submit pull requests to *https://github.com/jfrog/jenkins-jfrog-plugin* only.
-
 ## Installing and configuring the plugin
 1. Install the JFrog Plugin by going to **Manage Jenkins | Manage Plugins**.<br><img src="images/readme/install-plugin.png" width="70%">
 2. Configure your JFrog Platform details by going to **Manage Jenkins | Configure System**.<br><img src="images/readme/plugin-config.png" width="30%">
@@ -127,7 +115,16 @@ jf 'rt u test-file my-repo –server-id my-server-id'
 ```
 
 ## Contributions
-We welcome code contributions through pull requests from the community.
+
+JFrog welcomes community contribution through pull requests.
+
+### Important:
+
+The plugin code is stored in two GitHub repositories:
+https://github.com/jfrog/jenkins-jfrog-plugin and
+https://github.com/jenkinsci/jfrog-plugin
+
+Please make sure to submit pull requests to *https://github.com/jfrog/jenkins-jfrog-plugin* only.
 
 
 
