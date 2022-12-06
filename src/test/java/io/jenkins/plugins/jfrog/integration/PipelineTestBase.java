@@ -13,6 +13,8 @@ import hudson.tools.ToolProperty;
 import hudson.tools.ToolPropertyDescriptor;
 import hudson.util.DescribableList;
 import hudson.util.Secret;
+import io.jenkins.plugins.jfrog.ArtifactoryInstaller;
+import io.jenkins.plugins.jfrog.BinaryInstaller;
 import io.jenkins.plugins.jfrog.JfrogInstallation;
 import io.jenkins.plugins.jfrog.ReleasesInstaller;
 import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
@@ -48,7 +50,7 @@ import static org.junit.Assert.*;
 
 @EnableJenkins
 public class PipelineTestBase {
-    private static long currentTime;
+    public static long currentTime;
     static ArtifactoryManager artifactoryManager;
 
     static Artifactory artifactoryClient;
@@ -225,6 +227,7 @@ public class PipelineTestBase {
         pipelineSubstitution = new StringSubstitutor(new HashMap<String, String>() {{
             put("DUMMY_FILE_PATH", fixWindowsPath(String.valueOf(INTEGRATION_BASE_PATH.resolve("files").resolve("dummyfile"))));
             put("LOCAL_REPO1", getRepoKey(TestRepository.LOCAL_REPO1));
+            put("REMOTE_REPO1", getRepoKey(TestRepository.REMOTE_REPO1));
             put("JFROG_CLI_TOOL_NAME", JFROG_CLI_TOOL_NAME);
         }});
     }
@@ -252,12 +255,20 @@ public class PipelineTestBase {
         return pipelineSubstitution.replace(pipeline);
     }
 
-    public static JfrogInstallation configureJfrogCli(String toolName, String cliVersion) throws IOException {
+    public static JfrogInstallation configureJfrogCliFromReleases(String toolName, String cliVersion) throws IOException {
+        return configureJfrogCli(toolName, new ReleasesInstaller(cliVersion));
+    }
+
+    public static JfrogInstallation configureJfrogCliFromArtifactory(String toolName, String serverId, String repo) throws IOException {
+        return configureJfrogCli(toolName, new ArtifactoryInstaller(serverId, repo));
+    }
+
+    public static JfrogInstallation configureJfrogCli(String toolName, BinaryInstaller installer) throws IOException {
         Saveable NOOP = () -> {
         };
         DescribableList<ToolProperty<?>, ToolPropertyDescriptor> r = new DescribableList<>(NOOP);
-        List<ReleasesInstaller> installers = new ArrayList<>();
-        installers.add(new ReleasesInstaller(cliVersion));
+        List<BinaryInstaller> installers = new ArrayList<>();
+        installers.add(installer);
         r.add(new InstallSourceProperty(installers));
         JfrogInstallation jf = new JfrogInstallation(toolName, "", r);
         Jenkins.get().getDescriptorByType(JfrogInstallation.Descriptor.class).setInstallations(jf);

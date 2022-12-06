@@ -20,16 +20,31 @@ class JfrogInstallationTest extends PipelineTestBase {
     public void testJfrogCliInstallationFromReleases(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
         // Download specific CLI version.
-        configureJfrogCli(JFROG_CLI_TOOL_NAME, jfrogCliTestVersion);
+        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, jfrogCliTestVersion);
         WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
         System.out.println(job.getLog());
         assertTrue(job.getLog().contains("jf version "+jfrogCliTestVersion));
         // Download the latest CLI version.
-        configureJfrogCli(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY);
+        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY);
         job = runPipeline(jenkins, "basic_verify_version");
         System.out.println(job.getLog());
         // Verify newer version was installed.
         assertFalse(job.getLog().contains("jf version "+jfrogCliTestVersion));
+    }
+
+    /**
+     * Download Jfrog CLI from client Artifactory and adds it as a global tool.
+     * @param jenkins Jenkins instance Injected automatically.
+     */
+    @Test
+    public void testJfrogCliInstallationFromArtifactory(JenkinsRule jenkins) throws Exception{
+        initPipelineTest(jenkins);
+        // Download the latest CLI version.
+        // TODO: add the timestemp to the
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME, "serverId", "jenkins-jfrog-tests-cli-remote-"+currentTime);
+        WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
+        System.out.println(job.getLog());
+        assertTrue(job.getLog().contains("jf version "));
     }
 
 
