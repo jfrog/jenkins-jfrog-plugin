@@ -1,5 +1,7 @@
 package io.jenkins.plugins.jfrog.integration;
 
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import hudson.FilePath;
 import hudson.model.Saveable;
 import hudson.tools.InstallSourceProperty;

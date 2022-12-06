@@ -1,8 +1,16 @@
 package io.jenkins.plugins.jfrog.integration;
 
+import com.cloudbees.plugins.credentials.*;
+import com.cloudbees.plugins.credentials.casc.CredentialsRootConfigurator;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
+import hudson.ExtensionList;
 import hudson.FilePath;
+import hudson.model.ItemGroup;
 import hudson.model.Label;
+import hudson.model.ModelObject;
 import hudson.model.Slave;
+import hudson.security.ACL;
 import hudson.util.Secret;
 import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
@@ -28,17 +36,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-
-import static org.junit.Assert.fail;
+import java.util.*;
 
 import org.jfrog.artifactory.client.Artifactory;
 import org.jfrog.artifactory.client.ArtifactoryClientBuilder;
 import org.jfrog.artifactory.client.ArtifactoryRequest;
 import org.jfrog.artifactory.client.impl.ArtifactoryRequestImpl;
+
+import static org.junit.Assert.*;
 
 @EnableJenkins
 public class PipelineTestBase {
@@ -58,7 +63,7 @@ public class PipelineTestBase {
     private static final Path INTEGRATION_BASE_PATH = Paths.get(".").toAbsolutePath().normalize()
             .resolve(Paths.get("src", "test", "resources", "integration"));
 
-    public void initPipelineTest(JenkinsRule jenkins) {
+    public void initPipelineTest(JenkinsRule jenkins) throws IOException {
         this.jenkins = jenkins;
         setUp();
     }
@@ -87,7 +92,7 @@ public class PipelineTestBase {
         }
     }
     @BeforeClass
-    public static void setUp() {
+    public static void setUp() throws IOException {
         currentTime = System.currentTimeMillis();
         verifyEnvironment();
         createSlave();
@@ -136,7 +141,7 @@ public class PipelineTestBase {
     /**
      * Create JFrog server in the Global configuration.
      */
-    private static void setGlobalConfiguration() {
+    private static void setGlobalConfiguration() throws IOException {
         JFrogPlatformBuilder.DescriptorImpl jfrogBuilder = (JFrogPlatformBuilder.DescriptorImpl) jenkins.getInstance().getDescriptor(JFrogPlatformBuilder.class);
         Assert.assertNotNull(jfrogBuilder);
         CredentialsConfig platformCred = new CredentialsConfig(Secret.fromString(ARTIFACTORY_USERNAME), Secret.fromString(ARTIFACTORY_PASSWORD), Secret.fromString(ACCESS_TOKEN), "credentials");
@@ -145,8 +150,27 @@ public class PipelineTestBase {
         }};
         jfrogBuilder.setJfrogInstances(artifactoryServers);
         Jenkins.get().getDescriptorByType(JFrogPlatformBuilder.DescriptorImpl.class).setJfrogInstances(artifactoryServers);
+        CredentialsStore store = lookupStore(jenkins);
+        addCreds(store, CredentialsScope.GLOBAL, "credentials");
+//        Jenkins.get().getExtensionList(CredentialsRootConfigurator.class).lookup(CredentialsProvider.class).get(SystemCredentialsProvider.ProviderImpl.class).getCredentials(UsernamePasswordCredentialsImpl.class, (ItemGroup) null, ACL.SYSTEM)
+//                .add( new UsernamePasswordCredentialsImpl(CredentialsScope.SYSTEM, "credentials", null, "x", "y"));
+//        SystemCredentialsProvider.getInstance().getCredentials().add(
+//                new UsernamePasswordCredentialsImpl(CredentialsScope.SYSTEM, "credentials", null, "x", "y"));
+                //new DummyCredentials(CredentialsScope.SYSTEM, ARTIFACTORY_USERNAME, ARTIFACTORY_PASSWORD));
     }
 
+    private static void addCreds(CredentialsStore store, CredentialsScope scope, String id) throws IOException {
+        // For purposes of this test we do not care about domains.
+        store.addCredentials(Domain.global(), new UsernamePasswordCredentialsImpl(scope, id, null, ARTIFACTORY_USERNAME, ARTIFACTORY_PASSWORD));
+    }
+
+    private static CredentialsStore lookupStore(ModelObject object) {
+        Iterator<CredentialsStore> stores = CredentialsProvider.lookupStores(object).iterator();
+        assertTrue(stores.hasNext());
+        CredentialsStore store = stores.next();
+        //assertEquals("we got the expected store", object, store.getContext());
+        return store;
+    }
     /**
      * Create a temporary repository for the tests.
      *

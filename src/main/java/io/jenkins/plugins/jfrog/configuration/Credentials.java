@@ -1,5 +1,7 @@
 package io.jenkins.plugins.jfrog.configuration;
 
+import com.cloudbees.plugins.credentials.BaseCredentials;
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import hudson.util.Secret;
 import org.apache.commons.lang3.StringUtils;
 
@@ -9,7 +11,7 @@ import java.io.Serializable;
 /**
  * Credentials model object
  */
-public class Credentials implements Serializable {
+public class Credentials extends BaseCredentials implements Serializable {
     public static final Secret EMPTY_SECRET = Secret.fromString(StringUtils.EMPTY);
     public static final Credentials EMPTY_CREDENTIALS = new Credentials(EMPTY_SECRET, EMPTY_SECRET, EMPTY_SECRET);
     private Secret username;
