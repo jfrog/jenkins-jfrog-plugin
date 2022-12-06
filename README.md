@@ -16,9 +16,9 @@
 - [Contributions](#contributions)
 
 ## Overview
-The Jenkins JFrog Plugin allows for easy integration between Jenkins and the JFrog Platform.
-This integration allows your build jobs to deploy artifacts and resolve dependencies to and from Artifactory, and then have them linked to the build job that created them. It also allows you to scan your artifacts and builds with JFrog Xray and distribute your software package to remote locations using JFrog Distribution.
-This is all achieved by the plugin by wrapping JFrog CLI. Any JFrog CLI command can be executed from within your Jenkins Pipeline job using the JFrog Plugin.
+The Jenkins JFrog Plugin allows for easy integration between Jenkins and the [JFrog Platform](https://jfrog.com/solution-sheet/jfrog-platform/).
+This integration allows your build jobs to deploy artifacts and resolve dependencies to and from [Artifactory](https://jfrog.com/artifactory/), and then have them linked to the build job that created them. It also allows you to scan your artifacts and builds with [JFrog Xray](https://jfrog.com/xray/) and distribute your software package to remote locations using [JFrog Distribution](https://jfrog.com/distribution/).
+This is all achieved by the plugin by wrapping [JFrog CLI](https://www.jfrog.com/confluence/display/CLI/JFrog+CLI). Any JFrog CLI command can be executed from within your Jenkins Pipeline job using the JFrog Plugin.
 
 ## Installing and configuring the plugin
 1. Install the JFrog Plugin by going to **Manage Jenkins | Manage Plugins**.<br><img src="images/readme/install-plugin.png" width="70%">
@@ -67,6 +67,18 @@ jf 'rt u target/ my-repo/'
 ```
 > **_IMPORTANT:_** Notice the single quotes wrapping the command right after the **jf** step definition.  
 
+### Setting the build name and build number
+
+The plugin automatically sets the following environment variables: *JFROG_CLI_BUILD_NAME* and *JFROG_CLI_BUILD_NUMBER* with Jenkins's job name and build number respectively. 
+You therefore don't need to specify the build name and build number on any of the build related JFrog CLI commands.
+If you wish to change the default values, add the following code to your pipeline script: 
+```groovy
+environment {
+    JFROG_CLI_BUILD_NAME = "my-build-name"
+    JFROG_CLI_BUILD_NUMBER = "18"
+}
+```
+
 **Example**
 ```groovy
 pipeline {
@@ -103,8 +115,13 @@ jf 'rt u test-file my-repo –server-id my-server-id'
 ```
 
 ## Contributions
-We welcome code contributions through pull requests from the community.
 
+JFrog welcomes community contribution through pull requests.
 
+### Important:
 
+The plugin code is stored in two GitHub repositories:
+https://github.com/jfrog/jenkins-jfrog-plugin and
+https://github.com/jenkinsci/jfrog-plugin
 
+Please make sure to submit pull requests to *https://github.com/jfrog/jenkins-jfrog-plugin* only.
