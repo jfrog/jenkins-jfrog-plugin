@@ -1,58 +1,38 @@
 package io.jenkins.plugins.jfrog.integration;
 
-import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import hudson.FilePath;
-import hudson.model.Saveable;
-import hudson.tools.InstallSourceProperty;
-import hudson.tools.ToolProperty;
-import hudson.tools.ToolPropertyDescriptor;
-import hudson.util.DescribableList;
-import io.jenkins.plugins.jfrog.JfrogInstallation;
-import io.jenkins.plugins.jfrog.ReleasesInstaller;
-import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
-import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-// TODO un-comment tests
 class JfrogInstallationTest extends PipelineTestBase {
     // Jfrog CLI version which is accessible for all operating systems
     public static final String jfrogCliTestVersion = "2.29.2";
 
     /**
-     * Adds Jfrog cli tool as a global tool and verify installation.
+     * Download Jfrog CLI from 'releases.io' and adds it as a global tool.
      * @param jenkins Jenkins instance Injected automatically.
      */
     @Test
-    public void testJfrogCliInstallation(JenkinsRule jenkins) throws Exception{
+    public void testJfrogCliInstallationFromReleases(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
-        JfrogInstallation jf = configureJfrogCli();
-        WorkflowRun job = runPipeline(jenkins, "basic");
+        // Download specific CLI version.
+        configureJfrogCli(JFROG_CLI_TOOL_NAME, jfrogCliTestVersion);
+        WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
         System.out.println(job.getLog());
         assertTrue(job.getLog().contains("jf version "+jfrogCliTestVersion));
-        // remove, only for testing
-        // while (true) ;
+        // Download the latest CLI version.
+        configureJfrogCli(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY);
+        job = runPipeline(jenkins, "basic_verify_version");
+        System.out.println(job.getLog());
+        // Verify newer version was installed.
+        assertFalse(job.getLog().contains("jf version "+jfrogCliTestVersion));
     }
-    public static JfrogInstallation configureJfrogCli() throws IOException {
-        Saveable NOOP = () -> {
-        };
-        DescribableList<ToolProperty<?>, ToolPropertyDescriptor> r = new DescribableList<>(NOOP);
-        List<ReleasesInstaller> installers = new ArrayList<>();
-        installers.add(new ReleasesInstaller(jfrogCliTestVersion));
-        r.add(new InstallSourceProperty(installers));
-        JfrogInstallation jf = new JfrogInstallation("jfrog-cli", "", r);
-        Jenkins.get().getDescriptorByType(JfrogInstallation.Descriptor.class).setInstallations(jf);
-        return jf;
-    }
+
+
 
 
 }

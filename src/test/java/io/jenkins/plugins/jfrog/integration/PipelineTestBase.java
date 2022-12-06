@@ -1,17 +1,20 @@
 package io.jenkins.plugins.jfrog.integration;
 
 import com.cloudbees.plugins.credentials.*;
-import com.cloudbees.plugins.credentials.casc.CredentialsRootConfigurator;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
-import hudson.ExtensionList;
 import hudson.FilePath;
-import hudson.model.ItemGroup;
 import hudson.model.Label;
 import hudson.model.ModelObject;
+import hudson.model.Saveable;
 import hudson.model.Slave;
-import hudson.security.ACL;
+import hudson.tools.InstallSourceProperty;
+import hudson.tools.ToolProperty;
+import hudson.tools.ToolPropertyDescriptor;
+import hudson.util.DescribableList;
 import hudson.util.Secret;
+import io.jenkins.plugins.jfrog.JfrogInstallation;
+import io.jenkins.plugins.jfrog.ReleasesInstaller;
 import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
@@ -20,7 +23,6 @@ import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.commons.text.StringSubstitutor;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -31,7 +33,6 @@ import org.jfrog.build.extractor.clientConfiguration.client.artifactory.Artifact
 import org.junit.*;
 import org.jvnet.hudson.test.JenkinsRule;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -62,6 +63,7 @@ public class PipelineTestBase {
     public static final String ACCESS_TOKEN = System.getenv("JENKINS_PLATFORM_ADMIN_TOKEN");
     private static final Path INTEGRATION_BASE_PATH = Paths.get(".").toAbsolutePath().normalize()
             .resolve(Paths.get("src", "test", "resources", "integration"));
+    public static final String JFROG_CLI_TOOL_NAME = "jfrog-cli";
 
     public void initPipelineTest(JenkinsRule jenkins) throws IOException {
         this.jenkins = jenkins;
@@ -152,11 +154,6 @@ public class PipelineTestBase {
         Jenkins.get().getDescriptorByType(JFrogPlatformBuilder.DescriptorImpl.class).setJfrogInstances(artifactoryServers);
         CredentialsStore store = lookupStore(jenkins);
         addCreds(store, CredentialsScope.GLOBAL, "credentials");
-//        Jenkins.get().getExtensionList(CredentialsRootConfigurator.class).lookup(CredentialsProvider.class).get(SystemCredentialsProvider.ProviderImpl.class).getCredentials(UsernamePasswordCredentialsImpl.class, (ItemGroup) null, ACL.SYSTEM)
-//                .add( new UsernamePasswordCredentialsImpl(CredentialsScope.SYSTEM, "credentials", null, "x", "y"));
-//        SystemCredentialsProvider.getInstance().getCredentials().add(
-//                new UsernamePasswordCredentialsImpl(CredentialsScope.SYSTEM, "credentials", null, "x", "y"));
-                //new DummyCredentials(CredentialsScope.SYSTEM, ARTIFACTORY_USERNAME, ARTIFACTORY_PASSWORD));
     }
 
     private static void addCreds(CredentialsStore store, CredentialsScope scope, String id) throws IOException {
@@ -228,6 +225,7 @@ public class PipelineTestBase {
         pipelineSubstitution = new StringSubstitutor(new HashMap<String, String>() {{
             put("DUMMY_FILE_PATH", fixWindowsPath(String.valueOf(INTEGRATION_BASE_PATH.resolve("files").resolve("dummyfile"))));
             put("LOCAL_REPO1", getRepoKey(TestRepository.LOCAL_REPO1));
+            put("JFROG_CLI_TOOL_NAME", JFROG_CLI_TOOL_NAME);
         }});
     }
 
@@ -252,5 +250,17 @@ public class PipelineTestBase {
                 .resolve("pipelines")
                 .resolve(name + ".pipeline").toFile(), StandardCharsets.UTF_8);
         return pipelineSubstitution.replace(pipeline);
+    }
+
+    public static JfrogInstallation configureJfrogCli(String toolName, String cliVersion) throws IOException {
+        Saveable NOOP = () -> {
+        };
+        DescribableList<ToolProperty<?>, ToolPropertyDescriptor> r = new DescribableList<>(NOOP);
+        List<ReleasesInstaller> installers = new ArrayList<>();
+        installers.add(new ReleasesInstaller(cliVersion));
+        r.add(new InstallSourceProperty(installers));
+        JfrogInstallation jf = new JfrogInstallation(toolName, "", r);
+        Jenkins.get().getDescriptorByType(JfrogInstallation.Descriptor.class).setInstallations(jf);
+        return jf;
     }
 }

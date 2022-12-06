@@ -177,8 +177,6 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
         if (accessTokenCredentials != null) {
             builder.addMasked("--access-token=" + accessTokenCredentials.getSecret().getPlainText());
         } else {
-            // TODO cant add credentials in the test. im getting empty cause I need to add it to the plugin. no cred with this id is exists.
-            // cant find it in our tests. can ask yahavi
             Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, job);
             builder.add("--user=" + credentials.getUsername());
             builder.addMasked("--password=" + credentials.getPassword());

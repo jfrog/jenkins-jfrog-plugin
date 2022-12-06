@@ -1,0 +1,14 @@
+pipeline {
+    agent any
+    tools {
+        jfrog 'jfrog-cli'
+    }
+    stages {
+        stage ('Testing') {
+            steps {
+                // Show the installed version of JFrog CLI.
+                jf '-v'
+            }
+        }
+    }
+}
