@@ -1,0 +1,13 @@
+pipeline {
+    agent any
+    tools {
+        jfrog 'jfrog-cli'
+    }
+    stages {
+        stage ('Testing') {
+            steps {
+                jf 'xr scan .'
+            }
+        }
+    }
+}
