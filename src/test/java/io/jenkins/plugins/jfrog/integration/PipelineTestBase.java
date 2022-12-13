@@ -227,7 +227,7 @@ public class PipelineTestBase {
         pipelineSubstitution = new StringSubstitutor(new HashMap<String, String>() {{
             put("DUMMY_FILE_PATH", fixWindowsPath(String.valueOf(INTEGRATION_BASE_PATH.resolve("files").resolve("dummyfile"))));
             put("LOCAL_REPO1", getRepoKey(TestRepository.LOCAL_REPO1));
-            put("REMOTE_REPO1", getRepoKey(TestRepository.REMOTE_REPO1));
+            put("REMOTE_REPO1", getRepoKey(TestRepository.CLI_REMOTE_REPO));
             put("JFROG_CLI_TOOL_NAME", JFROG_CLI_TOOL_NAME);
         }});
     }

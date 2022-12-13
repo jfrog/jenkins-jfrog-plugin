@@ -2,17 +2,7 @@ package io.jenkins.plugins.jfrog.integration;
 
 enum TestRepository {
     LOCAL_REPO1("jenkins-jfrog-tests-local-1", RepoType.LOCAL),
-//    LOCAL_REPO2("jenkins-artifactory-tests-local-2", RepoType.LOCAL),
-//    JCENTER_REMOTE_REPO("jenkins-artifactory-tests-jcenter", RepoType.REMOTE),
-//    NPM_LOCAL("jenkins-artifactory-tests-npm-local", RepoType.LOCAL),
-    REMOTE_REPO1("jenkins-jfrog-tests-cli-remote", RepoType.REMOTE),
-//    GO_LOCAL("jenkins-artifactory-tests-go-local", RepoType.LOCAL),
-//    GO_REMOTE("jenkins-artifactory-tests-go-remote", RepoType.REMOTE),
-//    GO_VIRTUAL("jenkins-artifactory-tests-go-virtual", RepoType.VIRTUAL),
-//    CONAN_LOCAL("jenkins-artifactory-tests-conan-local", RepoType.LOCAL),
-//    PIP_REMOTE("jenkins-artifactory-tests-pip-remote", RepoType.REMOTE),
-//    PIP_VIRTUAL("jenkins-artifactory-tests-pip-virtual", RepoType.VIRTUAL),
-//    NUGET_REMOTE("jenkins-artifactory-tests-nuget-remote", RepoType.REMOTE);
+    CLI_REMOTE_REPO("jenkins-jfrog-tests-cli-remote", RepoType.REMOTE),
     ;
     enum RepoType {
         LOCAL,

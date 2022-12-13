@@ -40,8 +40,8 @@ class JfrogInstallationTest extends PipelineTestBase {
     public void testJfrogCliInstallationFromArtifactory(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
         // Download the latest CLI version.
-        // TODO: add the timestemp to the
-        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME, "serverId", "jenkins-jfrog-tests-cli-remote-"+currentTime);
+        // Using remote repository to 'releases.io' in the client's Artifactory.
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME, "serverId", getRepoKey(TestRepository.CLI_REMOTE_REPO));
         WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
         System.out.println(job.getLog());
         assertTrue(job.getLog().contains("jf version "));
