@@ -5,8 +5,15 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.stream.Stream;
+
+import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_CLI_DEPENDENCIES_DIR;
+import static io.jenkins.plugins.jfrog.JfrogInstallation.JfrogDependenciesDirName;
+import static org.junit.jupiter.api.Assertions.*;
 
 class JfrogInstallationTest extends PipelineTestBase {
     // Jfrog CLI version which is accessible for all operating systems
@@ -56,7 +63,25 @@ class JfrogInstallationTest extends PipelineTestBase {
         initPipelineTest(jenkins);
         WorkflowRun job = runPipeline(jenkins, "scan_command");
         System.out.println(job.getLog());
-        assertTrue(job.getLog().contains("jf version "));
+        Path indexerPath = Paths.get(System.getProperty("user.dir")).resolve("work").resolve("tools");
+        indexerPath = indexerPath.resolve("io.jenkins.plugins.jfrog.JfrogInstallation").resolve(JfrogDependenciesDirName).resolve("xray-indexer");
+        indexerPath.resolve("");
+        File[] fileList = indexerPath.toFile().listFiles();
+        for (File file: fileList) {
+            if (file.getName().equals("temp")) {
+                continue;
+            }
+            String indexer = "indexer-app";
+            if (!jenkins.createLocalLauncher().isUnix()) {
+                indexer = indexer + ".exe";
+            }
+            indexerPath = indexerPath.resolve(file.getName()).resolve(indexer);
+        }
+        assertTrue(indexerPath.toFile().exists());
+    }
+
+    private void verifyIndexer(File file){
+
     }
 }
 
