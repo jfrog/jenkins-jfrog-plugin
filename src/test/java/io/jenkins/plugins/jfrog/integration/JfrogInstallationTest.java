@@ -18,7 +18,7 @@ class JfrogInstallationTest extends PipelineTestBase {
      */
     @Test
     public void testJfrogCliInstallationFromReleases(JenkinsRule jenkins) throws Exception{
-        initPipelineTest(jenkins);
+        setupPipelineTest(jenkins);
         // Download specific CLI version.
         configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, jfrogCliTestVersion);
         WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
@@ -38,7 +38,7 @@ class JfrogInstallationTest extends PipelineTestBase {
      */
     @Test
     public void testJfrogCliInstallationFromArtifactory(JenkinsRule jenkins) throws Exception{
-        initPipelineTest(jenkins);
+        setupPipelineTest(jenkins);
         // Download the latest CLI version.
         // Using remote repository to 'releases.io' in the client's Artifactory.
         configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME, "serverId", getRepoKey(TestRepository.CLI_REMOTE_REPO));
@@ -47,8 +47,16 @@ class JfrogInstallationTest extends PipelineTestBase {
         assertTrue(job.getLog().contains("jf version "));
     }
 
-
-
-
+    /**
+     * Check that only one copy of xray's indexer is being downloaded to the expected location by using xray scan command.
+     * @param jenkins Jenkins instance Injected automatically.
+     */
+    @Test
+    public void testDownloadingXrayIndexer(JenkinsRule jenkins) throws Exception{
+        initPipelineTest(jenkins);
+        WorkflowRun job = runPipeline(jenkins, "scan_command");
+        System.out.println(job.getLog());
+        assertTrue(job.getLog().contains("jf version "));
+    }
 }
 

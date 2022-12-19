@@ -68,6 +68,13 @@ public class PipelineTestBase {
     public static final String JFROG_CLI_TOOL_NAME = "jfrog-cli";
 
     public void initPipelineTest(JenkinsRule jenkins) throws IOException {
+        setupPipelineTest(jenkins);
+        // Download the latest CLI version.
+        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY);
+    }
+
+    // Set up test's environment
+    public void setupPipelineTest(JenkinsRule jenkins) throws IOException {
         this.jenkins = jenkins;
         setUp();
     }
@@ -100,14 +107,11 @@ public class PipelineTestBase {
         currentTime = System.currentTimeMillis();
         verifyEnvironment();
         createSlave();
-//        setEnvVars();
         createClients();
         setGlobalConfiguration();
-//        cleanUpArtifactory(artifactoryClient);
         createPipelineSubstitution();
-//        // Create repositories
-          Arrays.stream(TestRepository.values()).forEach(PipelineTestBase::createRepo);
-//        createProject();
+        // Create repositories
+        Arrays.stream(TestRepository.values()).forEach(PipelineTestBase::createRepo);
     }
 
     /**
