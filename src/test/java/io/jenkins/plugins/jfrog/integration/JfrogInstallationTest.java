@@ -79,9 +79,5 @@ class JfrogInstallationTest extends PipelineTestBase {
         }
         assertTrue(indexerPath.toFile().exists());
     }
-
-    private void verifyIndexer(File file){
-
-    }
 }
 
