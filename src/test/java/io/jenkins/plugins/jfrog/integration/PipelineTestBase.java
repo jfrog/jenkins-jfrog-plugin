@@ -51,7 +51,6 @@ import static org.junit.Assert.*;
 @EnableJenkins
 public class PipelineTestBase {
     public static long currentTime;
-    static ArtifactoryManager artifactoryManager;
 
     static Artifactory artifactoryClient;
     public static JenkinsRule jenkins;
@@ -83,7 +82,6 @@ public class PipelineTestBase {
      * Creates build-info and Artifactory Java clients.
      */
     private static void createClients() {
-        artifactoryManager = new ArtifactoryManager(ARTIFACTORY_URL, ACCESS_TOKEN, new NullLog());
         artifactoryClient = ArtifactoryClientBuilder.create()
                 .setUrl(ARTIFACTORY_URL)
                 .setUsername(ARTIFACTORY_USERNAME)
