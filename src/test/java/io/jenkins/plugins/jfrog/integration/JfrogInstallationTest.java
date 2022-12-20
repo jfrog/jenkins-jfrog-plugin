@@ -63,7 +63,7 @@ class JfrogInstallationTest extends PipelineTestBase {
         initPipelineTest(jenkins);
         WorkflowRun job = runPipeline(jenkins, "scan_command");
         System.out.println(job.getLog());
-        Path indexerPath = Paths.get(System.getProperty("user.dir")).resolve("work").resolve("tools");
+        Path indexerPath = jenkins.jenkins.getRootDir().toPath().resolve("tools");
         indexerPath = indexerPath.resolve("io.jenkins.plugins.jfrog.JfrogInstallation").resolve(JfrogDependenciesDirName).resolve("xray-indexer");
         indexerPath.resolve("");
         File[] fileList = indexerPath.toFile().listFiles();
