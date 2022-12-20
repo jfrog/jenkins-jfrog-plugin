@@ -15,4 +15,8 @@ jobs:
           distribution: "temurin"
 
       - name: Run Analysis
+        env:
+          JENKINS_PLATFORM_URL: "http://localhost:8081/"
+          JENKINS_PLATFORM_USERNAME: "admin"
+          JENKINS_PLATFORM_ADMIN_TOKEN: "password"
         run: mvn -V -B -U --no-transfer-progress clean verify
