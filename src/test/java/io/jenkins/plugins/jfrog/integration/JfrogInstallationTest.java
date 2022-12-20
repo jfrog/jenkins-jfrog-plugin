@@ -1,5 +1,6 @@
 package io.jenkins.plugins.jfrog.integration;
 
+import hudson.tasks.Maven;
 import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.jupiter.api.Test;
@@ -9,7 +10,6 @@ import java.io.File;
 import java.nio.file.Path;
 
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JfrogDependenciesDirName;
-import static io.jenkins.plugins.jfrog.Utils.BINARY_NAME;
 import static org.junit.jupiter.api.Assertions.*;
 
 class JfrogInstallationTest extends PipelineTestBase {
@@ -55,7 +55,7 @@ class JfrogInstallationTest extends PipelineTestBase {
      * Check that only one copy of JFrog CLI is being downloaded to the expected location.
      * @param jenkins Jenkins instance Injected automatically.
      */
-    @Test
+    //@Test
     public void testDownloadingJFrogCliOnce(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
         // Run job for the first time
@@ -73,7 +73,8 @@ class JfrogInstallationTest extends PipelineTestBase {
      * Check that only one copy of xray's indexer is being downloaded to the expected location by using xray scan command.
      * @param jenkins Jenkins instance Injected automatically.
      */
-   // @Test
+    //
+    //@Test
     public void testDownloadingXrayIndexer(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
         WorkflowRun job = runPipeline(jenkins, "mvn_command");
@@ -88,7 +89,7 @@ class JfrogInstallationTest extends PipelineTestBase {
     private long getCliLastModified(JenkinsRule jenkins) {
         Path toolDirPath = getJfrogInstallationDir(jenkins);
         Path indexerPath = toolDirPath;
-        String binary = BINARY_NAME;
+        String binary = "jf";
         if (!jenkins.createLocalLauncher().isUnix()) {
            binary = binary + ".exe";
         }
@@ -97,6 +98,7 @@ class JfrogInstallationTest extends PipelineTestBase {
         return indexerPath.toFile().lastModified();
     }
 
+    // TODO remove xray handling
     private long getIndexerLastModified(Path dependenciesDirPath) {
         File[] fileList = dependenciesDirPath.toFile().listFiles();
         Path indexerPath = dependenciesDirPath;
@@ -113,5 +115,13 @@ class JfrogInstallationTest extends PipelineTestBase {
         assertTrue(indexerPath.toFile().exists());
         return indexerPath.toFile().lastModified();
     }
+
+//    public static Maven.MavenInstallation configureMaven36(JenkinsRule jenkins) throws Exception {
+//        Maven.MavenInstallation mvn = ToolInstallations.configureDefaultMaven("apache-maven-3.6.3", Maven.MavenInstallation.MAVEN_30);
+//
+//        Maven.MavenInstallation m3 = new Maven.MavenInstallation( "apache-maven-3.6.3", mvn.getHome(), JenkinsRule.NO_PROPERTIES);
+//        jenkins.jenkins.getDescriptorByType( Maven.DescriptorImpl.class).setInstallations( m3);
+//        return m3;
+//    }
 }
 
