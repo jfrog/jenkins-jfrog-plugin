@@ -91,15 +91,13 @@ public class PipelineTestBase {
     }
 
     private static void createSlave() {
-        if (slave != null) {
-            return;
-        }
         try {
             slave = jenkins.createOnlineSlave(Label.get(SLAVE_LABEL));
         } catch (Exception e) {
             fail(ExceptionUtils.getRootCauseMessage(e));
         }
     }
+
     @BeforeClass
     public static void setUp() throws IOException {
         currentTime = System.currentTimeMillis();

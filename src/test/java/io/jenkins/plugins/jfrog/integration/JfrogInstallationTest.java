@@ -55,7 +55,7 @@ class JfrogInstallationTest extends PipelineTestBase {
      * Check that only one copy of JFrog CLI is being downloaded to the expected location.
      * @param jenkins Jenkins instance Injected automatically.
      */
-    //@Test
+    @Test
     public void testDownloadingJFrogCliOnce(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
         // Run job for the first time
