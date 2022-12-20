@@ -9,6 +9,7 @@ import java.io.File;
 import java.nio.file.Path;
 
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JfrogDependenciesDirName;
+import static io.jenkins.plugins.jfrog.Utils.BINARY_NAME;
 import static org.junit.jupiter.api.Assertions.*;
 
 class JfrogInstallationTest extends PipelineTestBase {
@@ -51,17 +52,49 @@ class JfrogInstallationTest extends PipelineTestBase {
     }
 
     /**
+     * Check that only one copy of JFrog CLI is being downloaded to the expected location.
+     * @param jenkins Jenkins instance Injected automatically.
+     */
+    @Test
+    public void testDownloadingJFrogCliOnce(JenkinsRule jenkins) throws Exception{
+        initPipelineTest(jenkins);
+        // Run job for the first time
+        WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
+        System.out.println(job.getLog());
+        long lastModified = getCliLastModified(jenkins);
+        // Run job for the second time
+        job = runPipeline(jenkins, "basic_verify_version");
+        System.out.println(job.getLog());
+        // Verify binary wasn't modified
+        assertEquals(lastModified, getCliLastModified(jenkins));
+    }
+
+    /**
      * Check that only one copy of xray's indexer is being downloaded to the expected location by using xray scan command.
      * @param jenkins Jenkins instance Injected automatically.
      */
     @Test
     public void testDownloadingXrayIndexer(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
-        WorkflowRun job = runPipeline(jenkins, "scan_command");
+        WorkflowRun job = runPipeline(jenkins, "mvn_command");
         System.out.println(job.getLog());
-        Path dependenciesDirPath = jenkins.jenkins.getRootDir().toPath().resolve("tools");
-        dependenciesDirPath = dependenciesDirPath.resolve("io.jenkins.plugins.jfrog.JfrogInstallation").resolve(JfrogDependenciesDirName).resolve("xray-indexer");
-        long lastModified = getIndexerLastModified(dependenciesDirPath);
+        Path dependenciesDirPath = getJfrogInstallationDir(jenkins).resolve(JfrogDependenciesDirName).resolve("xray-indexer");
+        //long lastModified = getIndexerLastModified(dependenciesDirPath);
+    }
+
+    private Path getJfrogInstallationDir(JenkinsRule jenkins) {
+        return jenkins.jenkins.getRootDir().toPath().resolve("tools").resolve("io.jenkins.plugins.jfrog.JfrogInstallation");
+    }
+    private long getCliLastModified(JenkinsRule jenkins) {
+        Path toolDirPath = getJfrogInstallationDir(jenkins);
+        Path indexerPath = toolDirPath;
+        String binary = BINARY_NAME;
+        if (!jenkins.createLocalLauncher().isUnix()) {
+           binary = binary + ".exe";
+        }
+        indexerPath = indexerPath.resolve(JFROG_CLI_TOOL_NAME).resolve(binary);
+        assertTrue(indexerPath.toFile().exists());
+        return indexerPath.toFile().lastModified();
     }
 
     private long getIndexerLastModified(Path dependenciesDirPath) {

@@ -14,7 +14,7 @@ import java.util.Objects;
  * @author gail
  */
 public class Utils {
-    private static final String BINARY_NAME = "jf";
+    public static final String BINARY_NAME = "jf";
 
     public static FilePath getWorkspace(Job<?, ?> project) {
         FilePath projectJob = new FilePath(project.getRootDir());
