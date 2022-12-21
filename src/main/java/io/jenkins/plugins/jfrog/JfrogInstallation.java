@@ -91,7 +91,7 @@ public class JfrogInstallation extends ToolInstallation
     public static final class Descriptor extends ToolDescriptor<JfrogInstallation> {
 
         public Descriptor() {
-            setInstallations();
+            super(JfrogInstallation.class);
             load();
         }
 
@@ -112,6 +112,17 @@ public class JfrogInstallation extends ToolInstallation
             // The default installation will be from 'releases.jfrog.io'
             installersList.add(new ReleasesInstaller(null));
             return installersList;
+        }
+
+        @Override
+        public boolean configure(StaplerRequest req, JSONObject o) throws FormException {
+            Jenkins jenkins = Jenkins.getInstanceOrNull();
+            if (jenkins != null && jenkins.hasPermission(Jenkins.ADMINISTER)) {
+                super.configure(req, o);
+                save();
+                return true;
+            }
+            throw new FormException("User doesn't have permissions to save", "Server ID");
         }
     }
 }
