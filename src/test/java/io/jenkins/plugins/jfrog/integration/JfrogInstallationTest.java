@@ -10,6 +10,7 @@ import java.io.File;
 import java.nio.file.Path;
 
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JfrogDependenciesDirName;
+import static io.jenkins.plugins.jfrog.Utils.BINARY_NAME;
 import static org.junit.jupiter.api.Assertions.*;
 
 //TODO: fix class name
@@ -70,6 +71,21 @@ class JfrogInstallationTest extends PipelineTestBase {
         assertEquals(lastModified, getCliLastModified(jenkins));
     }
 
+    private Path getJfrogInstallationDir(JenkinsRule jenkins) {
+        return jenkins.jenkins.getRootDir().toPath().resolve("tools").resolve("io.jenkins.plugins.jfrog.JfrogInstallation");
+    }
+    private long getCliLastModified(JenkinsRule jenkins) {
+        Path toolDirPath = getJfrogInstallationDir(jenkins);
+        Path indexerPath = toolDirPath;
+        String binary = BINARY_NAME;
+        if (!jenkins.createLocalLauncher().isUnix()) {
+           binary = binary + ".exe";
+        }
+        indexerPath = indexerPath.resolve(JFROG_CLI_TOOL_NAME).resolve(binary);
+        assertTrue(indexerPath.toFile().exists());
+        return indexerPath.toFile().lastModified();
+    }
+
     /**
      * Check that only one copy of xray's indexer is being downloaded to the expected location by using xray scan command.
      * @param jenkins Jenkins instance Injected automatically.
@@ -82,21 +98,6 @@ class JfrogInstallationTest extends PipelineTestBase {
         System.out.println(job.getLog());
         Path dependenciesDirPath = getJfrogInstallationDir(jenkins).resolve(JfrogDependenciesDirName).resolve("xray-indexer");
         //long lastModified = getIndexerLastModified(dependenciesDirPath);
-    }
-
-    private Path getJfrogInstallationDir(JenkinsRule jenkins) {
-        return jenkins.jenkins.getRootDir().toPath().resolve("tools").resolve("io.jenkins.plugins.jfrog.JfrogInstallation");
-    }
-    private long getCliLastModified(JenkinsRule jenkins) {
-        Path toolDirPath = getJfrogInstallationDir(jenkins);
-        Path indexerPath = toolDirPath;
-        String binary = "jf";
-        if (!jenkins.createLocalLauncher().isUnix()) {
-           binary = binary + ".exe";
-        }
-        indexerPath = indexerPath.resolve(JFROG_CLI_TOOL_NAME).resolve(binary);
-        assertTrue(indexerPath.toFile().exists());
-        return indexerPath.toFile().lastModified();
     }
 
     // TODO remove xray handling
