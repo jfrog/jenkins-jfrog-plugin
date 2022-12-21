@@ -30,8 +30,6 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jfrog.artifactory.client.ArtifactoryResponse;
-import org.jfrog.build.api.util.NullLog;
-import org.jfrog.build.extractor.clientConfiguration.client.artifactory.ArtifactoryManager;
 import org.junit.*;
 import org.jvnet.hudson.test.JenkinsRule;
 
@@ -271,7 +269,7 @@ public class PipelineTestBase {
         installers.add(installer);
         r.add(new InstallSourceProperty(installers));
         JfrogInstallation jf = new JfrogInstallation(toolName, "", r);
-        Jenkins.get().getDescriptorByType(JfrogInstallation.Descriptor.class).setInstallations(jf);
+        Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(jf);
         return jf;
     }
 }

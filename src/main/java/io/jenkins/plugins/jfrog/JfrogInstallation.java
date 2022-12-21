@@ -1,10 +1,7 @@
 package io.jenkins.plugins.jfrog;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.EnvVars;
-import hudson.Extension;
-import hudson.Plugin;
-import hudson.PluginWrapper;
+import hudson.*;
 import hudson.model.EnvironmentSpecific;
 import hudson.model.Node;
 import hudson.model.TaskListener;
@@ -88,9 +85,10 @@ public class JfrogInstallation extends ToolInstallation
 
     @Symbol("jfrog")
     @Extension
-    public static final class Descriptor extends ToolDescriptor<JfrogInstallation> {
+    public static final class DescriptorImpl extends ToolDescriptor<JfrogInstallation> {
 
-        public Descriptor() {
+        public DescriptorImpl() {
+            super(JfrogInstallation.class);
             setInstallations();
             load();
         }
@@ -112,6 +110,18 @@ public class JfrogInstallation extends ToolInstallation
             // The default installation will be from 'releases.jfrog.io'
             installersList.add(new ReleasesInstaller(null));
             return installersList;
+        }
+
+        // TODO duplicate in jfrogplatformbuilder
+        @Override
+        public boolean configure(StaplerRequest req, JSONObject o) throws FormException {
+            Jenkins jenkins = Jenkins.getInstanceOrNull();
+            if (jenkins != null && jenkins.hasPermission(Jenkins.ADMINISTER)) {
+                boolean res = super.configure(req, o);
+                save();
+                return res;
+            }
+            throw new FormException("User doesn't have permissions to save", "Server ID");
         }
     }
 }
