@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JfrogDependenciesDirName;
 import static org.junit.jupiter.api.Assertions.*;
 
+//TODO: fix class name
 class JfrogInstallationTest extends PipelineTestBase {
     // Jfrog CLI version which is accessible for all operating systems
     public static final String jfrogCliTestVersion = "2.29.2";

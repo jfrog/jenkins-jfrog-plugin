@@ -89,7 +89,6 @@ public class JfrogInstallation extends ToolInstallation
 
         public DescriptorImpl() {
             super(JfrogInstallation.class);
-            setInstallations();
             load();
         }
 
@@ -111,8 +110,6 @@ public class JfrogInstallation extends ToolInstallation
             installersList.add(new ReleasesInstaller(null));
             return installersList;
         }
-
-        // TODO duplicate in jfrogplatformbuilder
         @Override
         public boolean configure(StaplerRequest req, JSONObject o) throws FormException {
             Jenkins jenkins = Jenkins.getInstanceOrNull();
