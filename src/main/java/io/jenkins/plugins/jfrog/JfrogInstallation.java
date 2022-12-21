@@ -110,13 +110,14 @@ public class JfrogInstallation extends ToolInstallation
             installersList.add(new ReleasesInstaller(null));
             return installersList;
         }
+
         @Override
         public boolean configure(StaplerRequest req, JSONObject o) throws FormException {
             Jenkins jenkins = Jenkins.getInstanceOrNull();
             if (jenkins != null && jenkins.hasPermission(Jenkins.ADMINISTER)) {
-                boolean res = super.configure(req, o);
+                super.configure(req, o);
                 save();
-                return res;
+                return true;
             }
             throw new FormException("User doesn't have permissions to save", "Server ID");
         }

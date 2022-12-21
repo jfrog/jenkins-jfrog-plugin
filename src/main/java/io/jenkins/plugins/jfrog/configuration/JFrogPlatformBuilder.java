@@ -17,6 +17,7 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.interceptor.RequirePOST;
+import org.kohsuke.stapler.verb.POST;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -60,6 +61,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
          * @param value This parameter receives the value that the user has typed.
          * @return Indicates the outcome of the validation. This is sent to the browser.
          */
+        @POST
         @SuppressWarnings("unused")
         public FormValidation doCheckServerId(@QueryParameter String value) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
@@ -88,6 +90,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
          * @param value This parameter receives the value that the user has typed.
          * @return Indicates the outcome of the validation. This is sent to the browser.
          */
+        @POST
         @SuppressWarnings("unused")
         public FormValidation doCheckPlatformUrl(@QueryParameter String value) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
