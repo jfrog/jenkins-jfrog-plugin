@@ -96,7 +96,6 @@ public class PipelineTestBase {
         }
     }
 
-    @BeforeClass
     public static void setUp() throws IOException {
         currentTime = System.currentTimeMillis();
         verifyEnvironment();
