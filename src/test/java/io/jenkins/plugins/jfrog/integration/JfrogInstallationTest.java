@@ -87,12 +87,12 @@ class JfrogInstallationTest extends PipelineTestBase {
     }
 
     /**
-     * Check that only one copy of xray's indexer is being downloaded to the expected location by using xray scan command.
+     * Check that only one copy of maven extractor is being downloaded to the expected 'dependencies' directory by running a script with a maven command.
      * @param jenkins Jenkins instance Injected automatically.
      */
     //
-    //@Test
-    public void testDownloadingXrayIndexer(JenkinsRule jenkins) throws Exception{
+    @Test
+    public void testDownloadingMavenExtractor(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
         WorkflowRun job = runPipeline(jenkins, "mvn_command");
         System.out.println(job.getLog());
