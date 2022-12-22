@@ -19,4 +19,4 @@ jobs:
           JENKINS_PLATFORM_URL: "http://localhost:8081/"
           JENKINS_PLATFORM_USERNAME: "admin"
           JENKINS_ARTIFACTORY_PASSWORD: "password"
-        run: mvn -V -B -U --no-transfer-progress clean verify
+        run: mvn -V -B -U --no-transfer-progress clean verify -DskipTests=true
