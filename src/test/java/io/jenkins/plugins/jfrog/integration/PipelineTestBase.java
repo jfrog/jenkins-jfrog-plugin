@@ -263,14 +263,21 @@ public class PipelineTestBase {
     }
 
     public static JfrogInstallation configureJfrogCliFromReleases(String toolName, String cliVersion) throws IOException {
-        return configureJfrogCli(toolName, new ReleasesInstaller(cliVersion));
+        return configureJfrogCliTool(toolName, new ReleasesInstaller(cliVersion));
     }
 
     public static JfrogInstallation configureJfrogCliFromArtifactory(String toolName, String serverId, String repo) throws IOException {
-        return configureJfrogCli(toolName, new ArtifactoryInstaller(serverId, repo));
+        return configureJfrogCliTool(toolName, new ArtifactoryInstaller(serverId, repo));
     }
 
-    public static JfrogInstallation configureJfrogCli(String toolName, BinaryInstaller installer) throws IOException {
+    /**
+     * Add a new JFrog CLI tool.
+     * @param toolName the tool name.
+     * @param installer the tool installer (Releases or Artifactory).
+     * @return the new tool's JfrogInstallation.
+     * @throws IOException failed to configure the new tool.
+     */
+    public static JfrogInstallation configureJfrogCliTool(String toolName, BinaryInstaller installer) throws IOException {
         Saveable NOOP = () -> {
         };
         DescribableList<ToolProperty<?>, ToolPropertyDescriptor> r = new DescribableList<>(NOOP);
@@ -278,13 +285,12 @@ public class PipelineTestBase {
         installers.add(installer);
         r.add(new InstallSourceProperty(installers));
         JfrogInstallation jf = new JfrogInstallation(toolName, "", r);
+        // Get all pre-configured installations and add the new one.
         JfrogInstallation[] installations = Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).getInstallations();
-        // TODO looks ugly
-        if (installations.length > 0){
-            Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(jf, installations[0]);
-        } else {
-            Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(jf);
-        }
+        ArrayList<JfrogInstallation> arrayList = new ArrayList<>(Arrays.asList(installations));
+        arrayList.add(jf);
+        installations = Arrays.asList(arrayList.toArray()).toArray(new JfrogInstallation[arrayList.size()]);
+        Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(installations);
         return jf;
     }
 }
