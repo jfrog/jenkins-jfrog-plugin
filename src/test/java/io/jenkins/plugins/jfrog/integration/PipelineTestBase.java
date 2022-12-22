@@ -162,6 +162,11 @@ public class PipelineTestBase {
         addCreds(store, CredentialsScope.GLOBAL, "credentials");
     }
 
+    private static void addCreds(CredentialsStore store, CredentialsScope scope, String id) throws IOException {
+        // For purposes of this test we do not care about domains.
+        store.addCredentials(Domain.global(), new UsernamePasswordCredentialsImpl(scope, id, null, ARTIFACTORY_USERNAME, ARTIFACTORY_PASSWORD));
+    }
+
     private static CredentialsStore lookupStore(ModelObject object) {
         Iterator<CredentialsStore> stores = CredentialsProvider.lookupStores(object).iterator();
         assertTrue(stores.hasNext());
