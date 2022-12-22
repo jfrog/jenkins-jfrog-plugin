@@ -121,7 +121,9 @@ public class PipelineTestBase {
         }
         slaveWs.mkdirs();
         project.setDefinition(new CpsFlowDefinition(readPipeline(name), false));
-        return jenkins.buildAndAssertSuccess(project);
+        WorkflowRun job = jenkins.buildAndAssertSuccess(project);
+        System.out.println(job.getLog());
+        return job;
     }
 
     /**

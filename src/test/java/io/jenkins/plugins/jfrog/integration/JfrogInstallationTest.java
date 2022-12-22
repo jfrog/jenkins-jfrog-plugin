@@ -1,6 +1,5 @@
 package io.jenkins.plugins.jfrog.integration;
 
-import hudson.tasks.Maven;
 import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.jupiter.api.Test;
@@ -28,12 +27,10 @@ class JfrogInstallationTest extends PipelineTestBase {
         // Download specific CLI version.
         configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, jfrogCliTestVersion);
         WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
-        System.out.println(job.getLog());
         assertTrue(job.getLog().contains("jf version "+jfrogCliTestVersion));
         // Download the latest CLI version.
         configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY);
         job = runPipeline(jenkins, "basic_verify_version");
-        System.out.println(job.getLog());
         // Verify newer version was installed.
         assertFalse(job.getLog().contains("jf version "+jfrogCliTestVersion));
     }
@@ -49,8 +46,11 @@ class JfrogInstallationTest extends PipelineTestBase {
         // Using remote repository to 'releases.io' in the client's Artifactory.
         configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME, "serverId", getRepoKey(TestRepository.CLI_REMOTE_REPO));
         WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
-        System.out.println(job.getLog());
         assertTrue(job.getLog().contains("jf version "));
+    }
+
+    private Path getJfrogInstallationDir(JenkinsRule jenkins) {
+        return jenkins.jenkins.getRootDir().toPath().resolve("tools").resolve("io.jenkins.plugins.jfrog.JfrogInstallation");
     }
 
     /**
@@ -60,20 +60,19 @@ class JfrogInstallationTest extends PipelineTestBase {
     @Test
     public void testDownloadingJFrogCliOnce(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
-        // Run job for the first time
-        WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
-        System.out.println(job.getLog());
+        // After running job for the first time, CLI's binary should be downloaded.
+        runPipeline(jenkins, "basic_verify_version");
         long lastModified = getCliLastModified(jenkins);
-        // Run job for the second time
-        job = runPipeline(jenkins, "basic_verify_version");
-        System.out.println(job.getLog());
-        // Verify binary wasn't modified
+        // Rerunning the job and verifying that the binary was not downloaded again by comparing the modification time.
+        runPipeline(jenkins, "basic_verify_version");
         assertEquals(lastModified, getCliLastModified(jenkins));
     }
 
-    private Path getJfrogInstallationDir(JenkinsRule jenkins) {
-        return jenkins.jenkins.getRootDir().toPath().resolve("tools").resolve("io.jenkins.plugins.jfrog.JfrogInstallation");
-    }
+    /**
+     * Finds the binary file in the CLI tool directory and returns its modification time.
+     * @param jenkins Jenkins instance Injected automatically.
+     * @return binary modification time.
+     */
     private long getCliLastModified(JenkinsRule jenkins) {
         Path toolDirPath = getJfrogInstallationDir(jenkins);
         Path indexerPath = toolDirPath;
@@ -94,36 +93,33 @@ class JfrogInstallationTest extends PipelineTestBase {
     @Test
     public void testDownloadingMavenExtractor(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
-        WorkflowRun job = runPipeline(jenkins, "mvn_command");
-        System.out.println(job.getLog());
-        Path dependenciesDirPath = getJfrogInstallationDir(jenkins).resolve(JfrogDependenciesDirName).resolve("xray-indexer");
-        //long lastModified = getIndexerLastModified(dependenciesDirPath);
+        // After running job for the first time, Mvn extractor should be downloaded.
+        runPipeline(jenkins, "mvn_command");
+        Path mvnDependenciesDirPath = getJfrogInstallationDir(jenkins).resolve(JfrogDependenciesDirName).resolve("maven");
+        long lastModified = getExtractorLastModified(mvnDependenciesDirPath);
+        // Rerunning the job and verifying that the extractor was not downloaded again by comparing the modification time.
+        runPipeline(jenkins, "mvn_command");
+        assertEquals(lastModified, getExtractorLastModified(mvnDependenciesDirPath));
     }
 
-    // TODO remove xray handling
-    private long getIndexerLastModified(Path dependenciesDirPath) {
-        File[] fileList = dependenciesDirPath.toFile().listFiles();
-        Path indexerPath = dependenciesDirPath;
+    /**
+     * Finds the extractor jar in the mvn extractor directory and returns its modification time.
+     * @param mvnDependenciesDirPath maven's extractors directory inside the dependencies' directory.
+     * @return jar modification time.
+     */
+    private long getExtractorLastModified(Path mvnDependenciesDirPath) {
+        File[] fileList = mvnDependenciesDirPath.toFile().listFiles();
+        assertEquals(1, fileList.length, "The Maven dependencies directory is expected to contain only one extractor version, but it contains " + fileList.length);
+        Path extractorPath = mvnDependenciesDirPath.resolve(fileList[0].getName());
+        // Look for the '.jar' file inside the extractor directory.
+        fileList = extractorPath.toFile().listFiles();
         for (File file: fileList) {
-            if (file.getName().equals("temp")) {
-                continue;
+            if (file.getName().endsWith(".jar")) {
+                return file.lastModified();
             }
-            String indexer = "indexer-app";
-            if (!jenkins.createLocalLauncher().isUnix()) {
-                indexer = indexer + ".exe";
-            }
-            indexerPath = indexerPath.resolve(file.getName()).resolve(indexer);
         }
-        assertTrue(indexerPath.toFile().exists());
-        return indexerPath.toFile().lastModified();
+        fail();
+        return 0;
     }
-
-//    public static Maven.MavenInstallation configureMaven36(JenkinsRule jenkins) throws Exception {
-//        Maven.MavenInstallation mvn = ToolInstallations.configureDefaultMaven("apache-maven-3.6.3", Maven.MavenInstallation.MAVEN_30);
-//
-//        Maven.MavenInstallation m3 = new Maven.MavenInstallation( "apache-maven-3.6.3", mvn.getHome(), JenkinsRule.NO_PROPERTIES);
-//        jenkins.jenkins.getDescriptorByType( Maven.DescriptorImpl.class).setInstallations( m3);
-//        return m3;
-//    }
 }
 
