@@ -99,7 +99,6 @@
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs</artifactId>
             <version>4.5.3</version>
-            <scope>test</scope>
         </dependency>
     </dependencies>
     <dependencyManagement>
