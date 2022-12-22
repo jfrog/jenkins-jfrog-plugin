@@ -13,7 +13,7 @@ import static io.jenkins.plugins.jfrog.Utils.BINARY_NAME;
 import static org.junit.jupiter.api.Assertions.*;
 
 class JFrogInstallationTest extends PipelineTestBase {
-    // JFrog CLI version which is accessible for all operating systems
+    // JFrog CLI version which is accessible for all operating systems.
     public static final String jfrogCliTestVersion = "2.29.2";
 
     /**
@@ -25,11 +25,12 @@ class JFrogInstallationTest extends PipelineTestBase {
         setupPipelineTest(jenkins);
         // Download specific CLI version.
         configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, jfrogCliTestVersion, true);
-        WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
+        WorkflowRun job = runPipeline(jenkins, "basic_version_command");
+        // Verify specific version was installed.
         assertTrue(job.getLog().contains("jf version "+jfrogCliTestVersion));
         // Download the latest CLI version.
         configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY, true);
-        job = runPipeline(jenkins, "basic_verify_version");
+        job = runPipeline(jenkins, "basic_version_command");
         // Verify newer version was installed.
         assertFalse(job.getLog().contains("jf version "+jfrogCliTestVersion));
     }
@@ -44,44 +45,45 @@ class JFrogInstallationTest extends PipelineTestBase {
         // Download the latest CLI version.
         // Using remote repository to 'releases.io' in the client's Artifactory.
         configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), true);
-        WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
+        WorkflowRun job = runPipeline(jenkins, "basic_version_command");
         assertTrue(job.getLog().contains("jf version "));
     }
 
+    // Gets JfrogInstallation directory in Jenkins work root.
     private Path getJfrogInstallationDir(JenkinsRule jenkins) {
         return jenkins.jenkins.getRootDir().toPath().resolve("tools").resolve("io.jenkins.plugins.jfrog.JfrogInstallation");
     }
 
     /**
-     * Check that only one copy of JFrog CLI is being downloaded to the expected location.
+     * Check that only one copy of JFrog CLI is being downloaded to the expected location when running multiple jobs.
      * @param jenkins Jenkins instance Injected automatically.
      */
     @Test
     public void testDownloadingJFrogCliOnce(JenkinsRule jenkins) throws Exception{
         initPipelineTest(jenkins);
         // After running job for the first time, CLI's binary should be downloaded.
-        runPipeline(jenkins, "basic_verify_version");
+        runPipeline(jenkins, "basic_version_command");
         long lastModified = getCliLastModified(jenkins);
         // Rerunning the job and verifying that the binary was not downloaded again by comparing the modification time.
-        runPipeline(jenkins, "basic_verify_version");
+        runPipeline(jenkins, "basic_version_command");
         assertEquals(lastModified, getCliLastModified(jenkins));
     }
 
     /**
      * Finds the binary file in the CLI tool directory and returns its modification time.
      * @param jenkins Jenkins instance Injected automatically.
-     * @return binary modification time.
+     * @return binary's modification time.
      */
     private long getCliLastModified(JenkinsRule jenkins) {
         Path toolDirPath = getJfrogInstallationDir(jenkins);
-        Path indexerPath = toolDirPath;
-        String binary = BINARY_NAME;
+        Path binaryPath = toolDirPath;
+        String name = BINARY_NAME;
         if (!jenkins.createLocalLauncher().isUnix()) {
-           binary = binary + ".exe";
+            name = name + ".exe";
         }
-        indexerPath = indexerPath.resolve(JFROG_CLI_TOOL_NAME).resolve(binary);
-        assertTrue(indexerPath.toFile().exists());
-        return indexerPath.toFile().lastModified();
+        binaryPath = binaryPath.resolve(JFROG_CLI_TOOL_NAME).resolve(name);
+        assertTrue(binaryPath.toFile().exists());
+        return binaryPath.toFile().lastModified();
     }
 
     /**
@@ -102,13 +104,13 @@ class JFrogInstallationTest extends PipelineTestBase {
     }
 
     /**
-     * Finds the extractor jar in the mvn extractor directory and returns its modification time.
+     * Finds the extractor' jar in the mvn extractor directory and returns its modification time.
      * @param mvnDependenciesDirPath maven's extractors directory inside the dependencies' directory.
-     * @return jar modification time.
+     * @return extractor' jar modification time.
      */
     private long getExtractorLastModified(Path mvnDependenciesDirPath) {
         File[] fileList = mvnDependenciesDirPath.toFile().listFiles();
-        assertEquals(1, fileList.length, "The Maven dependencies directory is expected to contain only one extractor version, but it contains " + fileList.length);
+        assertEquals(1, fileList.length, "The Maven dependencies directory is expected to contain only one extractor version, but it actually contains " + fileList.length);
         Path extractorPath = mvnDependenciesDirPath.resolve(fileList[0].getName());
         // Look for the '.jar' file inside the extractor directory.
         fileList = extractorPath.toFile().listFiles();
@@ -128,7 +130,7 @@ class JFrogInstallationTest extends PipelineTestBase {
     @Test
     public void testCombineReleasesAndArtifactoryTools(JenkinsRule jenkins) throws Exception{
         setupPipelineTest(jenkins);
-        // Download the latest CLI version from releases.io and then from Artifactory.
+        // Download the latest CLI version from releases.io and from Artifactory.
         configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY, false);
         configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
         runPipeline(jenkins, "basic_commands");
@@ -149,4 +151,3 @@ class JFrogInstallationTest extends PipelineTestBase {
         runPipeline(jenkins, "basic_commands_2");
     }
 }
-

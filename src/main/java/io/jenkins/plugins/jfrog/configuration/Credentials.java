@@ -1,7 +1,6 @@
 package io.jenkins.plugins.jfrog.configuration;
 
 import com.cloudbees.plugins.credentials.BaseCredentials;
-import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import hudson.util.Secret;
 import org.apache.commons.lang3.StringUtils;
 

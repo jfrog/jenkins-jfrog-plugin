@@ -50,7 +50,6 @@ import static org.junit.Assert.*;
 @EnableJenkins
 public class PipelineTestBase {
     public static long currentTime;
-
     static Artifactory artifactoryClient;
     public static JenkinsRule jenkins;
     public static Slave slave;
@@ -65,7 +64,6 @@ public class PipelineTestBase {
             .resolve(Paths.get("src", "test", "resources", "integration"));
     public static final String JFROG_CLI_TOOL_NAME = "jfrog-cli";
     public static final String JFROG_CLI_TOOL_NAME2 = "jfrog-cli-2";
-
     public static final String TEST_CONFIGURED_SERVER_ID = "serverId";
 
     public void initPipelineTest(JenkinsRule jenkins) throws IOException {
@@ -74,7 +72,7 @@ public class PipelineTestBase {
         configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY, true);
     }
 
-    // Set up test's environment
+    // Set up test' environment
     public void setupPipelineTest(JenkinsRule jenkins) throws IOException {
         this.jenkins = jenkins;
         setUp();
@@ -113,8 +111,7 @@ public class PipelineTestBase {
 
     /**
      * Run pipeline script.
-     *
-     * @param name - Pipeline name from 'jenkins-artifactory-plugin/src/test/resources/integration/pipelines'
+     * @param name - Pipeline name from 'jenkins-jfrog-plugin/src/test/resources/integration/pipelines'
      * @return the Jenkins job
      */
     WorkflowRun runPipeline(JenkinsRule jenkins, String name) throws Exception {
@@ -131,7 +128,7 @@ public class PipelineTestBase {
     }
 
     /**
-     * Verify ARTIFACTORY_URL, ARTIFACTORY_USERNAME and ACCESS_TOKEN
+     * Verify ARTIFACTORY_URL, ARTIFACTORY_USERNAME and ACCESS_TOKEN/ARTIFACTORY_PASSWORD were provided.
      */
     private static void verifyEnvironment() {
         if (StringUtils.isBlank(PLATFORM_URL)) {
@@ -146,7 +143,7 @@ public class PipelineTestBase {
     }
 
     /**
-     * Create JFrog server in the Global configuration.
+     * Configure a new JFrog server in the Global configuration.
      */
     private static void setGlobalConfiguration() throws IOException {
         JFrogPlatformBuilder.DescriptorImpl jfrogBuilder = (JFrogPlatformBuilder.DescriptorImpl) jenkins.getInstance().getDescriptor(JFrogPlatformBuilder.class);
@@ -154,6 +151,8 @@ public class PipelineTestBase {
         CredentialsConfig emptyCred = new CredentialsConfig(StringUtils.EMPTY, Credentials.EMPTY_CREDENTIALS);
         CredentialsConfig platformCred = new CredentialsConfig(Secret.fromString(ARTIFACTORY_USERNAME), Secret.fromString(ARTIFACTORY_PASSWORD), Secret.fromString(ACCESS_TOKEN), "credentials");
         List<JFrogPlatformInstance> artifactoryServers = new ArrayList<JFrogPlatformInstance>() {{
+            // Dummy server to test multiple configured servers.
+            // The dummy server should be configured first to ensure the right server is being used (and not the first one).
             add(new JFrogPlatformInstance("dummyServerId", "",  emptyCred, "", "",""));
             add(new JFrogPlatformInstance(TEST_CONFIGURED_SERVER_ID, PLATFORM_URL,  platformCred, ARTIFACTORY_URL, "",""));
         }};
@@ -163,6 +162,7 @@ public class PipelineTestBase {
         addCreds(store, CredentialsScope.GLOBAL, "credentials");
     }
 
+    // TODO should delete?
     private static void addCreds(CredentialsStore store, CredentialsScope scope, String id) throws IOException {
         // For purposes of this test we do not care about domains.
         store.addCredentials(Domain.global(), new UsernamePasswordCredentialsImpl(scope, id, null, ARTIFACTORY_USERNAME, ARTIFACTORY_PASSWORD));
@@ -172,13 +172,12 @@ public class PipelineTestBase {
         Iterator<CredentialsStore> stores = CredentialsProvider.lookupStores(object).iterator();
         assertTrue(stores.hasNext());
         CredentialsStore store = stores.next();
-        //assertEquals("we got the expected store", object, store.getContext());
         return store;
     }
+
     /**
      * Create a temporary repository for the tests.
-     *
-     * @param repository - The repository base name
+     * @param repository - The repository base name.
      */
     private static void createRepo(TestRepository repository) {
         ArtifactoryResponse response = null;
@@ -199,7 +198,6 @@ public class PipelineTestBase {
 
     /**
      * Get the repository key of the temporary test repository.
-     *
      * @param repository - The repository base name
      * @return repository key of the temporary test repository
      */
@@ -208,8 +206,7 @@ public class PipelineTestBase {
     }
 
     /**
-     * Read repository or project configuration and replace placeholders with their corresponding values.
-     *
+     * Read repository configuration and replace placeholders with their corresponding values.
      * @param repoOrProject - Name of configuration in resources.
      * @return The configuration after substitution.
      */
@@ -250,10 +247,9 @@ public class PipelineTestBase {
     }
 
     /**
-     * Read pipeline from 'jenkins-artifactory-plugin/src/test/resources/integration/pipelines'
-     *
-     * @param name - The pipeline name
-     * @return pipeline as a string
+     * Read pipeline from 'jenkins-jfrog-plugin/src/test/resources/integration/pipelines'.
+     * @param name - The pipeline name.
+     * @return pipeline as a string.
      */
     private String readPipeline(String name) throws IOException {
         String pipeline = FileUtils.readFileToString(INTEGRATION_BASE_PATH
@@ -274,7 +270,7 @@ public class PipelineTestBase {
      * Add a new JFrog CLI tool.
      * @param toolName the tool name.
      * @param installer the tool installer (Releases or Artifactory).
-     * @param override if true - override pre-configured tools and set the new one, else add the tool the installation array.
+     * @param override The tool will override pre-configured ones and be set if true, otherwise it will be added to the installation array.
      * @return the new tool's JfrogInstallation.
      * @throws IOException failed to configure the new tool.
      */
@@ -288,7 +284,7 @@ public class PipelineTestBase {
         JfrogInstallation jf = new JfrogInstallation(toolName, "", r);
         ArrayList<JfrogInstallation> arrayList = new ArrayList<>();
         arrayList.add(jf);
-        // Get all pre-configured installations and add to the new one.
+        // Get all pre-configured installations and add them to the new one.
         if (!override) {
             JfrogInstallation[] installations = Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).getInstallations();
             arrayList.addAll(Arrays.asList(installations));

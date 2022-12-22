@@ -1,7 +1,6 @@
 name: Tests
 on: [ push, pull_request ]
 
-
 jobs:
   JFrog-Jenkins-Plugin-Tests:
     name: ${{ matrix.os }}
