@@ -24,11 +24,11 @@ class JFrogInstallationTest extends PipelineTestBase {
     public void testJfrogCliInstallationFromReleases(JenkinsRule jenkins) throws Exception{
         setupPipelineTest(jenkins);
         // Download specific CLI version.
-        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, jfrogCliTestVersion);
+        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, jfrogCliTestVersion, true);
         WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
         assertTrue(job.getLog().contains("jf version "+jfrogCliTestVersion));
         // Download the latest CLI version.
-        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY);
+        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY, true);
         job = runPipeline(jenkins, "basic_verify_version");
         // Verify newer version was installed.
         assertFalse(job.getLog().contains("jf version "+jfrogCliTestVersion));
@@ -43,7 +43,7 @@ class JFrogInstallationTest extends PipelineTestBase {
         setupPipelineTest(jenkins);
         // Download the latest CLI version.
         // Using remote repository to 'releases.io' in the client's Artifactory.
-        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO));
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), true);
         WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
         assertTrue(job.getLog().contains("jf version "));
     }
@@ -129,8 +129,8 @@ class JFrogInstallationTest extends PipelineTestBase {
     public void testCombineReleasesAndArtifactoryTools(JenkinsRule jenkins) throws Exception{
         setupPipelineTest(jenkins);
         // Download the latest CLI version from releases.io and then from Artifactory.
-        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY);
-        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO));
+        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY, false);
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
         runPipeline(jenkins, "basic_commands");
         runPipeline(jenkins, "basic_commands_2");
     }
@@ -143,8 +143,8 @@ class JFrogInstallationTest extends PipelineTestBase {
     public void testCombineReleasesAndArtifactoryToolsDifferentOrder(JenkinsRule jenkins) throws Exception{
         setupPipelineTest(jenkins);
         // Download the latest CLI version from Artifactory and then a specific version from releases.io.
-        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO));
-        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, jfrogCliTestVersion);
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
+        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, jfrogCliTestVersion, false);
         runPipeline(jenkins, "basic_commands");
         runPipeline(jenkins, "basic_commands_2");
     }

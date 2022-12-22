@@ -71,7 +71,7 @@ public class PipelineTestBase {
     public void initPipelineTest(JenkinsRule jenkins) throws IOException {
         setupPipelineTest(jenkins);
         // Download the latest CLI version.
-        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY);
+        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY, true);
     }
 
     // Set up test's environment
@@ -262,22 +262,23 @@ public class PipelineTestBase {
         return pipelineSubstitution.replace(pipeline);
     }
 
-    public static JfrogInstallation configureJfrogCliFromReleases(String toolName, String cliVersion) throws IOException {
-        return configureJfrogCliTool(toolName, new ReleasesInstaller(cliVersion));
+    public static JfrogInstallation configureJfrogCliFromReleases(String toolName, String cliVersion, Boolean override) throws IOException {
+        return configureJfrogCliTool(toolName, new ReleasesInstaller(cliVersion), override);
     }
 
-    public static JfrogInstallation configureJfrogCliFromArtifactory(String toolName, String serverId, String repo) throws IOException {
-        return configureJfrogCliTool(toolName, new ArtifactoryInstaller(serverId, repo));
+    public static JfrogInstallation configureJfrogCliFromArtifactory(String toolName, String serverId, String repo, Boolean override) throws IOException {
+        return configureJfrogCliTool(toolName, new ArtifactoryInstaller(serverId, repo), override);
     }
 
     /**
      * Add a new JFrog CLI tool.
      * @param toolName the tool name.
      * @param installer the tool installer (Releases or Artifactory).
+     * @param override if true - override pre-configured tools and set the new one, else add the tool the installation array.
      * @return the new tool's JfrogInstallation.
      * @throws IOException failed to configure the new tool.
      */
-    public static JfrogInstallation configureJfrogCliTool(String toolName, BinaryInstaller installer) throws IOException {
+    public static JfrogInstallation configureJfrogCliTool(String toolName, BinaryInstaller installer, Boolean override) throws IOException {
         Saveable NOOP = () -> {
         };
         DescribableList<ToolProperty<?>, ToolPropertyDescriptor> r = new DescribableList<>(NOOP);
@@ -285,11 +286,14 @@ public class PipelineTestBase {
         installers.add(installer);
         r.add(new InstallSourceProperty(installers));
         JfrogInstallation jf = new JfrogInstallation(toolName, "", r);
-        // Get all pre-configured installations and add the new one.
-        JfrogInstallation[] installations = Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).getInstallations();
-        ArrayList<JfrogInstallation> arrayList = new ArrayList<>(Arrays.asList(installations));
+        ArrayList<JfrogInstallation> arrayList = new ArrayList<>();
         arrayList.add(jf);
-        installations = Arrays.asList(arrayList.toArray()).toArray(new JfrogInstallation[arrayList.size()]);
+        // Get all pre-configured installations and add to the new one.
+        if (!override) {
+            JfrogInstallation[] installations = Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).getInstallations();
+            arrayList.addAll(Arrays.asList(installations));
+        }
+        JfrogInstallation[] installations = Arrays.asList(arrayList.toArray()).toArray(new JfrogInstallation[arrayList.size()]);
         Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(installations);
         return jf;
     }
