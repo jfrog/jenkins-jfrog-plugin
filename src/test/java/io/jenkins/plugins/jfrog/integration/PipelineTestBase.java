@@ -17,6 +17,7 @@ import io.jenkins.plugins.jfrog.ArtifactoryInstaller;
 import io.jenkins.plugins.jfrog.BinaryInstaller;
 import io.jenkins.plugins.jfrog.JfrogInstallation;
 import io.jenkins.plugins.jfrog.ReleasesInstaller;
+import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
@@ -63,6 +64,9 @@ public class PipelineTestBase {
     private static final Path INTEGRATION_BASE_PATH = Paths.get(".").toAbsolutePath().normalize()
             .resolve(Paths.get("src", "test", "resources", "integration"));
     public static final String JFROG_CLI_TOOL_NAME = "jfrog-cli";
+    public static final String JFROG_CLI_TOOL_NAME2 = "jfrog-cli-2";
+
+    public static final String TEST_CONFIGURED_SERVER_ID = "serverId";
 
     public void initPipelineTest(JenkinsRule jenkins) throws IOException {
         setupPipelineTest(jenkins);
@@ -147,9 +151,11 @@ public class PipelineTestBase {
     private static void setGlobalConfiguration() throws IOException {
         JFrogPlatformBuilder.DescriptorImpl jfrogBuilder = (JFrogPlatformBuilder.DescriptorImpl) jenkins.getInstance().getDescriptor(JFrogPlatformBuilder.class);
         Assert.assertNotNull(jfrogBuilder);
+        CredentialsConfig emptyCred = new CredentialsConfig(StringUtils.EMPTY, Credentials.EMPTY_CREDENTIALS);
         CredentialsConfig platformCred = new CredentialsConfig(Secret.fromString(ARTIFACTORY_USERNAME), Secret.fromString(ARTIFACTORY_PASSWORD), Secret.fromString(ACCESS_TOKEN), "credentials");
         List<JFrogPlatformInstance> artifactoryServers = new ArrayList<JFrogPlatformInstance>() {{
-            add(new JFrogPlatformInstance("serverId", PLATFORM_URL,  platformCred, ARTIFACTORY_URL, "",""));
+            add(new JFrogPlatformInstance("dummyServerId", "",  emptyCred, "", "",""));
+            add(new JFrogPlatformInstance(TEST_CONFIGURED_SERVER_ID, PLATFORM_URL,  platformCred, ARTIFACTORY_URL, "",""));
         }};
         jfrogBuilder.setJfrogInstances(artifactoryServers);
         Jenkins.get().getDescriptorByType(JFrogPlatformBuilder.DescriptorImpl.class).setJfrogInstances(artifactoryServers);
@@ -228,6 +234,8 @@ public class PipelineTestBase {
             put("LOCAL_REPO1", getRepoKey(TestRepository.LOCAL_REPO1));
             put("REMOTE_REPO1", getRepoKey(TestRepository.CLI_REMOTE_REPO));
             put("JFROG_CLI_TOOL_NAME", JFROG_CLI_TOOL_NAME);
+            put("JFROG_CLI_TOOL_NAME2", JFROG_CLI_TOOL_NAME2);
+            put("TEST_CONFIGURED_SERVER_ID", TEST_CONFIGURED_SERVER_ID);
         }});
     }
 
@@ -270,7 +278,13 @@ public class PipelineTestBase {
         installers.add(installer);
         r.add(new InstallSourceProperty(installers));
         JfrogInstallation jf = new JfrogInstallation(toolName, "", r);
-        Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(jf);
+        JfrogInstallation[] installations = Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).getInstallations();
+        // TODO looks ugly
+        if (installations.length > 0){
+            Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(jf, installations[0]);
+        } else {
+            Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(jf);
+        }
         return jf;
     }
 }

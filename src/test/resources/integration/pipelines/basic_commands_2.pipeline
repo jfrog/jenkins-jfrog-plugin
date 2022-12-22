@@ -1,7 +1,7 @@
 pipeline {
     agent any
     tools {
-        jfrog '${JFROG_CLI_TOOL_NAME}'
+        jfrog '${JFROG_CLI_TOOL_NAME2}'
     }
     stages {
         stage ('Testing') {

@@ -44,7 +44,7 @@ class JfrogInstallationTest extends PipelineTestBase {
         setupPipelineTest(jenkins);
         // Download the latest CLI version.
         // Using remote repository to 'releases.io' in the client's Artifactory.
-        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME, "serverId", getRepoKey(TestRepository.CLI_REMOTE_REPO));
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO));
         WorkflowRun job = runPipeline(jenkins, "basic_verify_version");
         assertTrue(job.getLog().contains("jf version "));
     }
@@ -120,6 +120,34 @@ class JfrogInstallationTest extends PipelineTestBase {
         }
         fail();
         return 0;
+    }
+
+    /**
+     * Configure two JFrog CLI tools, one with Releases installer and one with Artifactory installer, and test functionality for both.
+     * @param jenkins Jenkins instance Injected automatically.
+     */
+    @Test
+    public void testCombineReleasesAndArtifactoryTools(JenkinsRule jenkins) throws Exception{
+        setupPipelineTest(jenkins);
+        // Download the latest CLI version from releases.io and then from Artifactory.
+        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY);
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO));
+        runPipeline(jenkins, "basic_commands");
+        runPipeline(jenkins, "basic_commands_2");
+    }
+
+    /**
+     * Configure two JFrog CLI tools, one with Releases installer and one with Artifactory installer, and test functionality for both.
+     * @param jenkins Jenkins instance Injected automatically.
+     */
+    @Test
+    public void testCombineReleasesAndArtifactoryToolsDifferentOrder(JenkinsRule jenkins) throws Exception{
+        setupPipelineTest(jenkins);
+        // Download the latest CLI version from Artifactory and then a specific version from releases.io.
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO));
+        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, jfrogCliTestVersion);
+        runPipeline(jenkins, "basic_commands");
+        runPipeline(jenkins, "basic_commands_2");
     }
 }
 
