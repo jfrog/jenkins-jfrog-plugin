@@ -138,7 +138,7 @@ class JFrogInstallationITest extends PipelineTestBase {
     @Test
     public void testCombineReleasesAndArtifactoryTools(JenkinsRule jenkins) throws Exception {
         setupPipelineTest(jenkins);
-        // Download the latest CLI version from releases.io and from Artifactory.
+        // Download the latest CLI version from releases.jfrog.io and from Artifactory.
         configureJfrogCliFromReleases(StringUtils.EMPTY, false);
         configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
         runPipeline(jenkins, "basic_commands");
@@ -153,7 +153,7 @@ class JFrogInstallationITest extends PipelineTestBase {
     @Test
     public void testCombineReleasesAndArtifactoryToolsDifferentOrder(JenkinsRule jenkins) throws Exception {
         setupPipelineTest(jenkins);
-        // Download the latest CLI version from Artifactory and then a specific version from releases.io.
+        // Download the latest CLI version from Artifactory and then a specific version from releases.jfrog.io.
         configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
         configureJfrogCliFromReleases(jfrogCliTestVersion, false);
         runPipeline(jenkins, "basic_commands");
