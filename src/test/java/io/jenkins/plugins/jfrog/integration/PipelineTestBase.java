@@ -69,7 +69,7 @@ public class PipelineTestBase {
     public void initPipelineTest(JenkinsRule jenkins) throws IOException {
         setupPipelineTest(jenkins);
         // Download the latest CLI version.
-        configureJfrogCliFromReleases(JFROG_CLI_TOOL_NAME, StringUtils.EMPTY, true);
+        configureJfrogCliFromReleases(StringUtils.EMPTY, true);
     }
 
     // Set up test' environment
@@ -257,8 +257,8 @@ public class PipelineTestBase {
         return pipelineSubstitution.replace(pipeline);
     }
 
-    public static JfrogInstallation configureJfrogCliFromReleases(String toolName, String cliVersion, Boolean override) throws IOException {
-        return configureJfrogCliTool(toolName, new ReleasesInstaller(cliVersion), override);
+    public static JfrogInstallation configureJfrogCliFromReleases(String cliVersion, Boolean override) throws IOException {
+        return configureJfrogCliTool(JFROG_CLI_TOOL_NAME, new ReleasesInstaller(cliVersion), override);
     }
 
     public static JfrogInstallation configureJfrogCliFromArtifactory(String toolName, String serverId, String repo, Boolean override) throws IOException {
