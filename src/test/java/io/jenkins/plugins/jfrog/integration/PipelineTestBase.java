@@ -8,6 +8,7 @@ import hudson.model.Label;
 import hudson.model.ModelObject;
 import hudson.model.Saveable;
 import hudson.model.Slave;
+import hudson.tasks.Maven;
 import hudson.tools.InstallSourceProperty;
 import hudson.tools.ToolProperty;
 import hudson.tools.ToolPropertyDescriptor;
@@ -44,29 +45,30 @@ import org.jfrog.artifactory.client.Artifactory;
 import org.jfrog.artifactory.client.ArtifactoryClientBuilder;
 import org.jfrog.artifactory.client.ArtifactoryRequest;
 import org.jfrog.artifactory.client.impl.ArtifactoryRequestImpl;
-
+import org.jvnet.hudson.test.ToolInstallations;
+//import org.jvnet.hudson.test.ToolInstallations;
 import static org.junit.Assert.*;
 
 @EnableJenkins
 public class PipelineTestBase {
-    public static long currentTime;
-    static Artifactory artifactoryClient;
-    public static JenkinsRule jenkins;
-    public static Slave slave;
+    private static long currentTime;
+    private static Artifactory artifactoryClient;
+    private static JenkinsRule jenkins;
+    private static Slave slave;
     private static StringSubstitutor pipelineSubstitution;
-    public static final String SLAVE_LABEL = "TestSlave";
-    public static final String PLATFORM_URL = System.getenv("JENKINS_PLATFORM_URL");
-    public static final String ARTIFACTORY_URL = StringUtils.removeEnd(PLATFORM_URL, "/") + "/artifactory";
-    public static final String ARTIFACTORY_USERNAME = System.getenv("JENKINS_PLATFORM_USERNAME");
-    public static final String ARTIFACTORY_PASSWORD = System.getenv("JENKINS_ARTIFACTORY_PASSWORD");
-    public static final String ACCESS_TOKEN = System.getenv("JENKINS_PLATFORM_ADMIN_TOKEN");
+    private static final String SLAVE_LABEL = "TestSlave";
+    private static final String PLATFORM_URL = System.getenv("JENKINS_PLATFORM_URL");
+    private static final String ARTIFACTORY_URL = StringUtils.removeEnd(PLATFORM_URL, "/") + "/artifactory";
+    private static final String ARTIFACTORY_USERNAME = System.getenv("JENKINS_PLATFORM_USERNAME");
+    private static final String ARTIFACTORY_PASSWORD = System.getenv("JENKINS_ARTIFACTORY_PASSWORD");
+    private static final String ACCESS_TOKEN = System.getenv("JENKINS_PLATFORM_ADMIN_TOKEN");
     private static final Path INTEGRATION_BASE_PATH = Paths.get(".").toAbsolutePath().normalize()
             .resolve(Paths.get("src", "test", "resources", "integration"));
-    public static final String JFROG_CLI_TOOL_NAME = "jfrog-cli";
-    public static final String JFROG_CLI_TOOL_NAME2 = "jfrog-cli-2";
-    public static final String TEST_CONFIGURED_SERVER_ID = "serverId";
+    static final String JFROG_CLI_TOOL_NAME_1 = "jfrog-cli";
+    static final String JFROG_CLI_TOOL_NAME_2 = "jfrog-cli-2";
+    static final String TEST_CONFIGURED_SERVER_ID = "serverId";
 
-    public void initPipelineTest(JenkinsRule jenkins) throws IOException {
+    public void initPipelineTest(JenkinsRule jenkins) throws Exception {
         setupPipelineTest(jenkins);
         // Download the latest CLI version.
         configureJfrogCliFromReleases(StringUtils.EMPTY, true);
@@ -74,12 +76,12 @@ public class PipelineTestBase {
 
     // Set up test' environment
     public void setupPipelineTest(JenkinsRule jenkins) throws IOException {
-        this.jenkins = jenkins;
+        PipelineTestBase.jenkins = jenkins;
         setUp();
     }
 
     /**
-     * Creates build-info and Artifactory Java clients.
+     * Creates Artifactory Java clients.
      */
     private static void createClients() {
         artifactoryClient = ArtifactoryClientBuilder.create()
@@ -123,7 +125,6 @@ public class PipelineTestBase {
         slaveWs.mkdirs();
         project.setDefinition(new CpsFlowDefinition(readPipeline(name), false));
         WorkflowRun job = jenkins.buildAndAssertSuccess(project);
-        System.out.println(job.getLog());
         return job;
     }
 
@@ -159,19 +160,18 @@ public class PipelineTestBase {
         jfrogBuilder.setJfrogInstances(artifactoryServers);
         Jenkins.get().getDescriptorByType(JFrogPlatformBuilder.DescriptorImpl.class).setJfrogInstances(artifactoryServers);
         CredentialsStore store = lookupStore(jenkins);
-        addCreds(store, CredentialsScope.GLOBAL, "credentials");
+        addCredentials(store);
     }
 
-    private static void addCreds(CredentialsStore store, CredentialsScope scope, String id) throws IOException {
+    private static void addCredentials(CredentialsStore store) throws IOException {
         // For purposes of this test we do not care about domains.
-        store.addCredentials(Domain.global(), new UsernamePasswordCredentialsImpl(scope, id, null, ARTIFACTORY_USERNAME, ARTIFACTORY_PASSWORD));
+        store.addCredentials(Domain.global(), new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, "credentials", null, ARTIFACTORY_USERNAME, ARTIFACTORY_PASSWORD));
     }
 
     private static CredentialsStore lookupStore(ModelObject object) {
         Iterator<CredentialsStore> stores = CredentialsProvider.lookupStores(object).iterator();
         assertTrue(stores.hasNext());
-        CredentialsStore store = stores.next();
-        return store;
+        return stores.next();
     }
 
     /**
@@ -227,10 +227,10 @@ public class PipelineTestBase {
     private static void createPipelineSubstitution() {
         pipelineSubstitution = new StringSubstitutor(new HashMap<String, String>() {{
             put("DUMMY_FILE_PATH", fixWindowsPath(String.valueOf(INTEGRATION_BASE_PATH.resolve("files").resolve("dummyfile"))));
-            put("LOCAL_REPO1", getRepoKey(TestRepository.LOCAL_REPO1));
-            put("REMOTE_REPO1", getRepoKey(TestRepository.CLI_REMOTE_REPO));
-            put("JFROG_CLI_TOOL_NAME", JFROG_CLI_TOOL_NAME);
-            put("JFROG_CLI_TOOL_NAME2", JFROG_CLI_TOOL_NAME2);
+            put("LOCAL_REPO", getRepoKey(TestRepository.LOCAL_REPO));
+            put("REMOTE_REPO", getRepoKey(TestRepository.CLI_REMOTE_REPO));
+            put("JFROG_CLI_TOOL_NAME_1", JFROG_CLI_TOOL_NAME_1);
+            put("JFROG_CLI_TOOL_NAME_2", JFROG_CLI_TOOL_NAME_2);
             put("TEST_CONFIGURED_SERVER_ID", TEST_CONFIGURED_SERVER_ID);
         }});
     }
@@ -257,11 +257,11 @@ public class PipelineTestBase {
         return pipelineSubstitution.replace(pipeline);
     }
 
-    public static JfrogInstallation configureJfrogCliFromReleases(String cliVersion, Boolean override) throws IOException {
-        return configureJfrogCliTool(JFROG_CLI_TOOL_NAME, new ReleasesInstaller(cliVersion), override);
+    public static JfrogInstallation configureJfrogCliFromReleases(String cliVersion, Boolean override) throws Exception {
+        return configureJfrogCliTool(JFROG_CLI_TOOL_NAME_1, new ReleasesInstaller(cliVersion), override);
     }
 
-    public static JfrogInstallation configureJfrogCliFromArtifactory(String toolName, String serverId, String repo, Boolean override) throws IOException {
+    public static JfrogInstallation configureJfrogCliFromArtifactory(String toolName, String serverId, String repo, Boolean override) throws Exception {
         return configureJfrogCliTool(toolName, new ArtifactoryInstaller(serverId, repo), override);
     }
 
@@ -273,7 +273,7 @@ public class PipelineTestBase {
      * @return the new tool's JfrogInstallation.
      * @throws IOException failed to configure the new tool.
      */
-    public static JfrogInstallation configureJfrogCliTool(String toolName, BinaryInstaller installer, Boolean override) throws IOException {
+    public static JfrogInstallation configureJfrogCliTool(String toolName, BinaryInstaller installer, Boolean override) throws Exception {
         Saveable NOOP = () -> {
         };
         DescribableList<ToolProperty<?>, ToolPropertyDescriptor> r = new DescribableList<>(NOOP);
@@ -290,6 +290,18 @@ public class PipelineTestBase {
         }
         JfrogInstallation[] installations = Arrays.asList(arrayList.toArray()).toArray(new JfrogInstallation[arrayList.size()]);
         Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(installations);
+        //ToolInstallations.configureMaven35();
+
         return jf;
     }
+
+    public static Maven.MavenInstallation configureMaven36() throws Exception {
+        Maven.MavenInstallation mvn = ToolInstallations.configureMaven35();
+
+        Maven.MavenInstallation m3 = new Maven.MavenInstallation( "apache-maven-3.6.3", mvn.getHome(), JenkinsRule.NO_PROPERTIES);
+        Jenkins.getInstance().getDescriptorByType( Maven.DescriptorImpl.class).setInstallations( m3);
+        return m3;
+    }
+
+
 }

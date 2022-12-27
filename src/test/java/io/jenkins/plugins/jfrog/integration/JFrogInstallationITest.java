@@ -6,13 +6,16 @@ import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Stream;
 
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JfrogDependenciesDirName;
 import static io.jenkins.plugins.jfrog.Utils.BINARY_NAME;
 import static org.junit.jupiter.api.Assertions.*;
 
+// TODO fix agent any in scripts
 class JFrogInstallationITest extends PipelineTestBase {
     // JFrog CLI version which is accessible for all operating systems.
     private static final String jfrogCliTestVersion = "2.29.2";
@@ -47,7 +50,7 @@ class JFrogInstallationITest extends PipelineTestBase {
         setupPipelineTest(jenkins);
         // Download the latest CLI version.
         // Using remote repository to 'releases.jfrog.io' in the client's Artifactory.
-        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), true);
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME_1, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), true);
         WorkflowRun job = runPipeline(jenkins, "basic_version_command");
         assertTrue(job.getLog().contains("jf version "));
     }
@@ -85,7 +88,7 @@ class JFrogInstallationITest extends PipelineTestBase {
         if (!jenkins.createLocalLauncher().isUnix()) {
             name += ".exe";
         }
-        binaryPath = binaryPath.resolve(JFROG_CLI_TOOL_NAME).resolve(name);
+        binaryPath = binaryPath.resolve(JFROG_CLI_TOOL_NAME_1).resolve(name);
         assertTrue(Files.exists(binaryPath));
         return binaryPath.toFile().lastModified();
     }
@@ -95,7 +98,7 @@ class JFrogInstallationITest extends PipelineTestBase {
      *
      * @param jenkins Jenkins instance injected automatically.
      */
-    @Test
+    //@Test
     public void testDownloadingMavenExtractor(JenkinsRule jenkins) throws Exception {
         initPipelineTest(jenkins);
         // After running job for the first time, Mvn extractor should be downloaded.
@@ -113,21 +116,17 @@ class JFrogInstallationITest extends PipelineTestBase {
      * @param mvnDependenciesDirPath maven's extractors directory inside the dependencies' directory.
      * @return extractor' jar modification time.
      */
-    private long getExtractorLastModified(Path mvnDependenciesDirPath) {
+    private long getExtractorLastModified(Path mvnDependenciesDirPath) throws IOException {
         File[] fileList = mvnDependenciesDirPath.toFile().listFiles();
         assertNotNull(fileList);
         assertEquals(1, fileList.length, "The Maven dependencies directory is expected to contain only one extractor version, but it actually contains " + fileList.length);
         Path extractorPath = mvnDependenciesDirPath.resolve(fileList[0].getName());
         // Look for the '.jar' file inside the extractor directory.
-        fileList = extractorPath.toFile().listFiles();
-        assertNotNull(fileList);
-        for (File file : fileList) {
-            if (file.getName().endsWith(".jar")) {
-                return file.lastModified();
-            }
+        try (Stream<Path> mavenExtractorFiles = Files.list(extractorPath)) {
+            Path jar = mavenExtractorFiles.filter(file -> file.toString().endsWith(".jar")).findFirst().orElse(null);
+            assertNotNull(jar, "Couldn't find the build-info-extractor-maven3 jar in " + extractorPath);
+            return Files.getLastModifiedTime(jar).toMillis();
         }
-        fail();
-        return 0;
     }
 
     /**
@@ -140,7 +139,7 @@ class JFrogInstallationITest extends PipelineTestBase {
         setupPipelineTest(jenkins);
         // Download the latest CLI version from releases.jfrog.io and from Artifactory.
         configureJfrogCliFromReleases(StringUtils.EMPTY, false);
-        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME_2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
         runPipeline(jenkins, "basic_commands");
         runPipeline(jenkins, "basic_commands_2");
     }
@@ -154,7 +153,7 @@ class JFrogInstallationITest extends PipelineTestBase {
     public void testCombineReleasesAndArtifactoryToolsDifferentOrder(JenkinsRule jenkins) throws Exception {
         setupPipelineTest(jenkins);
         // Download the latest CLI version from Artifactory and then a specific version from releases.jfrog.io.
-        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME_2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
         configureJfrogCliFromReleases(jfrogCliTestVersion, false);
         runPipeline(jenkins, "basic_commands");
         runPipeline(jenkins, "basic_commands_2");

@@ -1,7 +1,7 @@
 pipeline {
     agent any
     tools {
-        jfrog '${JFROG_CLI_TOOL_NAME2}'
+        jfrog '${JFROG_CLI_TOOL_NAME_2}'
     }
     stages {
         stage ('Testing') {
@@ -18,7 +18,7 @@ pipeline {
                 jf 'rt ping'
 
                 // Upload a file to a repository in Artifactory
-                jf 'rt u ${DUMMY_FILE_PATH} ${LOCAL_REPO1}/'
+                jf 'rt u ${DUMMY_FILE_PATH} ${LOCAL_REPO}/'
 
                 // Publish the build-info to Artifactory.
                 jf 'rt bp'
