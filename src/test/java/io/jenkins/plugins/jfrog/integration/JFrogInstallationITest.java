@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JfrogDependenciesDirName;
@@ -82,19 +83,18 @@ class JFrogInstallationITest extends PipelineTestBase {
         Path binaryPath = getJfrogInstallationDir(jenkins);
         String name = BINARY_NAME;
         if (!jenkins.createLocalLauncher().isUnix()) {
-            name = name + ".exe";
+            name += ".exe";
         }
         binaryPath = binaryPath.resolve(JFROG_CLI_TOOL_NAME).resolve(name);
-        assertTrue(binaryPath.toFile().exists());
+        assertTrue(Files.exists(binaryPath));
         return binaryPath.toFile().lastModified();
     }
 
     /**
-     * Check that only one copy of maven extractor is being downloaded to the expected 'dependencies' directory by running a script with a maven command.
+     * Check that only one copy of the Maven extractor is downloaded to the expected 'dependencies' directory.
      *
      * @param jenkins Jenkins instance injected automatically.
      */
-    //
     @Test
     public void testDownloadingMavenExtractor(JenkinsRule jenkins) throws Exception {
         initPipelineTest(jenkins);
@@ -115,10 +115,12 @@ class JFrogInstallationITest extends PipelineTestBase {
      */
     private long getExtractorLastModified(Path mvnDependenciesDirPath) {
         File[] fileList = mvnDependenciesDirPath.toFile().listFiles();
+        assertNotNull(fileList);
         assertEquals(1, fileList.length, "The Maven dependencies directory is expected to contain only one extractor version, but it actually contains " + fileList.length);
         Path extractorPath = mvnDependenciesDirPath.resolve(fileList[0].getName());
         // Look for the '.jar' file inside the extractor directory.
         fileList = extractorPath.toFile().listFiles();
+        assertNotNull(fileList);
         for (File file : fileList) {
             if (file.getName().endsWith(".jar")) {
                 return file.lastModified();
