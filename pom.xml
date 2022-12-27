@@ -10,6 +10,7 @@
 
     <properties>
         <jenkins.version>2.346.3</jenkins.version>
+        <skipITs>true</skipITs>
         <buildinfo.version>2.37.2</buildinfo.version>
     </properties>
     <groupId>io.jenkins.plugins</groupId>
@@ -201,6 +202,50 @@
                         </plugin>
                     </plugins>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.1</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!--This will disable JenkinsRule timeout-->
+                        <maven.surefire.debug>true</maven.surefire.debug>
+                    </systemPropertyVariables>
+                    <excludes>
+                        <exclude>**/InjectedTest.java</exclude>
+                        <exclude>**/*ITest.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <!--Integration tests-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>2.22.1</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!--This will disable JenkinsRule timeout-->
+                        <maven.surefire.debug>true</maven.surefire.debug>
+                    </systemPropertyVariables>
+                    <includes>
+                        <include>**/*ITest.java</include>
+                    </includes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>integration-test</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>verify</id>
+                        <goals>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

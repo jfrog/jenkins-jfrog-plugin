@@ -12,7 +12,7 @@ import static io.jenkins.plugins.jfrog.JfrogInstallation.JfrogDependenciesDirNam
 import static io.jenkins.plugins.jfrog.Utils.BINARY_NAME;
 import static org.junit.jupiter.api.Assertions.*;
 
-class JFrogInstallationTest extends PipelineTestBase {
+class JFrogInstallationITest extends PipelineTestBase {
     // JFrog CLI version which is accessible for all operating systems.
     public static final String jfrogCliTestVersion = "2.29.2";
 
