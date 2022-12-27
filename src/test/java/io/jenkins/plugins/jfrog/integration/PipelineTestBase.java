@@ -257,12 +257,12 @@ public class PipelineTestBase {
         return pipelineSubstitution.replace(pipeline);
     }
 
-    public static JfrogInstallation configureJfrogCliFromReleases(String cliVersion, Boolean override) throws Exception {
-        return configureJfrogCliTool(JFROG_CLI_TOOL_NAME_1, new ReleasesInstaller(cliVersion), override);
+    public static void configureJfrogCliFromReleases(String cliVersion, Boolean override) throws Exception {
+        configureJfrogCliTool(JFROG_CLI_TOOL_NAME_1, new ReleasesInstaller(cliVersion), override);
     }
 
-    public static JfrogInstallation configureJfrogCliFromArtifactory(String toolName, String serverId, String repo, Boolean override) throws Exception {
-        return configureJfrogCliTool(toolName, new ArtifactoryInstaller(serverId, repo), override);
+    public static void configureJfrogCliFromArtifactory(String toolName, String serverId, String repo, Boolean override) throws Exception {
+        configureJfrogCliTool(toolName, new ArtifactoryInstaller(serverId, repo), override);
     }
 
     /**
@@ -273,26 +273,26 @@ public class PipelineTestBase {
      * @return the new tool's JfrogInstallation.
      * @throws IOException failed to configure the new tool.
      */
-    public static JfrogInstallation configureJfrogCliTool(String toolName, BinaryInstaller installer, Boolean override) throws Exception {
+    public static void configureJfrogCliTool(String toolName, BinaryInstaller installer, Boolean override) throws Exception {
         Saveable NOOP = () -> {
         };
-        DescribableList<ToolProperty<?>, ToolPropertyDescriptor> r = new DescribableList<>(NOOP);
+        DescribableList<ToolProperty<?>, ToolPropertyDescriptor> toolProperties = new DescribableList<>(NOOP);
         List<BinaryInstaller> installers = new ArrayList<>();
         installers.add(installer);
-        r.add(new InstallSourceProperty(installers));
-        JfrogInstallation jf = new JfrogInstallation(toolName, "", r);
-        ArrayList<JfrogInstallation> arrayList = new ArrayList<>();
-        arrayList.add(jf);
+        toolProperties.add(new InstallSourceProperty(installers));
+        JfrogInstallation jf = new JfrogInstallation(toolName, "", toolProperties);
+        ArrayList<JfrogInstallation> installationsArrayList = new ArrayList<>();
+        installationsArrayList.add(jf);
         // Get all pre-configured installations and add them to the new one.
         if (!override) {
             JfrogInstallation[] installations = Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).getInstallations();
-            arrayList.addAll(Arrays.asList(installations));
+            installationsArrayList.addAll(Arrays.asList(installations));
         }
-        JfrogInstallation[] installations = Arrays.asList(arrayList.toArray()).toArray(new JfrogInstallation[arrayList.size()]);
+        JfrogInstallation[] installations = installationsArrayList.toArray(new JfrogInstallation[0]);
         Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(installations);
         //ToolInstallations.configureMaven35();
 
-        return jf;
+        return;
     }
 
     public static Maven.MavenInstallation configureMaven36() throws Exception {

@@ -155,7 +155,11 @@ class JFrogInstallationITest extends PipelineTestBase {
         // Download the latest CLI version from Artifactory and then a specific version from releases.jfrog.io.
         configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME_2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
         configureJfrogCliFromReleases(jfrogCliTestVersion, false);
-        runPipeline(jenkins, "basic_commands");
-        runPipeline(jenkins, "basic_commands_2");
+        // Running CLI installed from releases.jfrog.io and verify specific version was installed.
+        WorkflowRun job = runPipeline(jenkins, "basic_commands");
+        assertTrue(job.getLog().contains("jf version " + jfrogCliTestVersion));
+        // Running CLI installed from Artifactory and verify the latest version was installed.
+        job = runPipeline(jenkins, "basic_commands_2");
+        assertFalse(job.getLog().contains("jf version " + jfrogCliTestVersion));
     }
 }

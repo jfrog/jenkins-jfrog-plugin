@@ -1,5 +1,5 @@
 {
-  "packageType": "go",
+  "packageType": "generic",
   "url": "https://releases.jfrog.io/artifactory/jfrog-cli",
   "rclass": "remote"
 }

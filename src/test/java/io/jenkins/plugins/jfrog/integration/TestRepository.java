@@ -1,25 +1,20 @@
 package io.jenkins.plugins.jfrog.integration;
 
 enum TestRepository {
-    LOCAL_REPO("jenkins-jfrog-tests-local-1", RepoType.LOCAL),
-    CLI_REMOTE_REPO("jenkins-jfrog-tests-cli-remote", RepoType.REMOTE),
-    ;
+    LOCAL_REPO("jenkins-jfrog-tests-local", RepoType.LOCAL),
+    CLI_REMOTE_REPO("jenkins-jfrog-tests-cli-remote", RepoType.REMOTE);
+
     enum RepoType {
         LOCAL,
-        REMOTE,
-        VIRTUAL
+        REMOTE
     }
 
-    private String repoName;
-    private RepoType repoType;
+    private final String repoName;
+    private final RepoType repoType;
 
     TestRepository(String repoName, RepoType repoType) {
         this.repoName = repoName;
         this.repoType = repoType;
-    }
-
-    public RepoType getRepoType() {
-        return repoType;
     }
 
     public String getRepoName() {

@@ -9,9 +9,6 @@ pipeline {
                 // Show the installed version of JFrog CLI.
                 jf '-v'
 
-                // Show the configured JFrog Platform instances.
-                jf 'c show'
-
                 jf 'c use ${TEST_CONFIGURED_SERVER_ID}'
 
                 // Ping Artifactory.
@@ -19,9 +16,6 @@ pipeline {
 
                 // Upload a file to a repository in Artifactory
                 jf 'rt u ${DUMMY_FILE_PATH} ${LOCAL_REPO}/'
-
-                // Publish the build-info to Artifactory.
-                jf 'rt bp'
             }
         }
     }
