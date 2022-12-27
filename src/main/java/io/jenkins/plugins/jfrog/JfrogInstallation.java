@@ -1,7 +1,10 @@
 package io.jenkins.plugins.jfrog;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.*;
+import hudson.EnvVars;
+import hudson.Extension;
+import hudson.Plugin;
+import hudson.PluginWrapper;
 import hudson.model.EnvironmentSpecific;
 import hudson.model.Node;
 import hudson.model.TaskListener;
@@ -66,7 +69,7 @@ public class JfrogInstallation extends ToolInstallation
     }
 
     private String getPluginVersion() {
-        Jenkins jenkins =  Jenkins.getInstanceOrNull();
+        Jenkins jenkins = Jenkins.getInstanceOrNull();
         if (jenkins == null) {
             return "";
         }

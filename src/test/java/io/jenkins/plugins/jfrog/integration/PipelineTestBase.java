@@ -1,6 +1,8 @@
 package io.jenkins.plugins.jfrog.integration;
 
-import com.cloudbees.plugins.credentials.*;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import hudson.FilePath;
@@ -31,9 +33,14 @@ import org.apache.commons.text.StringSubstitutor;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jfrog.artifactory.client.Artifactory;
+import org.jfrog.artifactory.client.ArtifactoryClientBuilder;
+import org.jfrog.artifactory.client.ArtifactoryRequest;
 import org.jfrog.artifactory.client.ArtifactoryResponse;
-import org.junit.*;
+import org.jfrog.artifactory.client.impl.ArtifactoryRequestImpl;
+import org.junit.Assert;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.ToolInstallations;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -41,13 +48,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
-import org.jfrog.artifactory.client.Artifactory;
-import org.jfrog.artifactory.client.ArtifactoryClientBuilder;
-import org.jfrog.artifactory.client.ArtifactoryRequest;
-import org.jfrog.artifactory.client.impl.ArtifactoryRequestImpl;
-import org.jvnet.hudson.test.ToolInstallations;
-//import org.jvnet.hudson.test.ToolInstallations;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @EnableJenkins
 public class PipelineTestBase {
@@ -113,6 +115,7 @@ public class PipelineTestBase {
 
     /**
      * Run pipeline script.
+     *
      * @param name - Pipeline name from 'jenkins-jfrog-plugin/src/test/resources/integration/pipelines'
      * @return the Jenkins job
      */
@@ -154,8 +157,8 @@ public class PipelineTestBase {
         List<JFrogPlatformInstance> artifactoryServers = new ArrayList<JFrogPlatformInstance>() {{
             // Dummy server to test multiple configured servers.
             // The dummy server should be configured first to ensure the right server is being used (and not the first one).
-            add(new JFrogPlatformInstance("dummyServerId", "",  emptyCred, "", "",""));
-            add(new JFrogPlatformInstance(TEST_CONFIGURED_SERVER_ID, PLATFORM_URL,  platformCred, ARTIFACTORY_URL, "",""));
+            add(new JFrogPlatformInstance("dummyServerId", "", emptyCred, "", "", ""));
+            add(new JFrogPlatformInstance(TEST_CONFIGURED_SERVER_ID, PLATFORM_URL, platformCred, ARTIFACTORY_URL, "", ""));
         }};
         jfrogBuilder.setJfrogInstances(artifactoryServers);
         Jenkins.get().getDescriptorByType(JFrogPlatformBuilder.DescriptorImpl.class).setJfrogInstances(artifactoryServers);
@@ -176,6 +179,7 @@ public class PipelineTestBase {
 
     /**
      * Create a temporary repository for the tests.
+     *
      * @param repository - The repository base name.
      */
     private static void createRepo(TestRepository repository) {
@@ -197,6 +201,7 @@ public class PipelineTestBase {
 
     /**
      * Get the repository key of the temporary test repository.
+     *
      * @param repository - The repository base name
      * @return repository key of the temporary test repository
      */
@@ -206,6 +211,7 @@ public class PipelineTestBase {
 
     /**
      * Read repository configuration and replace placeholders with their corresponding values.
+     *
      * @param repoOrProject - Name of configuration in resources.
      * @return The configuration after substitution.
      */
@@ -247,6 +253,7 @@ public class PipelineTestBase {
 
     /**
      * Read pipeline from 'jenkins-jfrog-plugin/src/test/resources/integration/pipelines'.
+     *
      * @param name - The pipeline name.
      * @return pipeline as a string.
      */
@@ -267,9 +274,10 @@ public class PipelineTestBase {
 
     /**
      * Add a new JFrog CLI tool.
-     * @param toolName the tool name.
+     *
+     * @param toolName  the tool name.
      * @param installer the tool installer (Releases or Artifactory).
-     * @param override The tool will override pre-configured ones and be set if true, otherwise it will be added to the installation array.
+     * @param override  The tool will override pre-configured ones and be set if true, otherwise it will be added to the installation array.
      * @return the new tool's JfrogInstallation.
      * @throws IOException failed to configure the new tool.
      */
@@ -298,8 +306,8 @@ public class PipelineTestBase {
     public static Maven.MavenInstallation configureMaven36() throws Exception {
         Maven.MavenInstallation mvn = ToolInstallations.configureMaven35();
 
-        Maven.MavenInstallation m3 = new Maven.MavenInstallation( "apache-maven-3.6.3", mvn.getHome(), JenkinsRule.NO_PROPERTIES);
-        Jenkins.getInstance().getDescriptorByType( Maven.DescriptorImpl.class).setInstallations( m3);
+        Maven.MavenInstallation m3 = new Maven.MavenInstallation("apache-maven-3.6.3", mvn.getHome(), JenkinsRule.NO_PROPERTIES);
+        Jenkins.getInstance().getDescriptorByType(Maven.DescriptorImpl.class).setInstallations(m3);
         return m3;
     }
 
