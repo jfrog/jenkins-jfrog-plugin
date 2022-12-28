@@ -29,7 +29,7 @@ jobs:
 
       - name: Run tests
         env:
-          JENKINS_PLATFORM_URL: "http://localhost:8081/"
-          JENKINS_PLATFORM_USERNAME: "admin"
-          JENKINS_ARTIFACTORY_PASSWORD: "password"
+          JFROG_URL: "http://localhost:8081/"
+          JFROG_USERNAME: "admin"
+          JFROG_PASSWORD: "password"
         run: mvn -V -B -U --no-transfer-progress clean verify -DskipITs=false "-Dfindbugs.failOnError=false"

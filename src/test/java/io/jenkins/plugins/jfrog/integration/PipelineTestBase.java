@@ -39,6 +39,7 @@ import org.jfrog.artifactory.client.ArtifactoryRequest;
 import org.jfrog.artifactory.client.ArtifactoryResponse;
 import org.jfrog.artifactory.client.impl.ArtifactoryRequestImpl;
 import org.junit.Assert;
+import org.junit.jupiter.api.BeforeAll;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.ToolInstallations;
 
@@ -55,31 +56,45 @@ import static org.junit.Assert.fail;
 public class PipelineTestBase {
     private static long currentTime;
     private static Artifactory artifactoryClient;
-    private static JenkinsRule jenkins;
+    private JenkinsRule jenkins;
     private static Slave slave;
     private static StringSubstitutor pipelineSubstitution;
     private static final String SLAVE_LABEL = "TestSlave";
-    private static final String PLATFORM_URL = System.getenv("JENKINS_PLATFORM_URL");
+    private static final String PLATFORM_URL = System.getenv("JFROG_URL");
     private static final String ARTIFACTORY_URL = StringUtils.removeEnd(PLATFORM_URL, "/") + "/artifactory";
-    private static final String ARTIFACTORY_USERNAME = System.getenv("JENKINS_PLATFORM_USERNAME");
-    private static final String ARTIFACTORY_PASSWORD = System.getenv("JENKINS_ARTIFACTORY_PASSWORD");
-    private static final String ACCESS_TOKEN = System.getenv("JENKINS_PLATFORM_ADMIN_TOKEN");
+    private static final String ARTIFACTORY_USERNAME = System.getenv("JFROG_USERNAME");
+    private static final String ARTIFACTORY_PASSWORD = System.getenv("JFROG_PASSWORD");
+    private static final String ACCESS_TOKEN = System.getenv("JFROG_ADMIN_TOKEN");
     private static final Path INTEGRATION_BASE_PATH = Paths.get(".").toAbsolutePath().normalize()
             .resolve(Paths.get("src", "test", "resources", "integration"));
     static final String JFROG_CLI_TOOL_NAME_1 = "jfrog-cli";
     static final String JFROG_CLI_TOOL_NAME_2 = "jfrog-cli-2";
     static final String TEST_CONFIGURED_SERVER_ID = "serverId";
 
+    // Set up jenkins and configure latest JFrog CLI.
     public void initPipelineTest(JenkinsRule jenkins) throws Exception {
-        setupPipelineTest(jenkins);
+        setupJenkins(jenkins);
         // Download the latest CLI version.
         configureJfrogCliFromReleases(StringUtils.EMPTY, true);
     }
 
     // Set up test' environment
-    public void setupPipelineTest(JenkinsRule jenkins) throws IOException {
-        PipelineTestBase.jenkins = jenkins;
-        setUp();
+    @BeforeAll
+    public static void setupEnvironment() throws IOException {
+        currentTime = System.currentTimeMillis();
+        verifyEnvironment();
+        createClients();
+        createPipelineSubstitution();
+        // Create repositories
+        Arrays.stream(TestRepository.values()).forEach(PipelineTestBase::createRepo);
+    }
+
+    // TODO add afterall clean repo from artifactory
+
+    public void setupJenkins(JenkinsRule jenkins) throws IOException {
+        this.jenkins = jenkins;
+        createSlave();
+        setGlobalConfiguration();
     }
 
     /**
@@ -94,23 +109,12 @@ public class PipelineTestBase {
                 .build();
     }
 
-    private static void createSlave() {
+    private void createSlave() {
         try {
             slave = jenkins.createOnlineSlave(Label.get(SLAVE_LABEL));
         } catch (Exception e) {
             fail(ExceptionUtils.getRootCauseMessage(e));
         }
-    }
-
-    public static void setUp() throws IOException {
-        currentTime = System.currentTimeMillis();
-        verifyEnvironment();
-        createSlave();
-        createClients();
-        setGlobalConfiguration();
-        createPipelineSubstitution();
-        // Create repositories
-        Arrays.stream(TestRepository.values()).forEach(PipelineTestBase::createRepo);
     }
 
     /**
@@ -128,6 +132,7 @@ public class PipelineTestBase {
         slaveWs.mkdirs();
         project.setDefinition(new CpsFlowDefinition(readPipeline(name), false));
         WorkflowRun job = jenkins.buildAndAssertSuccess(project);
+        System.out.println(job.getLog());
         return job;
     }
 
@@ -136,20 +141,20 @@ public class PipelineTestBase {
      */
     private static void verifyEnvironment() {
         if (StringUtils.isBlank(PLATFORM_URL)) {
-            throw new IllegalArgumentException("JENKINS_PLATFORM_URL is not set");
+            throw new IllegalArgumentException("JFROG_URL is not set");
         }
         if (StringUtils.isBlank(ARTIFACTORY_USERNAME)) {
-            throw new IllegalArgumentException("JENKINS_PLATFORM_USERNAME is not set");
+            throw new IllegalArgumentException("JFROG_USERNAME is not set");
         }
         if (StringUtils.isBlank(ACCESS_TOKEN) && StringUtils.isBlank(ARTIFACTORY_PASSWORD)) {
-            throw new IllegalArgumentException("JENKINS_PLATFORM_ADMIN_TOKEN or JENKINS_PLATFORM_PASSWORD are not set");
+            throw new IllegalArgumentException("JFROG_ADMIN_TOKEN or JFROG_PASSWORD are not set");
         }
     }
 
     /**
      * Configure a new JFrog server in the Global configuration.
      */
-    private static void setGlobalConfiguration() throws IOException {
+    private void setGlobalConfiguration() throws IOException {
         JFrogPlatformBuilder.DescriptorImpl jfrogBuilder = (JFrogPlatformBuilder.DescriptorImpl) jenkins.getInstance().getDescriptor(JFrogPlatformBuilder.class);
         Assert.assertNotNull(jfrogBuilder);
         CredentialsConfig emptyCred = new CredentialsConfig(StringUtils.EMPTY, Credentials.EMPTY_CREDENTIALS);

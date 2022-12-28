@@ -125,3 +125,24 @@ https://github.com/jfrog/jenkins-jfrog-plugin and
 https://github.com/jenkinsci/jfrog-plugin
 
 Please make sure to submit pull requests to *https://github.com/jfrog/jenkins-jfrog-plugin* only.
+
+## Tests
+### Unit tests
+To run unit tests execute the following command:
+```
+> mvn clean test
+```
+
+### Integration tests
+#### Running integration tests
+Before running the integration tests, set the following environment variables.
+
+*JFROG_URL*<br>
+*JFROG_USERNAME*<br>
+*JFROG_PASSWORD*<br>
+*JFROG_ADMIN_TOKEN*<br>
+
+Run the integration tests.
+```
+> mvn clean verify -DskipITs=false
+```
