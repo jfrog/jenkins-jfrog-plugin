@@ -97,7 +97,7 @@ class JFrogInstallationITest extends PipelineTestBase {
      *
      * @param jenkins Jenkins instance injected automatically.
      */
-    //@Test
+    @Test
     public void testDownloadingMavenExtractor(JenkinsRule jenkins) throws Exception {
         initPipelineTest(jenkins);
         // After running job for the first time, Mvn extractor should be downloaded.

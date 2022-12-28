@@ -243,6 +243,7 @@ public class PipelineTestBase {
             put("JFROG_CLI_TOOL_NAME_1", JFROG_CLI_TOOL_NAME_1);
             put("JFROG_CLI_TOOL_NAME_2", JFROG_CLI_TOOL_NAME_2);
             put("TEST_CONFIGURED_SERVER_ID", TEST_CONFIGURED_SERVER_ID);
+            put("MAVEN_HOME", fixWindowsPath(String.valueOf(INTEGRATION_BASE_PATH.resolve("maven").resolve("3.8.1"))));
         }});
     }
 
