@@ -38,7 +38,10 @@ import org.jfrog.artifactory.client.ArtifactoryClientBuilder;
 import org.jfrog.artifactory.client.ArtifactoryRequest;
 import org.jfrog.artifactory.client.ArtifactoryResponse;
 import org.jfrog.artifactory.client.impl.ArtifactoryRequestImpl;
+import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.ToolInstallations;
@@ -48,6 +51,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -80,7 +84,7 @@ public class PipelineTestBase {
 
     // Set up test' environment
     @BeforeAll
-    public static void setupEnvironment() throws IOException {
+    public static void setupEnvironment() {
         currentTime = System.currentTimeMillis();
         verifyEnvironment();
         createClients();
@@ -89,7 +93,13 @@ public class PipelineTestBase {
         Arrays.stream(TestRepository.values()).forEach(PipelineTestBase::createRepo);
     }
 
-    // TODO add afterall clean repo from artifactory
+
+    @AfterAll
+    public static void tearDown() {
+        // Remove repositories
+        Arrays.stream(TestRepository.values()).forEach(PipelineTestBase::removeRepo);
+        artifactoryClient.close();
+    }
 
     public void setupJenkins(JenkinsRule jenkins) throws IOException {
         this.jenkins = jenkins;
@@ -202,6 +212,15 @@ public class PipelineTestBase {
         if (!response.isSuccessResponse()) {
             fail(String.format("Failed creating repository %s: %s", getRepoKey(repository), response.getStatusLine()));
         }
+    }
+
+    /**
+     * Remove the temporary tests' repository.
+     *
+     * @param repository - The repository base name.
+     */
+    private static void removeRepo(TestRepository repository) {
+         artifactoryClient.repository(getRepoKey(repository)).delete();
     }
 
     /**
