@@ -10,7 +10,6 @@ import hudson.model.Label;
 import hudson.model.ModelObject;
 import hudson.model.Saveable;
 import hudson.model.Slave;
-import hudson.tasks.Maven;
 import hudson.tools.InstallSourceProperty;
 import hudson.tools.ToolProperty;
 import hudson.tools.ToolPropertyDescriptor;
@@ -42,7 +41,6 @@ import org.junit.Assert;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.ToolInstallations;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -216,7 +214,7 @@ public class PipelineTestBase {
      * @param repository - The repository base name.
      */
     private static void removeRepo(TestRepository repository) {
-         artifactoryClient.repository(getRepoKey(repository)).delete();
+        artifactoryClient.repository(getRepoKey(repository)).delete();
     }
 
     /**
