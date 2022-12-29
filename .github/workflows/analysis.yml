@@ -15,4 +15,4 @@ jobs:
           distribution: "temurin"
 
       - name: Run Analysis
-        run: mvn -V -B -U --no-transfer-progress clean verify -DskipTests=true
+        run: mvn -V -B -U --no-transfer-progress clean verify
