@@ -4,7 +4,7 @@ pipeline {
         jfrog '${JFROG_CLI_TOOL_NAME_1}'
     }
     environment {
-        // We use maven jars located on the file system instead of configuring maven as a tool in the jenkins instance.
+        // We use maven jars located on the file system to run 'mvn' command instead of configuring maven as a tool in the jenkins instance.
         M2_HOME = '${MAVEN_HOME}'
     }
     stages {

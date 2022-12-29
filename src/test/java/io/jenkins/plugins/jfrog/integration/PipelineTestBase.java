@@ -38,8 +38,6 @@ import org.jfrog.artifactory.client.ArtifactoryClientBuilder;
 import org.jfrog.artifactory.client.ArtifactoryRequest;
 import org.jfrog.artifactory.client.ArtifactoryResponse;
 import org.jfrog.artifactory.client.impl.ArtifactoryRequestImpl;
-import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -51,7 +49,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.stream.Stream;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -61,7 +58,7 @@ public class PipelineTestBase {
     private static long currentTime;
     private static Artifactory artifactoryClient;
     private JenkinsRule jenkins;
-    private static Slave slave;
+    private Slave slave;
     private static StringSubstitutor pipelineSubstitution;
     private static final String SLAVE_LABEL = "TestSlave";
     private static final String PLATFORM_URL = System.getenv("JFROG_URL");
@@ -92,7 +89,6 @@ public class PipelineTestBase {
         // Create repositories
         Arrays.stream(TestRepository.values()).forEach(PipelineTestBase::createRepo);
     }
-
 
     @AfterAll
     public static void tearDown() {
@@ -323,18 +319,6 @@ public class PipelineTestBase {
         }
         JfrogInstallation[] installations = installationsArrayList.toArray(new JfrogInstallation[0]);
         Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(installations);
-        //ToolInstallations.configureMaven35();
-
         return;
     }
-
-    public static Maven.MavenInstallation configureMaven36() throws Exception {
-        Maven.MavenInstallation mvn = ToolInstallations.configureMaven35();
-
-        Maven.MavenInstallation m3 = new Maven.MavenInstallation("apache-maven-3.6.3", mvn.getHome(), JenkinsRule.NO_PROPERTIES);
-        Jenkins.getInstance().getDescriptorByType(Maven.DescriptorImpl.class).setInstallations(m3);
-        return m3;
-    }
-
-
 }
