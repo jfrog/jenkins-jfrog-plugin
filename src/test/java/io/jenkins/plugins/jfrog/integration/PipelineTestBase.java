@@ -297,7 +297,7 @@ public class PipelineTestBase {
      * @param toolName  the tool name.
      * @param installer the tool installer (Releases or Artifactory).
      * @param override  The tool will override pre-configured ones and be set if true, otherwise it will be added to the installation array.
-     * @return the new tool' JfrogInstallation.
+     * @return the new tool's JfrogInstallation.
      * @throws IOException failed to configure the new tool.
      */
     public static void configureJfrogCliTool(String toolName, BinaryInstaller installer, Boolean override) throws Exception {
