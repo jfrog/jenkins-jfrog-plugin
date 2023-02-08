@@ -1,0 +1,8 @@
+- params:
+    git:
+      repoName: jenkins-jfrog-plugin
+      branches:
+        - main
+    scan:
+      projects:
+        - installCommand: "mvn compile -U -B -Denforcer.skip"
