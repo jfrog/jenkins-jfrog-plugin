@@ -11,14 +11,14 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [Installing and Configuring the Plugin](#installing-and-configuring-the-plugin)
+- [Installing and configuring the plugin](#installing-and-configuring-the-plugin)
 - [Configuring JFrog CLI as a Tool](#configuring-jfrog-cli-as-a-tool)
-    - [Automatic Installation from release.jfrog.io](#automatic-installation-from-releasejfrogio)
-    - [Automatic Installation from Artifactory](#automatic-installation-from-artifactory)
+    - [Automatic installation from release.jfrog.io](#automatic-installation-from-releasejfrogio)
+    - [Automatic installation from Artifactory](#automatic-installation-from-artifactory)
     - [Manual installation](#manual-installation)
-- [Using JFrog CLI in Your Pipeline Jobs](#using-jfrog-cli-in-your-pipeline-jobs)
-    - [Setting the Build Name and Build Number](#setting-the-build-name-and-the-build-number)
-    - [Using Multiple JFrog Platform Instances](#using-multiple-jfrog-platform-instances)
+- [Using JFrog CLI in your pipeline jobs](#using-jfrog-cli-in-your-pipeline-jobs)
+    - [Setting the build name and build number](#setting-the-build-name-and-the-build-number)
+    - [Using multiple JFrog Platform instances](#using-multiple-jfrog-platform-instances)
 - [Examples](#examples)
 - [Contributions](#contributions)
 
@@ -33,7 +33,7 @@ software package to remote locations using [JFrog Distribution](https://jfrog.co
 This is all achieved by the plugin by wrapping [JFrog CLI](https://www.jfrog.com/confluence/display/CLI/JFrog+CLI). Any
 JFrog CLI command can be executed from within your Jenkins Pipeline job using the JFrog Plugin.
 
-## Installing and Configuring the Plugin
+## Installing and configuring the plugin
 
 1. Install the JFrog Plugin by going to **Manage Jenkins | Manage Plugins
    **.<br><img src="images/readme/install-plugin.png" width="70%">
@@ -42,21 +42,21 @@ JFrog CLI command can be executed from within your Jenkins Pipeline job using th
 3. Configure JFrog CLI as a tool in Jenkins as described in
    the [Configuring JFrog CLI as a tool](#configuring-jfrog-cli-as-a-tool) section.
 
-## Configuring JFrog CLI as a Tool
+## Configuring JFrog CLI as a tool
 
 ### General
 
 To use JFrog CLI in your pipelines jobs, you should configure it as a tool in Jenkins by going to **Manage Jenkins |
 Global Tool Configuration**. You can use one of the following installation options:
 
-### Automatic Installation from release.jfrog.io
+### Automatic installation from release.jfrog.io
 
 If your agent has access to the internet, you can set the installer to automatically download JFrog CLI
 from https://releases.jfrog.io as shown in the below screenshot.
 
 <img src="images/readme/automatic-installation.png" width="30%">
 
-### Automatic Installation from Artifactory
+### Automatic installation from Artifactory
 
 If your agent cannot access the internet, you can set the installer to automatically download JFrog CLI from the JFrog
 instance you configured in Manage Jenkins | Configure System as shown in the below screenshot. To set this up, follow
@@ -116,7 +116,7 @@ jf 'rt u target/ my-repo/'
 
 > **_IMPORTANT:_** Notice the single quotes wrapping the command right after the **jf** step definition.
 
-### Setting the Build Name and the Build Number
+### Setting the build name and the build number
 
 The plugin automatically sets the following environment variables: _JFROG_CLI_BUILD_NAME_ and _JFROG_CLI_BUILD_NUMBER_
 with Jenkins's job name and build number respectively.
@@ -130,7 +130,7 @@ environment {
 }
 ```
 
-### Using Multiple JFrog Platform Instances
+### Using multiple JFrog Platform instances
 
 If you have multiple JFrog Platform instances configured, you can use the `–-server-id` command option with
 the server ID you configured for the instance. For example:
@@ -143,7 +143,7 @@ jf 'rt u test-file my-repo –-server-id server-2'
 ## Examples
 
 <details>
-  <summary>Uploading a File</summary>
+  <summary>Uploading and downloading generic files</summary>
 
 ```groovy
 pipeline {
@@ -169,6 +169,9 @@ pipeline {
 
                 // Publish the build-info to Artifactory.
                 jf 'rt bp'
+
+                // Download the test-file
+                jf 'rt dl my-repo/test-file'
             }
         }
     }
@@ -178,7 +181,7 @@ pipeline {
 </details>
 
 <details>
-  <summary>Maven Example</summary>
+  <summary>Maven</summary>
 
 ```groovy
 pipeline {
@@ -217,7 +220,7 @@ pipeline {
 </details>
 
 <details>
-  <summary>Gradle Example</summary>
+  <summary>Gradle</summary>
 
 ```groovy
 pipeline {
@@ -255,7 +258,7 @@ pipeline {
 
 </details>
 <details>
-  <summary>npm Example</summary>
+  <summary>npm</summary>
 
 ```groovy
 pipeline {
@@ -297,7 +300,7 @@ pipeline {
 </details>
 
 <details>
-  <summary>Go Example</summary>
+  <summary>Go</summary>
 
 ```groovy
 pipeline {
@@ -337,6 +340,9 @@ pipeline {
 ```
 
 </details>
+
+These examples demonstrate only a fraction of the capabilities of JFrog CLI. Please refer to
+the [JFrog CLI documentation](https://www.jfrog.com/confluence/display/CLI/JFrog+CLI) for additional information.
 
 ## Contributions
 

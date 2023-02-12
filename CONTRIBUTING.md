@@ -10,8 +10,8 @@
 Clone the sources and CD to the root directory of the project:
 
 ```sh
-git clone https://github.com/jfrog/frogbot.git
-cd frogbot
+git clone https://github.com/jfrog/jenkins-jfrog-plugin.git
+cd jenkins-jfrog-plugin
 ```
 
 Build the sources as follows:
