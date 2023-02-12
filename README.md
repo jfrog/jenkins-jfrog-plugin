@@ -35,10 +35,10 @@ JFrog CLI command can be executed from within your Jenkins Pipeline job using th
 
 ## Installing and configuring the plugin
 
-1. Install the JFrog Plugin by going to **Manage Jenkins | Manage Plugins
-   **.<br><img src="images/readme/install-plugin.png" width="70%">
-2. Configure your JFrog Platform details by going to **Manage Jenkins | Configure System
-   **.<br><img src="images/readme/plugin-config.png" width="30%">
+1. Install the JFrog Plugin by going to
+   **Manage Jenkins | Manage Plugins**.<br><img src="images/readme/install-plugin.png" width="70%">
+2. Configure your JFrog Platform details by going to
+   **Manage Jenkins | Configure System**.<br><img src="images/readme/plugin-config.png" width="30%">
 3. Configure JFrog CLI as a tool in Jenkins as described in
    the [Configuring JFrog CLI as a tool](#configuring-jfrog-cli-as-a-tool) section.
 
@@ -62,15 +62,15 @@ If your agent cannot access the internet, you can set the installer to automatic
 instance you configured in Manage Jenkins | Configure System as shown in the below screenshot. To set this up, follow
 these steps:
 
-1. Create a remote repository in Artifactory for downloading JFrog CLI. You can name the repository **jfrog-cli-remote
-   **. This is the name we'll be using here, but you can also choose a different name for the repository. Set the
-   repository URL to https://releases.jfrog.io/artifactory/jfrog-cli/
+1. Create a generic remote repository in Artifactory for downloading JFrog CLI. You can name the repository
+   **jfrog-cli-remote**. This is the name we'll be using here, but you can also choose a different name for the
+   repository. Set the repository URL to https://releases.jfrog.io/artifactory/jfrog-cli/
 
 2. In **Manage Jenkins | Global Tool Configuration** select the Install from Artifactory option as shown in the
    screenshot below.<br><img src="images/readme/automatic-installation-from-rt-1.png" width="30%">
 
-3. Set the Server ID of your JFrog instanced, which you configured in **Manage Jenkins | Configure System**. Also set *
-   *jfrog-cle-remote** as the name of the remote repository you created to download JFrog CLI from. If you used a
+3. Set the Server ID of your JFrog instanced, which you configured in **Manage Jenkins | Configure System**. Also set
+   **jfrog-cli-remote** as the name of the remote repository you created to download JFrog CLI from. If you used a
    different name for repository, set this name
    here.<br><img src="images/readme/automatic-installation-from-rt-2.png" width="30%">
 
