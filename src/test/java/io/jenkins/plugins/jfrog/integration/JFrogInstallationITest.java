@@ -1,10 +1,12 @@
 package io.jenkins.plugins.jfrog.integration;
 
+import io.jenkins.plugins.casc.ConfigurationAsCode;
 import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -162,5 +164,27 @@ class JFrogInstallationITest extends PipelineTestBase {
         // Running CLI installed from Artifactory and verify the latest version was installed.
         job = runPipeline(jenkins, "basic_commands_2");
         assertFalse(job.getLog().contains("jf version " + jfrogCliTestVersion));
+    }
+
+    @Test
+    public void testConfigurationAsCode(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        // Download the latest CLI version from Artifactory.
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME_2, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
+        // Download a specific CLI version from releases.jfrog.io.
+        configureJfrogCliFromReleases(jfrogCliTestVersion, false);
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            // Export configuration to a local variable
+            ConfigurationAsCode.get().export(outputStream);
+            String output = outputStream.toString();
+
+            // Assert no errors
+            assertFalse(StringUtils.containsIgnoreCase(output, "failed to export"));
+
+            // Assert that jFrogPlatformBuilder and jfrog tags exist in the export
+            assertTrue(StringUtils.containsIgnoreCase(output, "jFrogPlatformBuilder:"));
+            assertTrue(StringUtils.containsIgnoreCase(output, "jfrog:"));
+        }
     }
 }

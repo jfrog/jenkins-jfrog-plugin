@@ -28,9 +28,9 @@ public class ArtifactoryInstaller extends BinaryInstaller {
     public final String repository;
 
     @DataBoundConstructor
-    public ArtifactoryInstaller(String id, String repository) {
+    public ArtifactoryInstaller(String serverId, String repository) {
         super(null);
-        this.serverId = id;
+        this.serverId = serverId;
         this.repository = repository;
     }
 

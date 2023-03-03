@@ -172,7 +172,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
                 return false;
             }
             for (JFrogPlatformInstance instance : jfrogInstances) {
-                if (StringUtils.isBlank(instance.getUrl())) {
+                if (StringUtils.isBlank(instance.getPlatformUrl())) {
                     return true;
                 }
             }

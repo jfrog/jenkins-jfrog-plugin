@@ -182,7 +182,7 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
             builder.addMasked("--password=" + credentials.getPassword());
         }
         // Add URLs
-        builder.add("--url=" + jfrogPlatformInstance.getUrl());
+        builder.add("--url=" + jfrogPlatformInstance.getPlatformUrl());
         builder.add("--artifactory-url=" + jfrogPlatformInstance.getArtifactoryUrl());
         builder.add("--distribution-url=" + jfrogPlatformInstance.getDistributionUrl());
         builder.add("--xray-url=" + jfrogPlatformInstance.getXrayUrl());

@@ -10,7 +10,7 @@ import java.util.List;
  * Represents an instance of jenkins JFrog instance configuration page.
  */
 public class JFrogPlatformInstance implements Serializable {
-    private String url;
+    private String platformUrl;
     private String artifactoryUrl;
     private String distributionUrl;
     private String xrayUrl;
@@ -20,11 +20,11 @@ public class JFrogPlatformInstance implements Serializable {
     @DataBoundConstructor
     public JFrogPlatformInstance(String serverId, String platformUrl, CredentialsConfig credentialsConfig, String artifactoryUrl, String distributionUrl, String xrayUrl) {
         this.id = serverId;
-        this.url = StringUtils.isNotEmpty(platformUrl) ? StringUtils.removeEnd(platformUrl, "/") : null;
+        this.platformUrl = StringUtils.isNotEmpty(platformUrl) ? StringUtils.removeEnd(platformUrl, "/") : null;
         this.credentialsConfig = credentialsConfig;
-        this.artifactoryUrl = addUrlSuffix(artifactoryUrl, this.url, "artifactory");
-        this.distributionUrl = addUrlSuffix(distributionUrl, this.url, "distribution");
-        this.xrayUrl = addUrlSuffix(xrayUrl, this.url, "xray");
+        this.artifactoryUrl = addUrlSuffix(artifactoryUrl, this.platformUrl, "artifactory");
+        this.distributionUrl = addUrlSuffix(distributionUrl, this.platformUrl, "distribution");
+        this.xrayUrl = addUrlSuffix(xrayUrl, this.platformUrl, "xray");
     }
 
     public CredentialsConfig getCredentialsConfig() {
@@ -54,14 +54,14 @@ public class JFrogPlatformInstance implements Serializable {
 
     // Required by external plugins (JCasC).
     @SuppressWarnings("unused")
-    public String getUrl() {
-        return url;
+    public String getPlatformUrl() {
+        return platformUrl;
     }
 
     // Required by external plugins (JCasC).
     @SuppressWarnings("unused")
-    public void setUrl(String url) {
-        this.url = url;
+    public void setPlatformUrl(String platformUrl) {
+        this.platformUrl = platformUrl;
     }
 
     // Required by external plugins (JCasC).
