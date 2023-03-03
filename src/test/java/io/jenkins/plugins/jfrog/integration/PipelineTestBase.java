@@ -288,7 +288,7 @@ public class PipelineTestBase {
     }
 
     public static void configureJfrogCliFromArtifactory(String toolName, String serverId, String repo, Boolean override) throws Exception {
-        configureJfrogCliTool(toolName, new ArtifactoryInstaller(serverId, repo), override);
+        configureJfrogCliTool(toolName, new ArtifactoryInstaller(serverId, repo, ""), override);
     }
 
     /**
@@ -297,7 +297,6 @@ public class PipelineTestBase {
      * @param toolName  the tool name.
      * @param installer the tool installer (Releases or Artifactory).
      * @param override  The tool will override pre-configured ones and be set if true, otherwise it will be added to the installation array.
-     * @return the new tool's JfrogInstallation.
      * @throws IOException failed to configure the new tool.
      */
     public static void configureJfrogCliTool(String toolName, BinaryInstaller installer, Boolean override) throws Exception {
@@ -317,6 +316,5 @@ public class PipelineTestBase {
         }
         JfrogInstallation[] installations = installationsArrayList.toArray(new JfrogInstallation[0]);
         Jenkins.get().getDescriptorByType(JfrogInstallation.DescriptorImpl.class).setInstallations(installations);
-        return;
     }
 }
