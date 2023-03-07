@@ -5,4 +5,4 @@
         - main
     scan:
       projects:
-        - repository: cli-mvn-remote-1673961361
+        - repository: jenkins-public
