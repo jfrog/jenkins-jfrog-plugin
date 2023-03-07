@@ -181,13 +181,65 @@ pipeline {
 </details>
 
 <details>
+  <summary>Docker</summary>
+
+#### Preconditions 
+  1. Populate 'DOCKER_REG_URL' with the Artifactory Docker registry, for example - 'acme.jfrog.io'.
+  2. To build the Docker image, install the "Docker Pipeline" for Jenkins.
+```groovy
+pipeline {
+    agent any
+    tools {
+        jfrog 'jfrog-cli'
+    }
+    environment {
+        DOCKER_IMAGE_NAME="$DOCKER_REG_URL/docker-local/hello-frog:1.0.0"
+    }
+    stages {
+        stage('Clone') {
+            steps {
+                git branch: 'master', url: "https://github.com/jfrog/project-examples.git"
+            }
+        }
+
+        stage ('Build Docker image') {
+            steps {
+                script {
+                    docker.build("$DOCKER_IMAGE_NAME", 'docker-oci-examples/docker-example')
+                }
+            }
+        }
+
+        stage('Scan and push image') {
+            steps {
+                dir('docker-oci-examples/docker-example/') {
+                    // Scan Docker image for vulnerabilities
+                    jf 'docker scan $DOCKER_IMAGE_NAME'
+                    
+                    // Push image to Artifactory
+                    jf 'docker push $DOCKER_IMAGE_NAME'
+                }
+            }
+        }
+
+        stage('Publish build info') {
+            steps {
+                jf 'rt build-publish'
+            }
+        }
+    }
+}
+```
+</details>
+
+<details>
   <summary>Maven</summary>
 
 ```groovy
 pipeline {
     agent any
     tools {
-        jfrog 'cli'
+        jfrog 'jfrog-cli'
     }
     stages {
         stage('Clone') {
@@ -226,7 +278,7 @@ pipeline {
 pipeline {
     agent any
     tools {
-        jfrog 'cli'
+        jfrog 'jfrog-cli'
     }
     stages {
         stage('Clone') {
@@ -264,7 +316,7 @@ pipeline {
 pipeline {
     agent any
     tools {
-        jfrog 'cli'
+        jfrog 'jfrog-cli'
     }
     stages {
         stage('Clone') {
@@ -306,7 +358,7 @@ pipeline {
 pipeline {
     agent any
     tools {
-        jfrog 'cli'
+        jfrog 'jfrog-cli'
     }
     stages {
         stage('Clone') {
