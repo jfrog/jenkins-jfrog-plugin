@@ -5,4 +5,4 @@
         - main
     scan:
       projects:
-        - installCommand: "mvn compile -X -e"
+        - repository: frogbot-maven-remote
