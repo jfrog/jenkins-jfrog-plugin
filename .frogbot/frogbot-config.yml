@@ -3,6 +3,3 @@
       repoName: jenkins-jfrog-plugin
       branches:
         - main
-    scan:
-      projects:
-        - repository: jenkins-public
