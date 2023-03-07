@@ -1,6 +1,6 @@
 - params:
     git:
-      repoName: build-info
+      repoName: jenkins-jfrog-plugin
       branches:
         - main
     scan:
