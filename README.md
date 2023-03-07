@@ -19,6 +19,7 @@
 - [Using JFrog CLI in your pipeline jobs](#using-jfrog-cli-in-your-pipeline-jobs)
     - [Setting the build name and build number](#setting-the-build-name-and-the-build-number)
     - [Using multiple JFrog Platform instances](#using-multiple-jfrog-platform-instances)
+- [Jenkins Configuration as Code](#jenkins-configuration-as-code)
 - [Examples](#examples)
 - [Contributions](#contributions)
 
@@ -139,6 +140,55 @@ the server ID you configured for the instance. For example:
 jf 'rt u test-file my-repo –-server-id server-1'
 jf 'rt u test-file my-repo –-server-id server-2'
 ```
+
+## Jenkins Configuration as Code
+
+To configure this plugin on Jenkins Configuration as Code, add the following sections to the jenkins.yaml:
+
+1. Configure connection details to the JFrog platform
+    ```yaml
+    unclassified:
+      jFrogPlatformBuilder:
+        jfrogInstances:
+          - serverId: "acme"
+            platformUrl: "https://acme.jfrog.io"
+            artifactoryUrl: "https://acme.jfrog.io/artifactory"
+            distributionUrl: "https://acme.jfrog.io/distribution"
+            xrayUrl: "https://acme.jfrog.io/xray"
+            credentialsConfig:
+              credentialsId: "acme-secret-recipe"
+    ```
+2. Add JFrog CLI tool using one of the following methods:
+
+* [Automatic installation from release.jfrog.io](#automatic-installation-from-releasejfrogio):
+    ```yaml
+    tool:
+      jfrog:
+        installations:
+          - name: "jfrog-cli"
+    ```
+
+* [Automatic installation from Artifactory](#automatic-installation-from-artifactory):
+    ```yaml
+    tool:
+      jfrog:
+        installations:
+          - name: "jfrog-cli"
+            properties:
+              - installSource:
+                  installers:
+                    - artifactoryInstaller:
+                        repository: "jfrog-cli-remote"
+    ```
+
+* [Manual installation](#manual-installation):
+    ```yaml
+    tool:
+      jfrog:
+        installations:
+          - name: "jfrog-cli"
+            home: "/path/to/jfrog/cli/dir/"
+    ```
 
 ## Examples
 
