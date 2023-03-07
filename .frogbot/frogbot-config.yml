@@ -6,4 +6,3 @@
     scan:
       projects:
         - repository: cli-mvn-remote-1673961361
-          installCommand: "mvn compile -X -e"
