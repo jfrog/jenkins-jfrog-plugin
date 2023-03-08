@@ -30,8 +30,8 @@ import java.util.Set;
  * @author gail
  */
 public class JFrogPlatformBuilder extends GlobalConfiguration {
-    private static final String UNSAFE_HTTP_ERROR = "HTTP connections to the JFrog platform services are not allowed. " +
-            "To bypass this rule, check 'Allow HTTP Connections'.";
+    private static final String UNSAFE_HTTP_ERROR = "HTTP (non HTTPS) connections to the JFrog platform services are " +
+            "not allowed. To bypass this rule, check 'Allow HTTP Connections'.";
 
     /**
      * Descriptor for {@link JFrogPlatformBuilder}. Used as a singleton.
@@ -255,9 +255,12 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
      * @return true if the URL is using an unsafe HTTP protocol and the "Allow HTTP Connection" option is not set.
      */
     static boolean isUnsafe(boolean allowHttpConnections, String... urls) {
+        if (allowHttpConnections) {
+            return false;
+        }
         for (String url : urls) {
             //noinspection HttpUrlsUsage
-            if (!allowHttpConnections && StringUtils.startsWith(url, "http://")) {
+            if (StringUtils.startsWith(url, "http://")) {
                 return true;
             }
         }
