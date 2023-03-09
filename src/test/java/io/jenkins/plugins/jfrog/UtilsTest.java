@@ -25,6 +25,7 @@ public class UtilsTest {
                 Arguments.of("", new String[]{}),
                 Arguments.of("   \t\n ", new String[]{}),
                 Arguments.of("a", new String[]{"a"}),
+                Arguments.of("a\"", new String[]{"a\""}),
                 Arguments.of("a b", new String[]{"a", "b"}),
                 Arguments.of("a \"b c\"", new String[]{"a", "\"b c\""}),
                 Arguments.of("a & b", new String[]{"a", "&", "b"}),

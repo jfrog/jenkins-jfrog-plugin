@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  * @author gail
  */
 public class Utils {
-    private static final Pattern SPLIT_BY_WHITESPACE = Pattern.compile("\\s{1,128}(?=([^\"]{0,128}\"[^\"]{0,128}\"){0,128}[^\"]{0,128}$)");
+    private static final Pattern SPLIT_BY_WHITESPACE = Pattern.compile("\\s{1,128}+(?=([^\"]{0,128}+\"[^\"]{0,128}+\"){0,128}+[^\"]{0,128}+$)");
     public static final String BINARY_NAME = "jf";
 
     public static FilePath getWorkspace(Job<?, ?> project) {
