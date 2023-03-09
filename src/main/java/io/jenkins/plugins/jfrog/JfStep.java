@@ -71,7 +71,7 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
         boolean isWindows = !launcher.isUnix();
         // JFROG_BINARY_PATH is set according to the main OS.
         // We should convert JFROG_BINARY_PATH to run on the relevant slave OS if main and slave run on different operating systems.
-        String jfrogBinaryPath = Paths.get(env.get(JFROG_BINARY_PATH), Utils.getJfrogCliBinaryName(isWindows)).toString();
+        String jfrogBinaryPath = Paths.get(env.get(JFROG_BINARY_PATH, ""), Utils.getJfrogCliBinaryName(isWindows)).toString();
         if (isWindows) {
             jfrogBinaryPath = FilenameUtils.separatorsToWindows(jfrogBinaryPath);
         } else {
@@ -94,6 +94,23 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
             String errorMessage = "Couldn't execute 'jf' command. " + ExceptionUtils.getRootCauseMessage(e);
             throw new RuntimeException(errorMessage, e);
         }
+    }
+
+    /**
+     * Log if the JFrog CLI binary path doesn't exist in job's environment variable.
+     * This environment variable exists in one of the following scenarios:
+     * 1. Declarative Pipeline: A 'jfrog' tool was set
+     * 2. Scripted Pipeline: Using the "withEnv(["JFROG_BINARY_PATH=${tool 'jfrog-cli'}"])" syntax
+     *
+     * @param env      - Job's environment variables
+     * @param listener - Job's logger
+     */
+    private void logIfNoToolProvided(EnvVars env, TaskListener listener) {
+        if (env.containsKey(JFROG_BINARY_PATH)) {
+            return;
+        }
+        JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(listener);
+        buildInfoLog.info("A 'jfrog' tool was not set. Using JFrog CLI from the system path.");
     }
 
     /**
@@ -125,6 +142,7 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
         Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
         // Configure all servers, skip if all server ids have already been configured.
         if (shouldConfig(jfrogHomeTempDir)) {
+            logIfNoToolProvided(env, listener);
             configAllServers(jfLauncher, jfrogBinaryPath, isWindows, run.getParent());
         }
         return jfLauncher;
