@@ -5,11 +5,11 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.47</version>
+        <version>4.53</version>
     </parent>
 
     <properties>
-        <jenkins.version>2.346.3</jenkins.version>
+        <jenkins.version>2.361.4</jenkins.version>
         <skipITs>true</skipITs>
         <buildinfo.version>2.37.2</buildinfo.version>
     </properties>
