@@ -37,10 +37,6 @@ import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 @SuppressWarnings("unused")
 public class JfStep<T> extends Builder implements SimpleBuildStep {
     static final String STEP_NAME = "jf";
-    static final String JFROG_CLI_HOME_DIR = "JFROG_CLI_HOME_DIR";
-    public static final String JFROG_CLI_BUILD_NAME = "JFROG_CLI_BUILD_NAME";
-    public static final String JFROG_CLI_BUILD_NUMBER = "JFROG_CLI_BUILD_NUMBER";
-    public static final String JFROG_CLI_BUILD_URL = "JFROG_CLI_BUILD_URL";
     protected String args;
 
     @DataBoundConstructor
@@ -111,17 +107,8 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
      * @throws IOException          in case of any I/O error, or we failed to run the 'jf' command
      */
     public Launcher.ProcStarter setupJFrogEnvironment(Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener, FilePath workspace, String jfrogBinaryPath, boolean isWindows) throws IOException, InterruptedException {
-        // Set relevant environment variables.
-        // Setting Jenkins job name as the default build-info name.
-        env.putIfAbsent(JFROG_CLI_BUILD_NAME, env.get("JOB_NAME"));
-        // Setting Jenkins build number as the default build-info number.
-        env.putIfAbsent(JFROG_CLI_BUILD_NUMBER, env.get("BUILD_NUMBER"));
-        // Setting the specific build URL.
-        env.putIfAbsent(JFROG_CLI_BUILD_URL, env.get("BUILD_URL"));
-        // Set up a temporary Jfrog CLI home directory for a specific run.
         FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
-        env.put(JFROG_CLI_HOME_DIR, jfrogHomeTempDir.getRemote());
-
+        CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir.getRemote());
         Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
         // Configure all servers, skip if all server ids have already been configured.
         if (shouldConfig(jfrogHomeTempDir)) {

@@ -12,6 +12,7 @@ import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import jenkins.MasterToSlaveFileCallable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
+import org.jfrog.build.client.ProxyConfiguration;
 import org.jfrog.build.extractor.clientConfiguration.client.artifactory.ArtifactoryManager;
 
 import java.io.File;
@@ -20,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static io.jenkins.plugins.jfrog.Utils.createProxyConfiguration;
 import static org.jfrog.build.client.DownloadResponse.SHA256_HEADER_NAME;
 
 
@@ -90,6 +92,10 @@ public abstract class BinaryInstaller extends ToolInstaller {
         // Downloading binary from Artifactory
         try (ArtifactoryManager manager = new ArtifactoryManager(instance.getArtifactoryUrl(), Secret.toString(instance.getCredentialsConfig().getUsername()),
                 Secret.toString(instance.getCredentialsConfig().getPassword()), Secret.toString(instance.getCredentialsConfig().getAccessToken()), buildInfoLog)) {
+            ProxyConfiguration proxyConfiguration = createProxyConfiguration();
+            if (proxyConfiguration != null) {
+                manager.setProxyConfiguration(proxyConfiguration);
+            }
             // Getting updated cli binary's sha256 form Artifactory.
             String artifactorySha256 = getArtifactSha256(manager, cliUrlSuffix);
             if (shouldDownloadTool(toolLocation, artifactorySha256)) {
