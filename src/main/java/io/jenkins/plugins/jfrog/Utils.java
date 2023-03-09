@@ -4,16 +4,19 @@ import hudson.FilePath;
 import hudson.model.Job;
 import hudson.model.TaskListener;
 import jenkins.security.MasterToSlaveCallable;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * @author gail
  */
 public class Utils {
+    private static final Pattern SPLIT_BY_WHITESPACE = Pattern.compile("\\s{1,128}(?=([^\"]{0,128}\"[^\"]{0,128}\"){0,128}[^\"]{0,128}$)");
     public static final String BINARY_NAME = "jf";
 
     public static FilePath getWorkspace(Job<?, ?> project) {
@@ -78,5 +81,18 @@ public class Utils {
 
     public static FilePath createAndGetJfrogCliHomeTempDir(final FilePath ws, String buildNumber) throws IOException, InterruptedException {
         return createAndGetTempDir(ws).child(buildNumber).child(".jfrog");
+    }
+
+    /**
+     * Split argument list by whitespaces, ignoring quoted strings.
+     *
+     * @param args - The argument list
+     * @return an array of all arguments
+     */
+    public static String[] splitByWhitespaces(String args) {
+        if (StringUtils.isBlank(args)) {
+            return new String[]{};
+        }
+        return SPLIT_BY_WHITESPACE.split(args);
     }
 }

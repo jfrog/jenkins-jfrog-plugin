@@ -18,7 +18,6 @@ import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
 import jenkins.tasks.SimpleBuildStep;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
@@ -30,6 +29,7 @@ import java.nio.file.Paths;
 import java.util.List;
 
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
+import static io.jenkins.plugins.jfrog.Utils.splitByWhitespaces;
 
 /**
  * @author gail
@@ -78,7 +78,7 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
             jfrogBinaryPath = FilenameUtils.separatorsToUnix(jfrogBinaryPath);
         }
         builder.add(jfrogBinaryPath);
-        builder.add(StringUtils.split(args));
+        builder.add(splitByWhitespaces(args));
         if (isWindows) {
             builder = builder.toWindowsCommand();
         }
