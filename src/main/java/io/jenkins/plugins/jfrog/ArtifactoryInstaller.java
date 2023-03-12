@@ -38,9 +38,9 @@ public class ArtifactoryInstaller extends BinaryInstaller {
     final String version;
 
     @DataBoundConstructor
-    public ArtifactoryInstaller(String id, String repository, String version) {
+    public ArtifactoryInstaller(String serverId, String repository, String version) {
         super(null);
-        this.serverId = id;
+        this.serverId = serverId;
         this.repository = StringUtils.trim(repository);
         this.version = StringUtils.trim(version);
     }

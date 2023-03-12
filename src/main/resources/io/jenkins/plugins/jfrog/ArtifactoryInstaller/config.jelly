@@ -3,7 +3,7 @@
     <f:entry title="${%Server ID}" field="serverId" help="/plugin/jfrog/help/ArtifactoryInstaller/help-serverId.html">
         <select name="id">
             <j:forEach var="server" items="${descriptor.serverIds}">
-                <f:option value="${server.id}" selected="${server.id==instance.id}">${server.id}</f:option>
+                <f:option value="${server.serverId}" selected="${server.serverId==instance.serverId}">${server.serverId}</f:option>
             </j:forEach>
         </select>
     </f:entry>
