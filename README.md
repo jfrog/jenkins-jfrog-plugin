@@ -185,7 +185,7 @@ pipeline {
 
 #### Preconditions 
   1. Populate 'DOCKER_REG_URL' with the Artifactory Docker registry, for example - 'acme.jfrog.io'.
-  2. To build the Docker image, install the "Docker Pipeline" for Jenkins.
+  2. To build the Docker image, install the "Docker Pipeline" on Jenkins.
 ```groovy
 pipeline {
     agent any
