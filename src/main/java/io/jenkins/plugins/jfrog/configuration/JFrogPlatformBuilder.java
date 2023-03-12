@@ -30,6 +30,8 @@ import java.util.Set;
  * @author gail
  */
 public class JFrogPlatformBuilder extends GlobalConfiguration {
+    private static final String UNSAFE_HTTP_ERROR = "HTTP (non HTTPS) connections to the JFrog platform services are " +
+            "not allowed. To bypass this rule, check 'Allow HTTP Connections'.";
 
     /**
      * Descriptor for {@link JFrogPlatformBuilder}. Used as a singleton.
@@ -38,6 +40,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
     // this marker indicates Hudson that this is an implementation of an extension point.
     public static final class DescriptorImpl extends Descriptor<GlobalConfiguration> {
         private List<JFrogPlatformInstance> jfrogInstances;
+        private boolean allowHttpConnections;
 
         @SuppressWarnings("unused")
         public DescriptorImpl() {
@@ -84,18 +87,46 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
             return FormValidation.ok();
         }
 
-        /**
-         * Performs on-the-fly validation of the form field 'PlatformUrl'.
-         *
-         * @param value This parameter receives the value that the user has typed.
-         * @return Indicates the outcome of the validation. This is sent to the browser.
-         */
         @POST
         @SuppressWarnings("unused")
         public FormValidation doCheckPlatformUrl(@QueryParameter String value) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             if (StringUtils.isBlank(value)) {
                 return FormValidation.error("Please set platform URL");
+            }
+            return checkUrlInForm(value);
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckArtifactoryUrl(@QueryParameter String value) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            return checkUrlInForm(value);
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckDistributionUrl(@QueryParameter String value) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            return checkUrlInForm(value);
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckXrayUrl(@QueryParameter String value) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            return checkUrlInForm(value);
+        }
+
+        /**
+         * Performs on-the-fly validation of the form fields 'platformUrl', 'artifactoryUrl', 'distributionUrl', or 'xrayUrl'.
+         *
+         * @param value the URL value that the user has typed.
+         * @return the outcome of the validation. This is sent to the browser.
+         */
+        private FormValidation checkUrlInForm(String value) {
+            if (isUnsafe(isAllowHttpConnections(), value)) {
+                return FormValidation.error(UNSAFE_HTTP_ERROR);
             }
             return FormValidation.ok();
         }
@@ -104,6 +135,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
         public boolean configure(StaplerRequest req, JSONObject o) throws FormException {
             Jenkins jenkins = Jenkins.getInstanceOrNull();
             if (jenkins != null && jenkins.hasPermission(Jenkins.ADMINISTER)) {
+                setAllowHttpConnections(o.getBoolean("allowHttpConnections"));
                 configureJFrogInstances(req, o);
                 save();
                 return super.configure(req, o);
@@ -129,6 +161,13 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
 
             if (isEmptyUrl(jfrogInstances)) {
                 throw new FormException("Please set the The JFrog Platform URL", "URL");
+            }
+
+            for (JFrogPlatformInstance jfrogInstance : jfrogInstances) {
+                if (isUnsafe(isAllowHttpConnections(), jfrogInstance.getUrl(), jfrogInstance.getArtifactoryUrl(),
+                        jfrogInstance.getDistributionUrl(), jfrogInstance.getXrayUrl())) {
+                    throw new FormException(UNSAFE_HTTP_ERROR, "URL");
+                }
             }
             setJfrogInstances(jfrogInstances);
         }
@@ -193,6 +232,39 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
             this.jfrogInstances = jfrogInstances;
         }
 
+        /**
+         * Used by Jenkins Jelly for setting values.
+         */
+        @SuppressWarnings("unused")
+        public boolean isAllowHttpConnections() {
+            return this.allowHttpConnections;
+        }
+
+        /**
+         * Used by Jenkins Jelly for setting values.
+         */
+        public void setAllowHttpConnections(boolean allowHttpConnections) {
+            this.allowHttpConnections = allowHttpConnections;
+        }
+    }
+
+    /**
+     * Return true if at least one of the URLs are using an unsafe HTTP protocol and the "Allow HTTP Connection" option is not set.
+     *
+     * @param urls - The URL to check
+     * @return true if the URL is using an unsafe HTTP protocol and the "Allow HTTP Connection" option is not set.
+     */
+    static boolean isUnsafe(boolean allowHttpConnections, String... urls) {
+        if (allowHttpConnections) {
+            return false;
+        }
+        for (String url : urls) {
+            //noinspection HttpUrlsUsage
+            if (StringUtils.startsWith(url, "http://")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
