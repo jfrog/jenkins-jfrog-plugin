@@ -10,7 +10,7 @@ import java.util.List;
  * Represents an instance of jenkins JFrog instance configuration page.
  */
 public class JFrogPlatformInstance implements Serializable {
-    private String platformUrl;
+    private String url;
     private String artifactoryUrl;
     private String distributionUrl;
     private String xrayUrl;
@@ -18,13 +18,13 @@ public class JFrogPlatformInstance implements Serializable {
     private CredentialsConfig credentialsConfig;
 
     @DataBoundConstructor
-    public JFrogPlatformInstance(String serverId, String platformUrl, CredentialsConfig credentialsConfig, String artifactoryUrl, String distributionUrl, String xrayUrl) {
+    public JFrogPlatformInstance(String serverId, String url, CredentialsConfig credentialsConfig, String artifactoryUrl, String distributionUrl, String xrayUrl) {
         this.id = serverId;
-        this.platformUrl = StringUtils.isNotEmpty(platformUrl) ? StringUtils.removeEnd(platformUrl, "/") : null;
+        this.url = StringUtils.isNotEmpty(url) ? StringUtils.removeEnd(url, "/") : null;
         this.credentialsConfig = credentialsConfig;
-        this.artifactoryUrl = addUrlSuffix(artifactoryUrl, this.platformUrl, "artifactory");
-        this.distributionUrl = addUrlSuffix(distributionUrl, this.platformUrl, "distribution");
-        this.xrayUrl = addUrlSuffix(xrayUrl, this.platformUrl, "xray");
+        this.artifactoryUrl = addUrlSuffix(artifactoryUrl, this.url, "artifactory");
+        this.distributionUrl = addUrlSuffix(distributionUrl, this.url, "distribution");
+        this.xrayUrl = addUrlSuffix(xrayUrl, this.url, "xray");
     }
 
     public CredentialsConfig getCredentialsConfig() {
@@ -54,14 +54,14 @@ public class JFrogPlatformInstance implements Serializable {
 
     // Required by external plugins (JCasC).
     @SuppressWarnings("unused")
-    public String getPlatformUrl() {
-        return platformUrl;
+    public String getUrl() {
+        return url;
     }
 
     // Required by external plugins (JCasC).
     @SuppressWarnings("unused")
-    public void setPlatformUrl(String platformUrl) {
-        this.platformUrl = platformUrl;
+    public void setUrl(String url) {
+        this.url = url;
     }
 
     // Required by external plugins (JCasC).

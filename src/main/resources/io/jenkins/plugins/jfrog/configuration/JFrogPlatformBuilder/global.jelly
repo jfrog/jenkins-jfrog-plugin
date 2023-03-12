@@ -13,8 +13,8 @@
                     <f:entry title="Server ID">
                         <f:textbox field="serverId" value="${instance.serverId}"/>
                     </f:entry>
-                    <f:entry title="JFrog Platform URL" field="platformUrl">
-                        <f:textbox field="platformUrl" value="${instance.url}"/>
+                    <f:entry title="JFrog Platform URL" field="url">
+                        <f:textbox field="url" value="${instance.url}"/>
                     </f:entry>
                     <f:section name="credentialsConfig">
                         <f:block>

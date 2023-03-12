@@ -151,7 +151,7 @@ To configure this plugin on Jenkins Configuration as Code, add the following sec
       jFrogPlatformBuilder:
         jfrogInstances:
           - serverId: "acme"
-            platformUrl: "https://acme.jfrog.io"
+            url: "https://acme.jfrog.io"
             artifactoryUrl: "https://acme.jfrog.io/artifactory"
             distributionUrl: "https://acme.jfrog.io/distribution"
             xrayUrl: "https://acme.jfrog.io/xray"
