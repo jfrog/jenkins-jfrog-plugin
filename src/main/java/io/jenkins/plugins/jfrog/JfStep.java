@@ -69,14 +69,8 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
         // Build the 'jf' command
         ArgumentListBuilder builder = new ArgumentListBuilder();
         boolean isWindows = !launcher.isUnix();
-        // JFROG_BINARY_PATH is set according to the main OS.
-        // We should convert JFROG_BINARY_PATH to run on the relevant slave OS if main and slave run on different operating systems.
-        String jfrogBinaryPath = Paths.get(env.get(JFROG_BINARY_PATH, ""), Utils.getJfrogCliBinaryName(isWindows)).toString();
-        if (isWindows) {
-            jfrogBinaryPath = FilenameUtils.separatorsToWindows(jfrogBinaryPath);
-        } else {
-            jfrogBinaryPath = FilenameUtils.separatorsToUnix(jfrogBinaryPath);
-        }
+        String jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
+
         builder.add(jfrogBinaryPath);
         builder.add(StringUtils.split(args));
         if (isWindows) {
@@ -94,6 +88,26 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
             String errorMessage = "Couldn't execute 'jf' command. " + ExceptionUtils.getRootCauseMessage(e);
             throw new RuntimeException(errorMessage, e);
         }
+    }
+
+    /**
+     * Get JFrog CLI path in agent, according to the JFROG_BINARY_PATH environment variable.
+     * The JFROG_BINARY_PATH also can be set implicitly in Declarative Pipeline by choosing the JFrog CLI tool or
+     * explicitly in Scripted Pipeline.
+     *
+     * @param env       - Job's environment variables
+     * @param isWindows - True if the agent's OS is windows
+     * @return JFrog CLI path in agent.
+     */
+    static String getJFrogCLIPath(EnvVars env, boolean isWindows) {
+        // JFROG_BINARY_PATH is set according to the master OS. If not configured, the value of jfrogBinaryPath will
+        // eventually be 'jf' or 'jf.exe'. In that case, the JFrog CLI from the system path is used.
+        String jfrogBinaryPath = Paths.get(env.get(JFROG_BINARY_PATH, ""), Utils.getJfrogCliBinaryName(isWindows)).toString();
+
+        // Modify jfrogBinaryPath according to the agent's OS
+        return isWindows ?
+                FilenameUtils.separatorsToWindows(jfrogBinaryPath) :
+                FilenameUtils.separatorsToUnix(jfrogBinaryPath);
     }
 
     /**
