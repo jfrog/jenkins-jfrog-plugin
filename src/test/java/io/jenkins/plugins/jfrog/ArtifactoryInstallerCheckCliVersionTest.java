@@ -43,7 +43,7 @@ public class ArtifactoryInstallerCheckCliVersionTest {
     }
 
     @Test
-    public void testCheckCliVersion() {
-        assertEquals(expectedResult, checkCliVersion(inputVersion).getMessage());
+    public void testValidateCliVersion() {
+        assertEquals(expectedResult, validateCliVersion(inputVersion).getMessage());
     }
 }

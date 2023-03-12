@@ -53,7 +53,7 @@ public class ReleasesInstaller extends ArtifactoryInstaller {
         @POST
         @SuppressWarnings("unused")
         public FormValidation doCheckVersion(@QueryParameter String version) {
-            return checkCliVersion(version);
+            return validateCliVersion(version);
         }
     }
 }

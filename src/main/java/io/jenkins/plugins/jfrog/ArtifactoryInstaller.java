@@ -31,7 +31,7 @@ public class ArtifactoryInstaller extends BinaryInstaller {
     private static final Version MIN_CLI_VERSION = new Version("2.6.1");
     private static final Pattern VERSION_PATTERN = Pattern.compile("^\\d+\\.\\d+\\.\\d+$");
     static final String BAD_VERSION_PATTERN_ERROR = "Version must be in the form of X.X.X";
-    static final String LOW_VERSION_PATTERN_ERROR = "Provided JFrog CLI version must be at least " + MIN_CLI_VERSION;
+    static final String LOW_VERSION_PATTERN_ERROR = "The provided JFrog CLI version must be at least " + MIN_CLI_VERSION;
 
     final String serverId;
     final String repository;
@@ -93,7 +93,7 @@ public class ArtifactoryInstaller extends BinaryInstaller {
      * @param version - Requested JFrog CLI version
      * @return the validation results.
      */
-    static FormValidation checkCliVersion(@QueryParameter String version) {
+    static FormValidation validateCliVersion(@QueryParameter String version) {
         if (StringUtils.isBlank(version)) {
             return FormValidation.ok();
         }
@@ -108,7 +108,6 @@ public class ArtifactoryInstaller extends BinaryInstaller {
 
     @Extension
     public static final class DescriptorImpl extends BinaryInstaller.DescriptorImpl<ArtifactoryInstaller> {
-
         @Nonnull
         public String getDisplayName() {
             return "Install from Artifactory";
@@ -140,7 +139,7 @@ public class ArtifactoryInstaller extends BinaryInstaller {
         @POST
         @SuppressWarnings("unused")
         public FormValidation doCheckVersion(@QueryParameter String version) {
-            return checkCliVersion(version);
+            return validateCliVersion(version);
         }
     }
 }
