@@ -117,6 +117,11 @@ jf 'rt u target/ my-repo/'
 
 > **_IMPORTANT:_** Notice the single quotes wrapping the command right after the **jf** step definition.
 
+If the JFrog CLI command contains some arguments with spaces, you can rather provide the arguments as a list:
+```groovy
+jf(['mvn', 'clean', 'install', '-Ddeploy.testProperty=Property with space"'])
+```
+
 ### Setting the build name and the build number
 
 The plugin automatically sets the following environment variables: _JFROG_CLI_BUILD_NAME_ and _JFROG_CLI_BUILD_NUMBER_

@@ -37,14 +37,19 @@ import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 @SuppressWarnings("unused")
 public class JfStep<T> extends Builder implements SimpleBuildStep {
     static final String STEP_NAME = "jf";
-    protected String args;
+    protected String[] args;
 
     @DataBoundConstructor
-    public JfStep(String args) {
-        this.args = args;
+    public JfStep(Object args) {
+        if (args instanceof List) {
+            //noinspection unchecked
+            this.args = ((List<String>) args).toArray(String[]::new);
+            return;
+        }
+        this.args = StringUtils.split(args.toString());
     }
 
-    public String getArgs() {
+    public String[] getArgs() {
         return args;
     }
 
@@ -67,8 +72,7 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
         boolean isWindows = !launcher.isUnix();
         String jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
 
-        builder.add(jfrogBinaryPath);
-        builder.add(StringUtils.split(args));
+        builder.add(jfrogBinaryPath).add(args);
         if (isWindows) {
             builder = builder.toWindowsCommand();
         }

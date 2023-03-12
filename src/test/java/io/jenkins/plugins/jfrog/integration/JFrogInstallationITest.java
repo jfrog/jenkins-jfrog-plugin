@@ -166,6 +166,21 @@ class JFrogInstallationITest extends PipelineTestBase {
         assertFalse(job.getLog().contains("jf version " + jfrogCliTestVersion));
     }
 
+    /**
+     * Test the functionality of providing arguments as list: jf (['rt', 'ping''])
+     *
+     * @param jenkins Jenkins instance injected automatically.
+     */
+    @Test
+    public void testArgList(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        // Download the latest CLI version from releases.jfrog.io.
+        configureJfrogCliFromReleases(StringUtils.EMPTY, false);
+        // Download the latest CLI version from Artifactory.
+        configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME_1, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), false);
+        runPipeline(jenkins, "basic_commands_array");
+    }
+
     @Test
     public void testConfigurationAsCode(JenkinsRule jenkins) throws Exception {
         setupJenkins(jenkins);
