@@ -10,10 +10,12 @@
                 <input type="hidden" name="stapler-class"
                        value="io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance"/>
                 <div style="width:100%">
-                    <f:entry title="Server ID">
+                    <f:entry title="Server ID"
+                             help="/plugin/jfrog/help/configuration/JFrogPlatformBuilder/help-serverId.html">
                         <f:textbox field="serverId" value="${instance.serverId}"/>
                     </f:entry>
-                    <f:entry title="JFrog Platform URL" field="url">
+                    <f:entry title="JFrog Platform URL" field="url"
+                             help="/plugin/jfrog/help/configuration/JFrogPlatformBuilder/help-platformUrl.html">
                         <f:textbox field="url" value="${instance.url}"/>
                     </f:entry>
                     <f:section name="credentialsConfig">
@@ -22,7 +24,8 @@
                                    value="io.jenkins.plugins.jfrog.configuration.CredentialsConfig"/>
                             <div style="width:100%"
                                  id="credentialsConfig${instance.credentialsConfig}">
-                                <f:entry title="${%Credentials}" field="credentialsId">
+                                <f:entry title="${%Credentials}" field="credentialsId"
+                                         help="/plugin/jfrog/help/configuration/JFrogPlatformBuilder/help-credentials.html">
                                     <c:select default="${instance.credentialsConfig.credentialsId}"/>
                                 </f:entry>
                             </div>
@@ -30,13 +33,16 @@
                     </f:section>
                     <f:advanced title="Advanced Configuration">
                         <f:section title="Advanced Configuration">
-                            <f:entry title="JFrog Artifactory URL">
+                            <f:entry title="JFrog Artifactory URL"
+                                     help="/plugin/jfrog/help/configuration/JFrogPlatformBuilder/help-artifactoryUrl.html">
                                 <f:textbox field="artifactoryUrl" value="${instance.artifactoryUrl}"/>
                             </f:entry>
-                            <f:entry title="JFrog Distribution URL">
+                            <f:entry title="JFrog Distribution URL"
+                                     help="/plugin/jfrog/help/configuration/JFrogPlatformBuilder/help-distributionUrl.html">
                                 <f:textbox field="distributionUrl" value="${instance.distributionUrl}"/>
                             </f:entry>
-                            <f:entry title="JFrog Xray URL">
+                            <f:entry title="JFrog Xray URL"
+                                     help="/plugin/jfrog/help/configuration/JFrogPlatformBuilder/help-xrayUrl.html">
                                 <f:textbox field="xrayUrl" value="${instance.xrayUrl}"/>
                             </f:entry>
                         </f:section>
