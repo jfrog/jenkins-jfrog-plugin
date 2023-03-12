@@ -49,5 +49,9 @@
                 </f:block>
             </f:repeatable>
         </f:entry>
+        <f:entry help="/plugin/jfrog/help/JFrogPlatformBuilder/help-allowHttpConnections.html">
+            <f:checkbox title="Allow HTTP Connections" field="allowHttpConnections"
+                        value="${descriptor.allowHttpConnections}"/>
+        </f:entry>
     </f:section>
 </j:jelly>
