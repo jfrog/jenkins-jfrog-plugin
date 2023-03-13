@@ -123,9 +123,8 @@ jf(['mvn', 'clean', 'install', '-Ddeploy.testProperty=Property with space'])
 ```
 In this case, the quotes that would be required in a shell are not necessary (and would be part of the value itself, if used). 
 The above step is equivalent to a shell invocation as follows:
-```sh
-> jf mvn clean install -Ddeploy.testProperty="Property with space"
-```
+![bash-spaces.png](images/readme/bash-spaces.png)
+
 Passing the arguments as a list can also be useful to avoid space and escaping problems if some of those arguments rely on script variables.
 
 ### Setting the build name and the build number
