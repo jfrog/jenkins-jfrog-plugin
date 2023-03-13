@@ -167,7 +167,7 @@ class JFrogInstallationITest extends PipelineTestBase {
     }
 
     /**
-     * Test the functionality of providing arguments as list: jf (['rt', 'ping''])
+     * Test the functionality of providing arguments as list: jf (['rt', 'ping'])
      *
      * @param jenkins Jenkins instance injected automatically.
      */

@@ -119,7 +119,7 @@ jf 'rt u target/ my-repo/'
 
 If the JFrog CLI command contains some arguments with spaces, you can rather provide the arguments as a list:
 ```groovy
-jf(['mvn', 'clean', 'install', '-Ddeploy.testProperty=Property with space"'])
+jf(['mvn', 'clean', 'install', '-Ddeploy.testProperty=Property with space'])
 ```
 
 ### Setting the build name and the build number

@@ -9,13 +9,13 @@ pipeline {
                 // Show the installed version of JFrog CLI.
                 jf(['-v'])
 
-                jf(['c', 'use', '${TEST_CONFIGURED_SERVER_ID}'])
+                jf(["c", 'use', '${TEST_CONFIGURED_SERVER_ID}'])
 
                 // Ping Artifactory.
-                jf(['rt', 'ping'])
+                jf(['rt', "ping"])
 
                 // Upload a file to a repository in Artifactory
-                jf(['rt', 'u', '${DUMMY_FILE_PATH}', '${LOCAL_REPO}/'])
+                jf(["rt", "u", "${DUMMY_FILE_PATH}", "${LOCAL_REPO}/"])
             }
         }
     }
