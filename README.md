@@ -117,15 +117,17 @@ jf 'rt u target/ my-repo/'
 
 > **_IMPORTANT:_** Notice the single quotes wrapping the command right after the **jf** step definition.
 
-If the JFrog CLI command contains some arguments with spaces, you can rather provide the arguments as a list:
+If the JFrog CLI command has arguments with white-spaces, you can provide the arguments as a list as follows:
 ```groovy
 jf(['mvn', 'clean', 'install', '-Ddeploy.testProperty=Property with space'])
 ```
-In this case, the quotes that would be required in a shell are not necessary (and would be part of the value itself, if used). 
-The above step is equivalent to a shell invocation as follows:
+When the above list syntax is used, the quotes required for the string syntax are replaced with quotes wrapping 
+each item in the list as shown above.
+The above step is equivalent to the following shell command:
+
 ![bash-spaces.png](images/readme/bash-spaces.png)
 
-Passing the arguments as a list can also be useful to avoid space and escaping problems if some of those arguments rely on script variables.
+The list syntax also helps avoiding space and escaping problems, when some of those arguments use script variables.
 
 ### Setting the build name and the build number
 
