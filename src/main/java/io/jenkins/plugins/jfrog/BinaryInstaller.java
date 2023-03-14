@@ -74,15 +74,17 @@ public abstract class BinaryInstaller extends ToolInstaller {
     /**
      * Download and locate the JFrog CLI binary in the specific build home directory.
      *
-     * @param toolLocation    - location of the tool directory on the fileSystem.
-     * @param log             - job task listener.
-     * @param providedVersion - version provided by the user. empty string indicates the latest version.
-     * @param instance        - JFrogPlatformInstance contains url and credentials needed for the downloading operation.
-     * @param repository      - identifies the repository in Artifactory where the CLIs binary is stored.
-     * @param binaryName      - 'jf' or 'jf.exe'
+     * @param toolLocation       - Location of the tool directory on the fileSystem
+     * @param log                - Job task listener
+     * @param providedVersion    - Version provided by the user. empty string indicates the latest version
+     * @param instance           - JFrogPlatformInstance contains url and credentials needed for the downloading operation
+     * @param repository         - Identifies the repository in Artifactory where the CLIs binary is stored
+     * @param binaryName         - 'jf' or 'jf.exe'
+     * @param proxyConfiguration - The proxy configuration or null if not configured
      * @throws IOException in case of any I/O error.
      */
-    private static void downloadJfrogCli(File toolLocation, TaskListener log, String providedVersion, JFrogPlatformInstance instance, String repository, String binaryName) throws IOException {
+    private static void downloadJfrogCli(File toolLocation, TaskListener log, String providedVersion,
+                                         JFrogPlatformInstance instance, String repository, String binaryName, ProxyConfiguration proxyConfiguration) throws IOException {
         // An empty string indicates the latest version.
         String version = StringUtils.defaultIfBlank(providedVersion, RELEASE);
         String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, version, OsUtils.getOsDetails(), binaryName);
@@ -92,7 +94,6 @@ public abstract class BinaryInstaller extends ToolInstaller {
         // Downloading binary from Artifactory
         try (ArtifactoryManager manager = new ArtifactoryManager(instance.getArtifactoryUrl(), Secret.toString(instance.getCredentialsConfig().getUsername()),
                 Secret.toString(instance.getCredentialsConfig().getPassword()), Secret.toString(instance.getCredentialsConfig().getAccessToken()), buildInfoLog)) {
-            ProxyConfiguration proxyConfiguration = createProxyConfiguration();
             if (proxyConfiguration != null) {
                 manager.setProxyConfiguration(proxyConfiguration);
             }
@@ -159,11 +160,12 @@ public abstract class BinaryInstaller extends ToolInstaller {
     }
 
     public static FilePath performJfrogCliInstallation(FilePath toolLocation, TaskListener log, String version, JFrogPlatformInstance instance, String repository, String binaryName) throws IOException, InterruptedException {
+        ProxyConfiguration proxyConfiguration = createProxyConfiguration();
         // Download Jfrog CLI binary
         toolLocation.act(new MasterToSlaveFileCallable<Void>() {
             @Override
             public Void invoke(File f, VirtualChannel channel) throws IOException {
-                downloadJfrogCli(f, log, version, instance, repository, binaryName);
+                downloadJfrogCli(f, log, version, instance, repository, binaryName, proxyConfiguration);
                 return null;
             }
         });
