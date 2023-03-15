@@ -118,10 +118,12 @@ jf 'rt u target/ my-repo/'
 > **_IMPORTANT:_** Notice the single quotes wrapping the command right after the **jf** step definition.
 
 If the JFrog CLI command has arguments with white-spaces, you can provide the arguments as a list as follows:
+
 ```groovy
 jf(['mvn', 'clean', 'install', '-Ddeploy.testProperty=Property with space'])
 ```
-When the above list syntax is used, the quotes required for the string syntax are replaced with quotes wrapping 
+
+When the above list syntax is used, the quotes required for the string syntax are replaced with quotes wrapping
 each item in the list as shown above.
 The above step is equivalent to the following shell command:
 
@@ -177,7 +179,11 @@ To configure this plugin on Jenkins Configuration as Code, add the following sec
     tool:
       jfrog:
         installations:
-          - name: "jfrog-cli"
+        - name: "jfrog-cli"
+          properties:
+          - installSource:
+              installers:
+              - "releasesInstaller"
     ```
 
 * [Automatic installation from Artifactory](#automatic-installation-from-artifactory):
@@ -245,9 +251,11 @@ pipeline {
 <details>
   <summary>Docker</summary>
 
-#### Preconditions 
-  1. Populate 'DOCKER_REG_URL' with the Artifactory Docker registry, for example - 'acme.jfrog.io'.
-  2. To build the Docker image, install the "Docker Pipeline" on Jenkins.
+#### Preconditions
+
+1. Populate 'DOCKER_REG_URL' with the Artifactory Docker registry, for example - 'acme.jfrog.io'.
+2. To build the Docker image, install the "Docker Pipeline" on Jenkins.
+
 ```groovy
 pipeline {
     agent any
@@ -255,7 +263,7 @@ pipeline {
         jfrog 'jfrog-cli'
     }
     environment {
-        DOCKER_IMAGE_NAME="$DOCKER_REG_URL/docker-local/hello-frog:1.0.0"
+        DOCKER_IMAGE_NAME = "$DOCKER_REG_URL/docker-local/hello-frog:1.0.0"
     }
     stages {
         stage('Clone') {
@@ -264,7 +272,7 @@ pipeline {
             }
         }
 
-        stage ('Build Docker image') {
+        stage('Build Docker image') {
             steps {
                 script {
                     docker.build("$DOCKER_IMAGE_NAME", 'docker-oci-examples/docker-example')
@@ -277,7 +285,7 @@ pipeline {
                 dir('docker-oci-examples/docker-example/') {
                     // Scan Docker image for vulnerabilities
                     jf 'docker scan $DOCKER_IMAGE_NAME'
-                    
+
                     // Push image to Artifactory
                     jf 'docker push $DOCKER_IMAGE_NAME'
                 }
@@ -292,6 +300,7 @@ pipeline {
     }
 }
 ```
+
 </details>
 
 <details>
