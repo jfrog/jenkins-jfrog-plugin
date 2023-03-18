@@ -19,12 +19,17 @@ import javax.annotation.Nonnull;
  * @author gail
  */
 public class ReleasesInstaller extends ArtifactoryInstaller {
-    public static final String RELEASES_ARTIFACTORY_URL = "https://releases.jfrog.io/artifactory";
-    public static final String REPOSITORY = "jfrog-cli";
+    private static final String RELEASES_ARTIFACTORY_URL = "https://releases.jfrog.io/artifactory";
+    private static final String RELEASES_REPOSITORY = "jfrog-cli";
 
     @DataBoundConstructor
     public ReleasesInstaller(String version) {
-        super("", REPOSITORY, version);
+        super("", RELEASES_REPOSITORY, version);
+    }
+
+    @Override
+    public String getRepository() {
+        return RELEASES_REPOSITORY;
     }
 
     /**
