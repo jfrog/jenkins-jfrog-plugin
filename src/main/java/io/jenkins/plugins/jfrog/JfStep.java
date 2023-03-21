@@ -13,6 +13,7 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
 import io.jenkins.cli.shaded.org.apache.commons.io.FilenameUtils;
+import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
@@ -142,8 +143,14 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
      * @throws IOException          in case of any I/O error, or we failed to run the 'jf' command
      */
     public Launcher.ProcStarter setupJFrogEnvironment(Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener, FilePath workspace, String jfrogBinaryPath, boolean isWindows) throws IOException, InterruptedException {
+        JFrogCliConfigEncryption jfrogCliConfigEncryption = run.getAction(JFrogCliConfigEncryption.class);
+        if (jfrogCliConfigEncryption == null) {
+            // Set up the config encryption action to allow encrypting the JFrog CLI and make sure we only create one key
+            jfrogCliConfigEncryption = new JFrogCliConfigEncryption(env);
+            run.addAction(jfrogCliConfigEncryption);
+        }
         FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
-        CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir.getRemote());
+        CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir.getRemote(), jfrogCliConfigEncryption);
         Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
         // Configure all servers, skip if all server ids have already been configured.
         if (shouldConfig(jfrogHomeTempDir)) {

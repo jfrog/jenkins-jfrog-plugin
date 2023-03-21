@@ -1,6 +1,7 @@
 package io.jenkins.plugins.jfrog;
 
 import hudson.EnvVars;
+import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import org.apache.commons.lang3.StringUtils;
 import org.jfrog.build.client.ProxyConfiguration;
 
@@ -13,21 +14,23 @@ import static io.jenkins.plugins.jfrog.Utils.createProxyConfiguration;
  **/
 public class CliEnvConfigurator {
     static final String JFROG_CLI_DEFAULT_EXCLUSIONS = "*password*;*psw*;*secret*;*key*;*token*;*auth*";
-    static final String JFROG_CLI_HOME_DIR = "JFROG_CLI_HOME_DIR";
-    static final String JFROG_CLI_BUILD_NAME = "JFROG_CLI_BUILD_NAME";
+    static final String JFROG_CLI_ENCRYPTION_KEY = "JFROG_CLI_ENCRYPTION_KEY";
     static final String JFROG_CLI_BUILD_NUMBER = "JFROG_CLI_BUILD_NUMBER";
+    public static final String JFROG_CLI_HOME_DIR = "JFROG_CLI_HOME_DIR";
+    static final String JFROG_CLI_ENV_EXCLUDE = "JFROG_CLI_ENV_EXCLUDE";
+    static final String JFROG_CLI_BUILD_NAME = "JFROG_CLI_BUILD_NAME";
     static final String JFROG_CLI_BUILD_URL = "JFROG_CLI_BUILD_URL";
     static final String HTTPS_PROXY_ENV = "HTTPS_PROXY";
     static final String HTTP_PROXY_ENV = "HTTP_PROXY";
-    static final String JFROG_CLI_ENV_EXCLUDE = "JFROG_CLI_ENV_EXCLUDE";
 
     /**
      * Configure the JFrog CLI environment variables, according to the input job's env.
      *
      * @param env              - Job's environment variables
      * @param jfrogHomeTempDir - Calculated JFrog CLI home dir
+     * @param encryptionKey    - Random encryption key to encrypt the CLI config
      */
-    static void configureCliEnv(EnvVars env, String jfrogHomeTempDir) {
+    static void configureCliEnv(EnvVars env, String jfrogHomeTempDir, JFrogCliConfigEncryption encryptionKey) {
         // Setting Jenkins job name as the default build-info name
         env.putIfAbsent(JFROG_CLI_BUILD_NAME, env.get("JOB_NAME"));
         // Setting Jenkins build number as the default build-info number
@@ -39,6 +42,10 @@ public class CliEnvConfigurator {
         if (StringUtils.isAllBlank(env.get(HTTP_PROXY_ENV), env.get(HTTPS_PROXY_ENV))) {
             // Set up HTTP/S proxy
             setupProxy(env);
+        }
+        if (encryptionKey.shouldEncrypt()) {
+            // Set up a random encryption key to make sure no raw text secrets are stored in the file system
+            env.putIfAbsent(JFROG_CLI_ENCRYPTION_KEY, encryptionKey.getKey());
         }
     }
 
