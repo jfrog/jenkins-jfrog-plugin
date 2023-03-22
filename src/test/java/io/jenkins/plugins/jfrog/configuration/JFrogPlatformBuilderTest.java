@@ -8,9 +8,9 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author yahavi
  **/
+@SuppressWarnings("HttpUrlsUsage")
 public class JFrogPlatformBuilderTest {
 
-    @SuppressWarnings("HttpUrlsUsage")
     @Test
     public void testIsUnsafe() {
         assertFalse(JFrogPlatformBuilder.isUnsafe(false, "https://acme.jfrog.io"));
@@ -20,5 +20,17 @@ public class JFrogPlatformBuilderTest {
 
         assertTrue(JFrogPlatformBuilder.isUnsafe(false, "http://acme.jfrog.io"));
         assertTrue(JFrogPlatformBuilder.isUnsafe(false, "https://acme.jfrog.io", "http://acme.jfrog.io"));
+    }
+
+    @Test
+    public void testIsEmptyOrStartingWithProtocol() {
+        assertFalse(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol(""));
+        assertFalse(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("http://acme.jfrog.io"));
+        assertFalse(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("https://acme.jfrog.io"));
+        assertFalse(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("ssh://acme.jfrog.io"));
+        assertFalse(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("ssh://acme.jfrog.io", "http://acme.jfrog.io"));
+
+        assertTrue(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("www.acme.jfrog.io"));
+        assertTrue(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("https://acme.jfrog.io", "www.acme.jfrog.io"));
     }
 }

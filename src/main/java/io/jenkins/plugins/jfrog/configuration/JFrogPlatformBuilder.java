@@ -12,17 +12,16 @@ import jenkins.model.GlobalConfiguration;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.POST;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+
+import static org.apache.commons.lang3.StringUtils.*;
 
 /**
  * Builder for JFrogPlatformInstance, used by the JFrog CLI config command.
@@ -30,8 +29,11 @@ import java.util.Set;
  * @author gail
  */
 public class JFrogPlatformBuilder extends GlobalConfiguration {
+    @SuppressWarnings("HttpUrlsUsage")
+    private static final String[] KNOWN_PROTOCOLS = {"http://", "https://", "ssh://"};
     private static final String UNSAFE_HTTP_ERROR = "HTTP (non HTTPS) connections to the JFrog platform services are " +
             "not allowed. To bypass this rule, check 'Allow HTTP Connections'.";
+    private static final String UNKNOWN_PROTOCOL_ERROR = "URL must start with one of the following protocols: " + Arrays.toString(KNOWN_PROTOCOLS);
 
     /**
      * Descriptor for {@link JFrogPlatformBuilder}. Used as a singleton.
@@ -68,7 +70,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
         @SuppressWarnings("unused")
         public FormValidation doCheckServerId(@QueryParameter String value) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-            if (StringUtils.isBlank(value)) {
+            if (isBlank(value)) {
                 return FormValidation.error("Please set server ID");
             }
             List<JFrogPlatformInstance> JFrogPlatformInstances = getJFrogPlatformInstances();
@@ -91,7 +93,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
         @SuppressWarnings("unused")
         public FormValidation doCheckUrl(@QueryParameter String value) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-            if (StringUtils.isBlank(value)) {
+            if (isBlank(value)) {
                 return FormValidation.error("Please set the JFrog Platform URL");
             }
             return checkUrlInForm(value);
@@ -125,6 +127,9 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
          * @return the outcome of the validation. This is sent to the browser.
          */
         private FormValidation checkUrlInForm(String value) {
+            if (isEmptyOrStartingWithProtocol(value)) {
+                return FormValidation.error(UNKNOWN_PROTOCOL_ERROR);
+            }
             if (isUnsafe(isAllowHttpConnections(), value)) {
                 return FormValidation.error(UNSAFE_HTTP_ERROR);
             }
@@ -168,6 +173,10 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
                         jfrogInstance.getDistributionUrl(), jfrogInstance.getXrayUrl())) {
                     throw new FormException(UNSAFE_HTTP_ERROR, "URL");
                 }
+                if (isEmptyOrStartingWithProtocol(jfrogInstance.getUrl(), jfrogInstance.getArtifactoryUrl(),
+                        jfrogInstance.getDistributionUrl(), jfrogInstance.getXrayUrl())) {
+                    throw new FormException(UNKNOWN_PROTOCOL_ERROR, "URL");
+                }
             }
             setJfrogInstances(jfrogInstances);
         }
@@ -181,7 +190,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
             }
             for (JFrogPlatformInstance server : jfrogInstances) {
                 String platformId = server.getId();
-                if (StringUtils.isBlank(platformId)) {
+                if (isBlank(platformId)) {
                     return false;
                 }
             }
@@ -211,7 +220,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
                 return false;
             }
             for (JFrogPlatformInstance instance : jfrogInstances) {
-                if (StringUtils.isBlank(instance.getUrl())) {
+                if (isBlank(instance.getUrl())) {
                     return true;
                 }
             }
@@ -260,11 +269,23 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
         }
         for (String url : urls) {
             //noinspection HttpUrlsUsage
-            if (StringUtils.startsWith(url, "http://")) {
+            if (startsWith(url, "http://")) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Return true if all input URLs are empty or starting with a known protocol.
+     *
+     * @param urls - The URL to check
+     * @return true if all input URLs are empty or starting with a known protocol.
+     */
+    static boolean isEmptyOrStartingWithProtocol(String... urls) {
+        return Arrays.stream(urls)
+                .filter(StringUtils::isNotBlank)
+                .anyMatch(url -> !startsWithAny(url, KNOWN_PROTOCOLS));
     }
 
     /**
