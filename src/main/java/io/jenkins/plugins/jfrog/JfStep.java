@@ -206,9 +206,9 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
         }
         // Add URLs
         builder.add("--url=" + jfrogPlatformInstance.getUrl());
-        builder.add("--artifactory-url=" + jfrogPlatformInstance.getArtifactoryUrl());
-        builder.add("--distribution-url=" + jfrogPlatformInstance.getDistributionUrl());
-        builder.add("--xray-url=" + jfrogPlatformInstance.getXrayUrl());
+        builder.add("--artifactory-url=" + jfrogPlatformInstance.inferArtifactoryUrl());
+        builder.add("--distribution-url=" + jfrogPlatformInstance.inferDistributionUrl());
+        builder.add("--xray-url=" + jfrogPlatformInstance.inferXrayUrl());
 
         builder.add("--interactive=false");
         // The installation process takes place more than once per build, so we will configure the same server ID several times.

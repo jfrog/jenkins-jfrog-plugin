@@ -1,5 +1,7 @@
 package io.jenkins.plugins.jfrog.configuration;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -9,7 +11,13 @@ import java.util.List;
 /**
  * Represents an instance of jenkins JFrog instance configuration page.
  */
+@Getter
+@Setter
 public class JFrogPlatformInstance implements Serializable {
+    private static final String DISTRIBUTION_SUFFIX = "/distribution";
+    private static final String ARTIFACTORY_SUFFIX = "/artifactory";
+    private static final String XRAY_SUFFIX = "/xray";
+
     private String url;
     private String artifactoryUrl;
     private String distributionUrl;
@@ -20,15 +28,11 @@ public class JFrogPlatformInstance implements Serializable {
     @DataBoundConstructor
     public JFrogPlatformInstance(String serverId, String url, CredentialsConfig credentialsConfig, String artifactoryUrl, String distributionUrl, String xrayUrl) {
         this.id = serverId;
-        this.url = StringUtils.isNotEmpty(url) ? StringUtils.removeEnd(url, "/") : null;
         this.credentialsConfig = credentialsConfig;
-        this.artifactoryUrl = addUrlSuffix(artifactoryUrl, this.url, "artifactory");
-        this.distributionUrl = addUrlSuffix(distributionUrl, this.url, "distribution");
-        this.xrayUrl = addUrlSuffix(xrayUrl, this.url, "xray");
-    }
-
-    public CredentialsConfig getCredentialsConfig() {
-        return credentialsConfig;
+        this.url = StringUtils.removeEnd(url, "/");
+        this.artifactoryUrl = StringUtils.removeEnd(artifactoryUrl, "/");
+        this.distributionUrl = StringUtils.removeEnd(distributionUrl, "/");
+        this.xrayUrl = StringUtils.removeEnd(xrayUrl, "/");
     }
 
     /**
@@ -40,28 +44,6 @@ public class JFrogPlatformInstance implements Serializable {
     @SuppressWarnings("unused")
     public List<JFrogPlatformInstance> getJfrogInstances() {
         return JFrogPlatformBuilder.getJFrogPlatformInstances();
-    }
-
-    private String addUrlSuffix(String Url, String platformUrl, String suffix) {
-        return StringUtils.isNotEmpty(Url) ? Url : platformUrl + "/" + suffix;
-    }
-
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public String getId() {
-        return id;
-    }
-
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public String getUrl() {
-        return url;
-    }
-
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public void setUrl(String url) {
-        this.url = url;
     }
 
     // Required by external plugins (JCasC).
@@ -76,51 +58,30 @@ public class JFrogPlatformInstance implements Serializable {
         this.id = serverId;
     }
 
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public String getArtifactoryUrl() {
-        return artifactoryUrl;
+    /**
+     * Get artifactory URL if configured. Otherwise, infer the Artifactory URL from the platform URL.
+     *
+     * @return Artifactory URL.
+     */
+    public String inferArtifactoryUrl() {
+        return StringUtils.defaultIfBlank(artifactoryUrl, url + ARTIFACTORY_SUFFIX);
     }
 
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public void setArtifactoryUrl(String artifactoryUrl) {
-        this.artifactoryUrl = artifactoryUrl;
+    /**
+     * Get Distribution URL if configured. Otherwise, infer the Distribution URL from the platform URL.
+     *
+     * @return Distribution URL.
+     */
+    public String inferDistributionUrl() {
+        return StringUtils.defaultIfBlank(distributionUrl, this.url + DISTRIBUTION_SUFFIX);
     }
 
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public String getDistributionUrl() {
-        return distributionUrl;
-    }
-
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public void setDistributionUrl(String distributionUrl) {
-        this.distributionUrl = distributionUrl;
-    }
-
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public String getXrayUrl() {
-        return xrayUrl;
-    }
-
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public void setXrayUrl(String xrayUrl) {
-        this.xrayUrl = xrayUrl;
-    }
-
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    // Required by external plugins (JCasC).
-    @SuppressWarnings("unused")
-    public void setCredentialsConfig(CredentialsConfig credentialsConfig) {
-        this.credentialsConfig = credentialsConfig;
+    /**
+     * Get Xray URL if configured. Otherwise, infer the Xray URL from the platform URL.
+     *
+     * @return Distribution URL.
+     */
+    public String inferXrayUrl() {
+        return StringUtils.defaultIfBlank(xrayUrl, this.url + XRAY_SUFFIX);
     }
 }

@@ -92,7 +92,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
         JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(log);
 
         // Downloading binary from Artifactory
-        try (ArtifactoryManager manager = new ArtifactoryManager(instance.getArtifactoryUrl(), Secret.toString(instance.getCredentialsConfig().getUsername()),
+        try (ArtifactoryManager manager = new ArtifactoryManager(instance.inferArtifactoryUrl(), Secret.toString(instance.getCredentialsConfig().getUsername()),
                 Secret.toString(instance.getCredentialsConfig().getPassword()), Secret.toString(instance.getCredentialsConfig().getAccessToken()), buildInfoLog)) {
             if (proxyConfiguration != null) {
                 manager.setProxyConfiguration(proxyConfiguration);
@@ -101,9 +101,9 @@ public abstract class BinaryInstaller extends ToolInstaller {
             String artifactorySha256 = getArtifactSha256(manager, cliUrlSuffix);
             if (shouldDownloadTool(toolLocation, artifactorySha256)) {
                 if (version.equals(RELEASE)) {
-                    log.getLogger().printf("Download '%s' latest version from: %s%n", binaryName, instance.getArtifactoryUrl() + cliUrlSuffix);
+                    log.getLogger().printf("Download '%s' latest version from: %s%n", binaryName, instance.inferArtifactoryUrl() + cliUrlSuffix);
                 } else {
-                    log.getLogger().printf("Download '%s' version %s from: %s%n", binaryName, version, instance.getArtifactoryUrl() + cliUrlSuffix);
+                    log.getLogger().printf("Download '%s' version %s from: %s%n", binaryName, version, instance.inferArtifactoryUrl() + cliUrlSuffix);
                 }
                 File downloadResponse = manager.downloadToFile(cliUrlSuffix, new File(toolLocation, binaryName).getPath());
                 if (!downloadResponse.setExecutable(true)) {
