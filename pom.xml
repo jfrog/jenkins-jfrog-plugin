@@ -189,20 +189,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <!--Unit tests-->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <systemPropertyVariables>
-                        <!--This will disable JenkinsRule timeout-->
-                        <maven.surefire.debug>true</maven.surefire.debug>
-                    </systemPropertyVariables>
-                    <includes>
-                        <include>**/*Test.java</include>
-                    </includes>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
@@ -218,6 +204,7 @@
                     </plugins>
                 </configuration>
             </plugin>
+            <!--Unit tests-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
