@@ -58,7 +58,6 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>jackson2-api</artifactId>
-            <version>2.14.2-319.v37853346a_229</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -215,7 +214,7 @@
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.346.x</artifactId>
-                <version>1607.va_c1576527071</version>
+                <version>1670.v7f165fc7a_079</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
