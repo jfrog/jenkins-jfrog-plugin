@@ -59,7 +59,7 @@ public class JFrogPlatformInstance implements Serializable {
     }
 
     /**
-     * Get artifactory URL if configured. Otherwise, infer the Artifactory URL from the platform URL.
+     * Get Artifactory URL if configured. Otherwise, infer the Artifactory URL from the platform URL.
      *
      * @return Artifactory URL.
      */

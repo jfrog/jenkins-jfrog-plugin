@@ -22,7 +22,7 @@ public class JFrogPlatformInstanceTest {
         assertEquals("", jfrogPlatformInstance.getArtifactoryUrl());
         assertEquals(ARTIFACTORY_URL, jfrogPlatformInstance.inferArtifactoryUrl());
 
-        // Check that Artifactory URL does not inferred from the platform URL
+        // Check that Artifactory URL is not inferred from the platform URL
         jfrogPlatformInstance = new JFrogPlatformInstance(SERVER_ID, "", null, ARTIFACTORY_URL, "", "");
         assertEquals(ARTIFACTORY_URL, jfrogPlatformInstance.getArtifactoryUrl());
         assertEquals(ARTIFACTORY_URL, jfrogPlatformInstance.inferArtifactoryUrl());
@@ -35,7 +35,7 @@ public class JFrogPlatformInstanceTest {
         assertEquals("", jfrogPlatformInstance.getDistributionUrl());
         assertEquals(DISTRIBUTION_URL, jfrogPlatformInstance.inferDistributionUrl());
 
-        // Check that Distribution URL does not inferred from the platform URL
+        // Check that Distribution URL is not inferred from the platform URL
         jfrogPlatformInstance = new JFrogPlatformInstance(SERVER_ID, "", null, "", DISTRIBUTION_URL, "");
         assertEquals(DISTRIBUTION_URL, jfrogPlatformInstance.getDistributionUrl());
         assertEquals(DISTRIBUTION_URL, jfrogPlatformInstance.inferDistributionUrl());
@@ -48,7 +48,7 @@ public class JFrogPlatformInstanceTest {
         assertEquals("", jfrogPlatformInstance.getXrayUrl());
         assertEquals(XRAY_URL, jfrogPlatformInstance.inferXrayUrl());
 
-        // Check that Xray URL does not inferred from the platform URL
+        // Check that Xray URL is not inferred from the platform URL
         jfrogPlatformInstance = new JFrogPlatformInstance(SERVER_ID, "", null, "", "", XRAY_URL);
         assertEquals(XRAY_URL, jfrogPlatformInstance.getXrayUrl());
         assertEquals(XRAY_URL, jfrogPlatformInstance.inferXrayUrl());
