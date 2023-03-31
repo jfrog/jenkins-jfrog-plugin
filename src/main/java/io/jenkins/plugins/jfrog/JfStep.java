@@ -145,7 +145,7 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
     public Launcher.ProcStarter setupJFrogEnvironment(Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener, FilePath workspace, String jfrogBinaryPath, boolean isWindows) throws IOException, InterruptedException {
         JFrogCliConfigEncryption jfrogCliConfigEncryption = run.getAction(JFrogCliConfigEncryption.class);
         if (jfrogCliConfigEncryption == null) {
-            // Set up the config encryption action to allow encrypting the JFrog CLI and make sure we only create one key
+            // Set up the config encryption action to allow encrypting the JFrog CLI configuration and make sure we only create one key
             jfrogCliConfigEncryption = new JFrogCliConfigEncryption(env);
             run.addAction(jfrogCliConfigEncryption);
         }

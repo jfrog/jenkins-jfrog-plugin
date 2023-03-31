@@ -23,7 +23,7 @@ public class JFrogCliConfigEncryption implements Action {
             return;
         }
         this.shouldEncrypt = true;
-        // UUID is cryptographically strong encryption key. Without the dashes, it contains exactly 32 characters.
+        // UUID is a cryptographically strong encryption key. Without the dashes, it contains exactly 32 characters.
         this.key = UUID.randomUUID().toString().replaceAll("-", "");
     }
 
