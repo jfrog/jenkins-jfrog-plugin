@@ -12,7 +12,7 @@ import jenkins.model.GlobalConfiguration;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -127,7 +127,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
          * @return the outcome of the validation. This is sent to the browser.
          */
         private FormValidation checkUrlInForm(String value) {
-            if (isEmptyOrStartingWithProtocol(value)) {
+            if (isInvalidProtocolOrEmptyUrl(value)) {
                 return FormValidation.error(UNKNOWN_PROTOCOL_ERROR);
             }
             if (isUnsafe(isAllowHttpConnections(), value)) {
@@ -173,7 +173,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
                         jfrogInstance.getDistributionUrl(), jfrogInstance.getXrayUrl())) {
                     throw new FormException(UNSAFE_HTTP_ERROR, "URL");
                 }
-                if (isEmptyOrStartingWithProtocol(jfrogInstance.getUrl(), jfrogInstance.getArtifactoryUrl(),
+                if (isInvalidProtocolOrEmptyUrl(jfrogInstance.getUrl(), jfrogInstance.getArtifactoryUrl(),
                         jfrogInstance.getDistributionUrl(), jfrogInstance.getXrayUrl())) {
                     throw new FormException(UNKNOWN_PROTOCOL_ERROR, "URL");
                 }
@@ -282,7 +282,7 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
      * @param urls - The URL to check
      * @return true if all input URLs are empty or starting with a known protocol.
      */
-    static boolean isEmptyOrStartingWithProtocol(String... urls) {
+    static boolean isInvalidProtocolOrEmptyUrl(String... urls) {
         return Arrays.stream(urls)
                 .filter(StringUtils::isNotBlank)
                 .anyMatch(url -> !startsWithAny(url, KNOWN_PROTOCOLS));

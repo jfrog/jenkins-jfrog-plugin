@@ -23,14 +23,14 @@ public class JFrogPlatformBuilderTest {
     }
 
     @Test
-    public void testIsEmptyOrStartingWithProtocol() {
-        assertFalse(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol(""));
-        assertFalse(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("http://acme.jfrog.io"));
-        assertFalse(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("https://acme.jfrog.io"));
-        assertFalse(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("ssh://acme.jfrog.io"));
-        assertFalse(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("ssh://acme.jfrog.io", "http://acme.jfrog.io"));
+    public void testIsInvalidProtocolOrEmptyUrl() {
+        assertFalse(JFrogPlatformBuilder.isInvalidProtocolOrEmptyUrl(""));
+        assertFalse(JFrogPlatformBuilder.isInvalidProtocolOrEmptyUrl("http://acme.jfrog.io"));
+        assertFalse(JFrogPlatformBuilder.isInvalidProtocolOrEmptyUrl("https://acme.jfrog.io"));
+        assertFalse(JFrogPlatformBuilder.isInvalidProtocolOrEmptyUrl("ssh://acme.jfrog.io"));
+        assertFalse(JFrogPlatformBuilder.isInvalidProtocolOrEmptyUrl("ssh://acme.jfrog.io", "http://acme.jfrog.io"));
 
-        assertTrue(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("www.acme.jfrog.io"));
-        assertTrue(JFrogPlatformBuilder.isEmptyOrStartingWithProtocol("https://acme.jfrog.io", "www.acme.jfrog.io"));
+        assertTrue(JFrogPlatformBuilder.isInvalidProtocolOrEmptyUrl("www.acme.jfrog.io"));
+        assertTrue(JFrogPlatformBuilder.isInvalidProtocolOrEmptyUrl("https://acme.jfrog.io", "www.acme.jfrog.io"));
     }
 }
