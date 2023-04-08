@@ -1,6 +1,8 @@
 package io.jenkins.plugins.jfrog.integration;
 
 import io.jenkins.plugins.casc.ConfigurationAsCode;
+import io.jenkins.plugins.jfrog.actions.ArtifactoryBuildInfo;
+import joptsimple.internal.Strings;
 import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.jupiter.api.Test;
@@ -164,6 +166,28 @@ class JFrogInstallationITest extends PipelineTestBase {
         // Running CLI installed from Artifactory and verify the latest version was installed.
         job = runPipeline(jenkins, "basic_commands_2");
         assertFalse(job.getLog().contains("jf version " + jfrogCliTestVersion));
+    }
+
+    /**
+     * Configure JFrog CLI tool and test functionality for the build-info action.
+     *
+     * @param jenkins Jenkins instance injected automatically.
+     */
+    @Test
+    public void testBuildInfoAction(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        // Download a specific CLI version from releases.jfrog.io.
+        configureJfrogCliFromReleases(Strings.EMPTY, false);
+        // Running CLI installed from releases.jfrog.io and verify specific version was installed.
+        WorkflowRun job = runPipeline(jenkins, "build_info");
+        // Assert build info published
+        assertTrue(job.getLog().contains("Build info successfully deployed"));
+        // Check build-info Action
+        ArtifactoryBuildInfo buildInfoAction = job.getAction(ArtifactoryBuildInfo.class);
+        assertNotNull(buildInfoAction);
+        assertTrue(StringUtils.startsWith(buildInfoAction.getUrlName(), PLATFORM_URL));
+        assertTrue(StringUtils.isNotBlank(buildInfoAction.getIconFileName()));
+        assertEquals("Artifactory Build Info", buildInfoAction.getDisplayName());
     }
 
     /**

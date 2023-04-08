@@ -1,0 +1,16 @@
+pipeline {
+    agent any
+    tools {
+        jfrog '${JFROG_CLI_TOOL_NAME_1}'
+    }
+    stages {
+        stage('Testing') {
+            steps {
+                jf 'c use ${TEST_CONFIGURED_SERVER_ID}'
+
+                // Publish build-info
+                jf 'rt bp'
+            }
+        }
+    }
+}

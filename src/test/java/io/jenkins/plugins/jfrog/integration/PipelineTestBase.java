@@ -59,7 +59,7 @@ public class PipelineTestBase {
     private Slave slave;
     private static StringSubstitutor pipelineSubstitution;
     private static final String SLAVE_LABEL = "TestSlave";
-    private static final String PLATFORM_URL = System.getenv("JFROG_URL");
+    static final String PLATFORM_URL = System.getenv("JFROG_URL");
     private static final String ARTIFACTORY_URL = StringUtils.removeEnd(PLATFORM_URL, "/") + "/artifactory";
     private static final String ARTIFACTORY_USERNAME = System.getenv("JFROG_USERNAME");
     private static final String ARTIFACTORY_PASSWORD = System.getenv("JFROG_PASSWORD");

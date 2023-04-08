@@ -1,5 +1,7 @@
 package io.jenkins.plugins.jfrog;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.EnvVars;
 import hudson.Extension;
@@ -13,30 +15,36 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
 import io.jenkins.cli.shaded.org.apache.commons.io.FilenameUtils;
+import io.jenkins.plugins.jfrog.actions.ArtifactoryBuildInfo;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
+import io.jenkins.plugins.jfrog.models.BuildInfoOutputModel;
 import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
 import jenkins.tasks.SimpleBuildStep;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.List;
 
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
+import static org.apache.commons.lang3.StringUtils.*;
+import static org.jfrog.build.extractor.BuildInfoExtractorUtils.createMapper;
 
 /**
  * @author gail
  */
 @SuppressWarnings("unused")
-public class JfStep<T> extends Builder implements SimpleBuildStep {
+public class JfStep extends Builder implements SimpleBuildStep {
+    private final ObjectMapper mapper = createMapper();
     static final String STEP_NAME = "jf";
     protected String[] args;
 
@@ -47,7 +55,7 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
             this.args = ((List<String>) args).toArray(String[]::new);
             return;
         }
-        this.args = StringUtils.split(args.toString());
+        this.args = split(args.toString());
     }
 
     public String[] getArgs() {
@@ -78,13 +86,15 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
             builder = builder.toWindowsCommand();
         }
 
-        try {
-            Launcher.ProcStarter jfLauncher = setupJFrogEnvironment(run, env, launcher, listener, workspace, jfrogBinaryPath, isWindows);
+        try (ByteArrayOutputStream taskOutputStream = new ByteArrayOutputStream()) {
+            JfTaskListener jfTaskListener = new JfTaskListener(listener, taskOutputStream);
+            Launcher.ProcStarter jfLauncher = setupJFrogEnvironment(run, env, launcher, jfTaskListener, workspace, jfrogBinaryPath, isWindows);
             // Running the 'jf' command
             int exitValue = jfLauncher.cmds(builder).join();
             if (exitValue != 0) {
                 throw new RuntimeException("Running 'jf' command failed with exit code " + exitValue);
             }
+            addBuildInfoActionIfNeeded(run, taskOutputStream);
         } catch (Exception e) {
             String errorMessage = "Couldn't execute 'jf' command. " + ExceptionUtils.getRootCauseMessage(e);
             throw new RuntimeException(errorMessage, e);
@@ -220,7 +230,40 @@ public class JfStep<T> extends Builder implements SimpleBuildStep {
         builder.add("--interactive=false");
         // The installation process takes place more than once per build, so we will configure the same server ID several times.
         builder.add("--overwrite=true");
+    }
 
+    /**
+     * Add build-info Action if the command is 'jf rt bp' or 'jf rt build-publish'.
+     *
+     * @param run              - The Jenkins project
+     * @param taskOutputStream - Task's output stream
+     * @throws JsonProcessingException in case of any unexpected error during the JSON parsing of the build info URL.
+     */
+    private void addBuildInfoActionIfNeeded(Run<?, ?> run, ByteArrayOutputStream taskOutputStream) throws JsonProcessingException {
+        if (args.length < 2 ||
+                !args[0].equals("rt") ||
+                !equalsAny(args[1], "bp", "build-publish")) {
+            return;
+        }
+
+        // Search for '{' and '}' in the output of 'jf rt build-publish'
+        String taskOutput = taskOutputStream.toString(StandardCharsets.UTF_8);
+        taskOutput = substringBetween(taskOutput, "{", "}");
+        if (taskOutput == null) {
+            return;
+        }
+
+        // Parse the output into BuildInfoOutputModel to extract the build-info URL
+        BuildInfoOutputModel buildInfoOutputModel = mapper.readValue("{" + taskOutput + "}", BuildInfoOutputModel.class);
+        if (buildInfoOutputModel == null) {
+            return;
+        }
+        String buildInfoUrl = buildInfoOutputModel.getBuildInfoUiUrl();
+
+        // Add the ArtifactoryBuildInfo action into the job to show the build-info button
+        if (isNotBlank(buildInfoUrl)) {
+            run.addAction(new ArtifactoryBuildInfo(buildInfoUrl));
+        }
     }
 
     @Symbol("jf")

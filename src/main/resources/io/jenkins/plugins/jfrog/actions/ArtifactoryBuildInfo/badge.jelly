@@ -1,0 +1,4 @@
+<a href="${it.urlName}" target="_blank">
+    <img width="16" height="16" title="${it.displayName}" alt="${it.displayName}"
+         src="${rootURL}${it.iconFileName}"/>
+</a>
