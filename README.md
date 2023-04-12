@@ -4,6 +4,7 @@
 
 # Jenkins JFrog Plugin
 
+[![Scanned by Frogbot](https://raw.github.com/jfrog/frogbot/master/images/frogbot-badge.svg)](https://github.com/jfrog/frogbot#readme)
 [![Tests](https://github.com/jfrog/jenkins-jfrog-plugin/actions/workflows/tests.yml/badge.svg)](https://github.com/jfrog/jenkins-jfrog-plugin/actions/workflows/tests.yml) [![Static Analysis](https://github.com/jfrog/jenkins-jfrog-plugin/actions/workflows/analysis.yml/badge.svg)](https://github.com/jfrog/jenkins-jfrog-plugin/actions/workflows/analysis.yml)
 
 </div>
