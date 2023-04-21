@@ -1,5 +1,0 @@
-- params:
-    git:
-      repoName: jenkins-jfrog-plugin
-      branches:
-        - main
