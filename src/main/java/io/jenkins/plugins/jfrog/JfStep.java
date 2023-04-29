@@ -15,7 +15,7 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
 import io.jenkins.cli.shaded.org.apache.commons.io.FilenameUtils;
-import io.jenkins.plugins.jfrog.actions.ArtifactoryBuildInfo;
+import io.jenkins.plugins.jfrog.actions.BuildInfoBuildBadgeAction;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
@@ -26,6 +26,7 @@ import jenkins.tasks.SimpleBuildStep;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
+import org.jfrog.build.api.util.Log;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
@@ -94,7 +95,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
             if (exitValue != 0) {
                 throw new RuntimeException("Running 'jf' command failed with exit code " + exitValue);
             }
-            addBuildInfoActionIfNeeded(run, taskOutputStream);
+            addBuildInfoActionIfNeeded(new JenkinsBuildInfoLog(listener), run, taskOutputStream);
         } catch (Exception e) {
             String errorMessage = "Couldn't execute 'jf' command. " + ExceptionUtils.getRootCauseMessage(e);
             throw new RuntimeException(errorMessage, e);
@@ -235,11 +236,11 @@ public class JfStep extends Builder implements SimpleBuildStep {
     /**
      * Add build-info Action if the command is 'jf rt bp' or 'jf rt build-publish'.
      *
+     * @param log              - Task logger
      * @param run              - The Jenkins project
      * @param taskOutputStream - Task's output stream
-     * @throws JsonProcessingException in case of any unexpected error during the JSON parsing of the build info URL.
      */
-    private void addBuildInfoActionIfNeeded(Run<?, ?> run, ByteArrayOutputStream taskOutputStream) throws JsonProcessingException {
+    void addBuildInfoActionIfNeeded(Log log, Run<?, ?> run, ByteArrayOutputStream taskOutputStream) {
         if (args.length < 2 ||
                 !args[0].equals("rt") ||
                 !equalsAny(args[1], "bp", "build-publish")) {
@@ -250,20 +251,33 @@ public class JfStep extends Builder implements SimpleBuildStep {
         String taskOutput = taskOutputStream.toString(StandardCharsets.UTF_8);
         taskOutput = substringBetween(taskOutput, "{", "}");
         if (taskOutput == null) {
+            logIllegalBuildPublishOutput(log, taskOutputStream);
             return;
         }
 
         // Parse the output into BuildInfoOutputModel to extract the build-info URL
-        BuildInfoOutputModel buildInfoOutputModel = mapper.readValue("{" + taskOutput + "}", BuildInfoOutputModel.class);
-        if (buildInfoOutputModel == null) {
+        BuildInfoOutputModel buildInfoOutputModel;
+        try {
+            buildInfoOutputModel = mapper.readValue("{" + taskOutput + "}", BuildInfoOutputModel.class);
+            if (buildInfoOutputModel == null) {
+                logIllegalBuildPublishOutput(log, taskOutputStream);
+                return;
+            }
+        } catch (JsonProcessingException e) {
+            logIllegalBuildPublishOutput(log, taskOutputStream);
+            log.warn(ExceptionUtils.getRootCauseMessage(e));
             return;
         }
         String buildInfoUrl = buildInfoOutputModel.getBuildInfoUiUrl();
 
-        // Add the ArtifactoryBuildInfo action into the job to show the build-info button
+        // Add the BuildInfoBuildBadgeAction action into the job to show the build-info button
         if (isNotBlank(buildInfoUrl)) {
-            run.addAction(new ArtifactoryBuildInfo(buildInfoUrl));
+            run.addAction(new BuildInfoBuildBadgeAction(buildInfoUrl));
         }
+    }
+
+    private void logIllegalBuildPublishOutput(Log log, ByteArrayOutputStream taskOutputStream) {
+        log.warn("Illegal build-publish output: " + taskOutputStream.toString(StandardCharsets.UTF_8));
     }
 
     @Symbol("jf")

@@ -5,10 +5,10 @@ import hudson.model.BuildBadgeAction;
 /**
  * Represents the build-info URL Action with the Artifactory icon.
  */
-public class ArtifactoryBuildInfo implements BuildBadgeAction {
+public class BuildInfoBuildBadgeAction implements BuildBadgeAction {
     private final String url;
 
-    public ArtifactoryBuildInfo(String url) {
+    public BuildInfoBuildBadgeAction(String url) {
         this.url = url;
     }
 

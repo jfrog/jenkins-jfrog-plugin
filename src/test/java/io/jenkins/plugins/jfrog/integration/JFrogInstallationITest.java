@@ -1,7 +1,7 @@
 package io.jenkins.plugins.jfrog.integration;
 
 import io.jenkins.plugins.casc.ConfigurationAsCode;
-import io.jenkins.plugins.jfrog.actions.ArtifactoryBuildInfo;
+import io.jenkins.plugins.jfrog.actions.BuildInfoBuildBadgeAction;
 import joptsimple.internal.Strings;
 import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -183,11 +183,11 @@ class JFrogInstallationITest extends PipelineTestBase {
         // Assert build info published
         assertTrue(job.getLog().contains("Build info successfully deployed"));
         // Check build-info Action
-        ArtifactoryBuildInfo buildInfoAction = job.getAction(ArtifactoryBuildInfo.class);
-        assertNotNull(buildInfoAction);
-        assertTrue(StringUtils.startsWith(buildInfoAction.getUrlName(), PLATFORM_URL));
-        assertTrue(StringUtils.isNotBlank(buildInfoAction.getIconFileName()));
-        assertEquals("Artifactory Build Info", buildInfoAction.getDisplayName());
+        BuildInfoBuildBadgeAction buildInfoBuildBadgeAction = job.getAction(BuildInfoBuildBadgeAction.class);
+        assertNotNull(buildInfoBuildBadgeAction);
+        assertTrue(StringUtils.startsWith(buildInfoBuildBadgeAction.getUrlName(), PLATFORM_URL));
+        assertTrue(StringUtils.isNotBlank(buildInfoBuildBadgeAction.getIconFileName()));
+        assertEquals("Artifactory Build Info", buildInfoBuildBadgeAction.getDisplayName());
     }
 
     /**
