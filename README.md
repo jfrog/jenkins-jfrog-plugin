@@ -20,6 +20,7 @@
 - [Using JFrog CLI in your pipeline jobs](#using-jfrog-cli-in-your-pipeline-jobs)
     - [Setting the build name and build number](#setting-the-build-name-and-the-build-number)
     - [Using multiple JFrog Platform instances](#using-multiple-jfrog-platform-instances)
+    - [Publishing and accessing the build-info](#publishing-and-accessing-the-build-info)
 - [Jenkins Configuration as Code](#jenkins-configuration-as-code)
 - [Examples](#examples)
 - [Contributions](#contributions)
@@ -155,6 +156,21 @@ the server ID you configured for the instance. For example:
 jf 'rt u test-file my-repo –-server-id server-1'
 jf 'rt u test-file my-repo –-server-id server-2'
 ```
+
+### Publishing and accessing the build-info
+[Build-info](https://www.buildinfo.org/) is the metadata of a build. It includes all the details about the build broken down into segments that include version history, artifacts, project modules, dependencies, and everything that was required to create the build. In short, it is a snapshot of the components used to build your application, collected by the build agent.
+See below how you publish the build-info from your pipeline jobs. This section should be placed inside the job after the execution of the JFrog CLI commands used for the build.
+```groovy
+stage('Publish build info') {
+  steps {
+    jf 'rt build-publish'
+  }
+}
+```
+When the job publishes the build-info to Artifactory, you can access it by clicking on the build-info icon, next to the job run.
+
+![build-info.png](images/readme/build-info.png)
+
 
 ## Jenkins Configuration as Code
 
