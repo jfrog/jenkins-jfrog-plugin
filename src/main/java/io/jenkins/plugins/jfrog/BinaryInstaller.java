@@ -152,7 +152,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
     private static String getArtifactSha256(ArtifactoryManager manager, String cliUrlSuffix) throws IOException {
         Header[] headers = manager.downloadHeaders(cliUrlSuffix);
         for (Header header : headers) {
-            if (header.getName().equals(SHA256_HEADER_NAME)) {
+            if (header.getName().equalsIgnoreCase(SHA256_HEADER_NAME)) {
                 return header.getValue();
             }
         }
