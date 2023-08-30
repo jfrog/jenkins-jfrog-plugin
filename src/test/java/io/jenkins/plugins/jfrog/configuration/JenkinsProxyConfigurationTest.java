@@ -14,7 +14,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 @RunWith(Parameterized.class)
-public class ProxyConfigurationTest {
+public class JenkinsProxyConfigurationTest {
 
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
@@ -22,7 +22,7 @@ public class ProxyConfigurationTest {
     private final hudson.ProxyConfiguration jenkinsProxyConfiguration = new hudson.ProxyConfiguration("proxy.jfrog.io", 1234);
     private final String url;
 
-    public ProxyConfigurationTest(String url) {
+    public JenkinsProxyConfigurationTest(String url) {
         this.url = url;
     }
 
@@ -53,16 +53,16 @@ public class ProxyConfigurationTest {
     @Test
     public void testShouldBypassProxy() {
         setupProxy("*");
-        assertTrue(new ProxyConfiguration().shouldBypassProxy(url));
+        assertTrue(new JenkinsProxyConfiguration().shouldBypassProxy(url));
 
         setupProxy("acme.jfrog.*");
-        assertTrue(new ProxyConfiguration().shouldBypassProxy(url));
+        assertTrue(new JenkinsProxyConfiguration().shouldBypassProxy(url));
 
         setupProxy("");
-        assertFalse(new ProxyConfiguration().shouldBypassProxy(url));
+        assertFalse(new JenkinsProxyConfiguration().shouldBypassProxy(url));
 
         setupProxy("acme.jfrog.info");
-        assertFalse(new ProxyConfiguration().shouldBypassProxy(url));
+        assertFalse(new JenkinsProxyConfiguration().shouldBypassProxy(url));
     }
 
     private void setupProxy(String noProxyHost) {

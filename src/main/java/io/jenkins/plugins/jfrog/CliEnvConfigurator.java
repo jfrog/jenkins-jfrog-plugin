@@ -2,7 +2,7 @@ package io.jenkins.plugins.jfrog;
 
 import hudson.EnvVars;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
-import io.jenkins.plugins.jfrog.configuration.ProxyConfiguration;
+import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -50,7 +50,7 @@ public class CliEnvConfigurator {
 
     @SuppressWarnings("HttpUrlsUsage")
     private static void setupProxy(EnvVars env) {
-        ProxyConfiguration proxyConfiguration = new ProxyConfiguration();
+        JenkinsProxyConfiguration proxyConfiguration = new JenkinsProxyConfiguration();
         if (!proxyConfiguration.isProxyConfigured()) {
             return;
         }

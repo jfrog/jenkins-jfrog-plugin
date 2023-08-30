@@ -3,6 +3,7 @@ package io.jenkins.plugins.jfrog.configuration;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang3.StringUtils;
+import org.jfrog.build.client.ProxyConfiguration;
 
 import java.util.List;
 import java.util.regex.Matcher;
@@ -13,12 +14,12 @@ import java.util.regex.Pattern;
  * This information is populated from the Plugin Manager's Advanced section.
  * Because of the Jenkins.get() used in the constructor, you can only create it on the master, not on an agent.
  */
-public class ProxyConfiguration extends org.jfrog.build.client.ProxyConfiguration {
+public class JenkinsProxyConfiguration extends ProxyConfiguration {
     private static final Pattern HOST_NAME_PATTERN = Pattern.compile("^.*?://?([\\w.]+).*");
     public List<Pattern> noProxyHostPatterns;
     public String noProxy;
 
-    public ProxyConfiguration() {
+    public JenkinsProxyConfiguration() {
         hudson.ProxyConfiguration proxy = Jenkins.get().getProxy();
         if (proxy == null) {
             return;

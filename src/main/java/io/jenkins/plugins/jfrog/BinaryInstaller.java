@@ -9,7 +9,7 @@ import hudson.tools.ToolInstaller;
 import hudson.tools.ToolInstallerDescriptor;
 import hudson.util.Secret;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
-import io.jenkins.plugins.jfrog.configuration.ProxyConfiguration;
+import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import jenkins.MasterToSlaveFileCallable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
@@ -83,7 +83,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @throws IOException in case of any I/O error.
      */
     private static void downloadJfrogCli(File toolLocation, TaskListener log, String providedVersion,
-                                         JFrogPlatformInstance instance, String repository, String binaryName, ProxyConfiguration proxyConfiguration) throws IOException {
+                                         JFrogPlatformInstance instance, String repository, String binaryName, JenkinsProxyConfiguration proxyConfiguration) throws IOException {
         // An empty string indicates the latest version.
         String version = StringUtils.defaultIfBlank(providedVersion, RELEASE);
         String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, version, OsUtils.getOsDetails(), binaryName);
@@ -160,7 +160,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
     }
 
     public static FilePath performJfrogCliInstallation(FilePath toolLocation, TaskListener log, String version, JFrogPlatformInstance instance, String repository, String binaryName) throws IOException, InterruptedException {
-        ProxyConfiguration proxyConfiguration = new ProxyConfiguration();
+        JenkinsProxyConfiguration proxyConfiguration = new JenkinsProxyConfiguration();
         // Download Jfrog CLI binary
         toolLocation.act(new MasterToSlaveFileCallable<Void>() {
             @Override

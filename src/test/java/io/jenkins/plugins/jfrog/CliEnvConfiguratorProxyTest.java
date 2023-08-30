@@ -1,6 +1,6 @@
 package io.jenkins.plugins.jfrog;
 
-import io.jenkins.plugins.jfrog.configuration.ProxyConfiguration;
+import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -17,7 +17,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     @Before
     public void setUp() {
         super.setUp();
-        proxyConfiguration = new ProxyConfiguration();
+        proxyConfiguration = new JenkinsProxyConfiguration();
         proxyConfiguration.host = "acme.proxy.io";
     }
 

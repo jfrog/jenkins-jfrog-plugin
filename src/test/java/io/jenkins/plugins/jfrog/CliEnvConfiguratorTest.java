@@ -2,7 +2,7 @@ package io.jenkins.plugins.jfrog;
 
 import hudson.EnvVars;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
-import io.jenkins.plugins.jfrog.configuration.ProxyConfiguration;
+import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import jenkins.model.Jenkins;
 import org.junit.Before;
 import org.junit.Rule;
@@ -19,7 +19,7 @@ import static org.junit.Assert.*;
 public class CliEnvConfiguratorTest {
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
-    ProxyConfiguration proxyConfiguration;
+    JenkinsProxyConfiguration proxyConfiguration;
     EnvVars envVars;
 
     @Before
