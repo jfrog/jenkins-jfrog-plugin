@@ -1,6 +1,6 @@
 package io.jenkins.plugins.jfrog;
 
-import org.jfrog.build.client.ProxyConfiguration;
+import io.jenkins.plugins.jfrog.configuration.ProxyConfiguration;
 import org.junit.Before;
 import org.junit.Test;
 

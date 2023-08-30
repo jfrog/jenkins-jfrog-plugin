@@ -2,11 +2,12 @@ package io.jenkins.plugins.jfrog;
 
 import hudson.EnvVars;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
-import org.jfrog.build.client.ProxyConfiguration;
+import io.jenkins.plugins.jfrog.configuration.ProxyConfiguration;
+import jenkins.model.Jenkins;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
+import org.jvnet.hudson.test.JenkinsRule;
 
 import static io.jenkins.plugins.jfrog.CliEnvConfigurator.*;
 import static org.junit.Assert.*;
@@ -16,6 +17,8 @@ import static org.junit.Assert.*;
  * @author yahavi
  **/
 public class CliEnvConfiguratorTest {
+    @Rule
+    public JenkinsRule jenkinsRule = new JenkinsRule();
     ProxyConfiguration proxyConfiguration;
     EnvVars envVars;
 
@@ -66,9 +69,16 @@ public class CliEnvConfiguratorTest {
     }
 
     void invokeConfigureCliEnv(String jfrogHomeTempDir, JFrogCliConfigEncryption configEncryption) {
-        try (MockedStatic<Utils> mockController = Mockito.mockStatic(Utils.class)) {
-            mockController.when(Utils::createProxyConfiguration).thenReturn(proxyConfiguration);
-            configureCliEnv(envVars, jfrogHomeTempDir, configEncryption);
+        setProxyConfiguration();
+        configureCliEnv(envVars, jfrogHomeTempDir, configEncryption);
+    }
+
+    private void setProxyConfiguration() {
+        hudson.ProxyConfiguration jenkinsProxyConfiguration = null;
+        if (proxyConfiguration != null) {
+            jenkinsProxyConfiguration = new hudson.ProxyConfiguration(proxyConfiguration.host, proxyConfiguration.port,
+                    proxyConfiguration.username, proxyConfiguration.password, proxyConfiguration.noProxy);
         }
+        Jenkins.get().setProxy(jenkinsProxyConfiguration);
     }
 }

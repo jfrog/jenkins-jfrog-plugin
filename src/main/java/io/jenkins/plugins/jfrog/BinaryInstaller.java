@@ -9,10 +9,10 @@ import hudson.tools.ToolInstaller;
 import hudson.tools.ToolInstallerDescriptor;
 import hudson.util.Secret;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
+import io.jenkins.plugins.jfrog.configuration.ProxyConfiguration;
 import jenkins.MasterToSlaveFileCallable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
-import org.jfrog.build.client.ProxyConfiguration;
 import org.jfrog.build.extractor.clientConfiguration.client.artifactory.ArtifactoryManager;
 
 import java.io.File;
@@ -21,7 +21,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static io.jenkins.plugins.jfrog.Utils.createProxyConfiguration;
 import static org.jfrog.build.client.DownloadResponse.SHA256_HEADER_NAME;
 
 
@@ -80,7 +79,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @param instance           - JFrogPlatformInstance contains url and credentials needed for the downloading operation
      * @param repository         - Identifies the repository in Artifactory where the CLIs binary is stored
      * @param binaryName         - 'jf' or 'jf.exe'
-     * @param proxyConfiguration - The proxy configuration or null if not configured
+     * @param proxyConfiguration - The proxy configuration
      * @throws IOException in case of any I/O error.
      */
     private static void downloadJfrogCli(File toolLocation, TaskListener log, String providedVersion,
@@ -92,18 +91,19 @@ public abstract class BinaryInstaller extends ToolInstaller {
         JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(log);
 
         // Downloading binary from Artifactory
-        try (ArtifactoryManager manager = new ArtifactoryManager(instance.inferArtifactoryUrl(), Secret.toString(instance.getCredentialsConfig().getUsername()),
+        String artifactoryUrl = instance.inferArtifactoryUrl();
+        try (ArtifactoryManager manager = new ArtifactoryManager(artifactoryUrl, Secret.toString(instance.getCredentialsConfig().getUsername()),
                 Secret.toString(instance.getCredentialsConfig().getPassword()), Secret.toString(instance.getCredentialsConfig().getAccessToken()), buildInfoLog)) {
-            if (proxyConfiguration != null) {
+            if (proxyConfiguration.isProxyConfigured() && !proxyConfiguration.shouldBypassProxy(artifactoryUrl)) {
                 manager.setProxyConfiguration(proxyConfiguration);
             }
             // Getting updated cli binary's sha256 form Artifactory.
             String artifactorySha256 = getArtifactSha256(manager, cliUrlSuffix);
             if (shouldDownloadTool(toolLocation, artifactorySha256)) {
                 if (version.equals(RELEASE)) {
-                    log.getLogger().printf("Download '%s' latest version from: %s%n", binaryName, instance.inferArtifactoryUrl() + cliUrlSuffix);
+                    log.getLogger().printf("Download '%s' latest version from: %s%n", binaryName, artifactoryUrl + cliUrlSuffix);
                 } else {
-                    log.getLogger().printf("Download '%s' version %s from: %s%n", binaryName, version, instance.inferArtifactoryUrl() + cliUrlSuffix);
+                    log.getLogger().printf("Download '%s' version %s from: %s%n", binaryName, version, artifactoryUrl + cliUrlSuffix);
                 }
                 File downloadResponse = manager.downloadToFile(cliUrlSuffix, new File(toolLocation, binaryName).getPath());
                 if (!downloadResponse.setExecutable(true)) {
@@ -160,7 +160,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
     }
 
     public static FilePath performJfrogCliInstallation(FilePath toolLocation, TaskListener log, String version, JFrogPlatformInstance instance, String repository, String binaryName) throws IOException, InterruptedException {
-        ProxyConfiguration proxyConfiguration = createProxyConfiguration();
+        ProxyConfiguration proxyConfiguration = new ProxyConfiguration();
         // Download Jfrog CLI binary
         toolLocation.act(new MasterToSlaveFileCallable<Void>() {
             @Override

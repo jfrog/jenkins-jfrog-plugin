@@ -2,10 +2,8 @@ package io.jenkins.plugins.jfrog;
 
 import hudson.EnvVars;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
+import io.jenkins.plugins.jfrog.configuration.ProxyConfiguration;
 import org.apache.commons.lang3.StringUtils;
-import org.jfrog.build.client.ProxyConfiguration;
-
-import static io.jenkins.plugins.jfrog.Utils.createProxyConfiguration;
 
 /**
  * Configures JFrog CLI environment variables for the job.
@@ -22,6 +20,7 @@ public class CliEnvConfigurator {
     static final String JFROG_CLI_BUILD_URL = "JFROG_CLI_BUILD_URL";
     static final String HTTPS_PROXY_ENV = "HTTPS_PROXY";
     static final String HTTP_PROXY_ENV = "HTTP_PROXY";
+    static final String NO_PROXY = "NO_PROXY";
 
     /**
      * Configure the JFrog CLI environment variables, according to the input job's env.
@@ -51,9 +50,8 @@ public class CliEnvConfigurator {
 
     @SuppressWarnings("HttpUrlsUsage")
     private static void setupProxy(EnvVars env) {
-        ProxyConfiguration proxyConfiguration = createProxyConfiguration();
-        if (proxyConfiguration == null) {
-            // No proxy configured
+        ProxyConfiguration proxyConfiguration = new ProxyConfiguration();
+        if (!proxyConfiguration.isProxyConfigured()) {
             return;
         }
 
@@ -67,6 +65,9 @@ public class CliEnvConfigurator {
         proxyUrl += proxyConfiguration.host + ":" + proxyConfiguration.port;
         env.put(HTTP_PROXY_ENV, proxyUrl);
         env.put(HTTPS_PROXY_ENV, proxyUrl);
+        if (StringUtils.isNotBlank(proxyConfiguration.noProxy)) {
+            env.put(NO_PROXY, proxyConfiguration.noProxy);
+        }
     }
 
     /**
