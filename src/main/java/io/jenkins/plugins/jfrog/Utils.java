@@ -4,14 +4,12 @@ import hudson.FilePath;
 import hudson.model.Job;
 import hudson.model.TaskListener;
 import hudson.util.Secret;
+import io.jenkins.plugins.jfrog.callables.TempDirCreator;
 import jenkins.model.Jenkins;
-import jenkins.security.MasterToSlaveCallable;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jfrog.build.client.ProxyConfiguration;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.Objects;
 
 /**
  * @author gail
@@ -62,21 +60,7 @@ public class Utils {
     public static FilePath createAndGetTempDir(final FilePath ws) throws IOException, InterruptedException {
         // The token that combines the project name and unique number to create unique workspace directory.
         String workspaceList = System.getProperty("hudson.slaves.WorkspaceList");
-        return ws.act(new MasterToSlaveCallable<FilePath, IOException>() {
-            @Override
-            public FilePath call() {
-                FilePath tempDir = ws.sibling(ws.getName() + Objects.toString(workspaceList, "@") + "tmp");
-                if (tempDir == null) {
-                    throw new RuntimeException("Failed to create JFrog CLI temporary directory");
-                }
-                tempDir = tempDir.child("jfrog");
-                File tempDirFile = new File(tempDir.getRemote());
-                if (tempDirFile.mkdirs()) {
-                    tempDirFile.deleteOnExit();
-                }
-                return tempDir;
-            }
-        });
+        return ws.act(new TempDirCreator(workspaceList, ws));
     }
 
     public static FilePath createAndGetJfrogCliHomeTempDir(final FilePath ws, String buildNumber) throws IOException, InterruptedException {
