@@ -187,8 +187,7 @@ under `Manage Jenkins` > `Manage Plugins` > `Advanced`.
 
 To exclude the JFrog platform from going through a configured proxy, provide your JFrog platform's host details in
 the `No Proxy Host` section. This should be a list of comma-separated hosts.
-Keep in mind that the JFrog CLI is typically downloaded from releases.jfrog.io. You might want to think about adding
-that to your list as well.
+Notice that the JFrog CLI is typically downloaded from releases.jfrog.io. You may need to add that to your list as well.
 
 ## Jenkins Configuration as Code
 

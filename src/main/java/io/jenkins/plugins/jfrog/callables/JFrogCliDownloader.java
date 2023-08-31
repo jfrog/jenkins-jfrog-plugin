@@ -58,7 +58,7 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
         String artifactoryUrl = instance.inferArtifactoryUrl();
         try (ArtifactoryManager manager = new ArtifactoryManager(artifactoryUrl, Secret.toString(instance.getCredentialsConfig().getUsername()),
                 Secret.toString(instance.getCredentialsConfig().getPassword()), Secret.toString(instance.getCredentialsConfig().getAccessToken()), buildInfoLog)) {
-            if (proxyConfiguration.isProxyConfigured() && !proxyConfiguration.shouldBypassProxy(artifactoryUrl)) {
+            if (proxyConfiguration.isProxyConfigured(artifactoryUrl)) {
                 manager.setProxyConfiguration(proxyConfiguration);
             }
             // Getting updated cli binary's sha256 form Artifactory.

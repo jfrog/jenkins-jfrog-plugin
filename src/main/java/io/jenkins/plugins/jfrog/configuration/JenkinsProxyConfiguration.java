@@ -42,7 +42,16 @@ public class JenkinsProxyConfiguration extends ProxyConfiguration {
     }
 
     /**
-     * Return true if the host is matched to one of the 'No Proxy Host' patterns.
+     * Return true if the proxy is configured and not bypassed.
+     *
+     * @return true if the proxy is configured.
+     */
+    public boolean isProxyConfigured(String url) {
+        return isProxyConfigured() && !shouldBypassProxy(url);
+    }
+
+    /**
+     * Return true if the host matches one of the 'No Proxy Host' patterns.
      *
      * @param url - Server URL to check
      * @return true if should bypass proxy.
