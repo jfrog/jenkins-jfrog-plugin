@@ -9,7 +9,7 @@
     </parent>
 
     <properties>
-        <jenkins.version>2.361</jenkins.version>
+        <jenkins.version>2.361.4</jenkins.version>
         <skipITs>true</skipITs>
         <buildinfo.version>2.37.2</buildinfo.version>
     </properties>
@@ -225,8 +225,8 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.346.x</artifactId>
-                <version>1670.v7f165fc7a_079</version>
+                <artifactId>bom-2.361.x</artifactId>
+                <version>2102.v854b_fec19c92</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
