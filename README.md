@@ -68,7 +68,9 @@ these steps:
 
 1. Create a generic remote repository in Artifactory for downloading JFrog CLI. You can name the repository
    **jfrog-cli-remote**. This is the name we'll be using here, but you can also choose a different name for the
-   repository. Set the repository URL to https://releases.jfrog.io/artifactory/jfrog-cli/
+   repository.
+    * In the **Basic** tab, set the repository URL to `https://releases.jfrog.io/artifactory/jfrog-cli/`
+    * In the **Advanced** tab, uncheck the **Store Artifacts Locally** option.
 
 2. In **Manage Jenkins | Global Tool Configuration** select the Install from Artifactory option as shown in the
    screenshot below.<br><img src="images/readme/automatic-installation-from-rt-1.png" width="30%">
