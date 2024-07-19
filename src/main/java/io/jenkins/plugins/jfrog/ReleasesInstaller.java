@@ -8,6 +8,7 @@ import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.verb.POST;
 
@@ -23,8 +24,13 @@ public class ReleasesInstaller extends ArtifactoryInstaller {
     private static final String RELEASES_REPOSITORY = "jfrog-cli";
 
     @DataBoundConstructor
-    public ReleasesInstaller(String version) {
-        super("", RELEASES_REPOSITORY, version);
+    public ReleasesInstaller() {
+        super("", RELEASES_REPOSITORY, "");
+    }
+
+    @DataBoundSetter
+    public void setVersion(String version) {
+        super.setVersion(version);
     }
 
     @Override

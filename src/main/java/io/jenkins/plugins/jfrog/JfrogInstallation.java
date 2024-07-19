@@ -110,7 +110,7 @@ public class JfrogInstallation extends ToolInstallation
         public List<? extends ToolInstaller> getDefaultInstallers() {
             List<ToolInstaller> installersList = new ArrayList<>();
             // The default installation will be from 'releases.jfrog.io'
-            installersList.add(new ReleasesInstaller(null));
+            installersList.add(new ReleasesInstaller());
             return installersList;
         }
 

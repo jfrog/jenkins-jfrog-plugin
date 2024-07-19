@@ -10,6 +10,8 @@ import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.jfrog.build.client.Version;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -26,6 +28,7 @@ import java.util.regex.Pattern;
  *
  * @author gail
  */
+@Getter
 @SuppressWarnings("unused")
 public class ArtifactoryInstaller extends BinaryInstaller {
     private static final Version MIN_CLI_VERSION = new Version("2.6.1");
@@ -35,7 +38,8 @@ public class ArtifactoryInstaller extends BinaryInstaller {
 
     final String serverId;
     final String repository;
-    final String version;
+    @Setter
+    String version;
 
     @DataBoundConstructor
     public ArtifactoryInstaller(String serverId, String repository, String version) {
@@ -43,18 +47,6 @@ public class ArtifactoryInstaller extends BinaryInstaller {
         this.serverId = serverId;
         this.repository = StringUtils.trim(repository);
         this.version = StringUtils.trim(version);
-    }
-
-    public String getServerId() {
-        return serverId;
-    }
-
-    public String getRepository() {
-        return repository;
-    }
-
-    public String getVersion() {
-        return version;
     }
 
     @Override
@@ -72,7 +64,7 @@ public class ArtifactoryInstaller extends BinaryInstaller {
      */
     JFrogPlatformInstance getSpecificServer(String id) {
         List<JFrogPlatformInstance> jfrogInstances = JFrogPlatformBuilder.getJFrogPlatformInstances();
-        if (jfrogInstances != null && jfrogInstances.size() > 0) {
+        if (jfrogInstances != null && !jfrogInstances.isEmpty()) {
             for (JFrogPlatformInstance jfrogPlatformInstance : jfrogInstances) {
                 if (jfrogPlatformInstance.getId().equals(id)) {
                     // Getting credentials

@@ -284,7 +284,9 @@ public class PipelineTestBase {
     }
 
     public static void configureJfrogCliFromReleases(String cliVersion, Boolean override) throws Exception {
-        configureJfrogCliTool(JFROG_CLI_TOOL_NAME_1, new ReleasesInstaller(cliVersion), override);
+        ReleasesInstaller releasesInstaller = new ReleasesInstaller();
+        releasesInstaller.setVersion(cliVersion);
+        configureJfrogCliTool(JFROG_CLI_TOOL_NAME_1, releasesInstaller, override);
     }
 
     public static void configureJfrogCliFromArtifactory(String toolName, String serverId, String repo, Boolean override) throws Exception {
