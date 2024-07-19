@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
  * Because of the Jenkins.get() used in the constructor, you can only create it on the master, not on an agent.
  */
 public class JenkinsProxyConfiguration extends ProxyConfiguration {
-    private static final Pattern HOST_NAME_PATTERN = Pattern.compile("^.*?://?([\\w.]+).*");
+    private static final Pattern HOST_NAME_PATTERN = Pattern.compile("^.*?://?([\\w.-]+).*");
     public List<Pattern> noProxyHostPatterns;
     public String noProxy;
 

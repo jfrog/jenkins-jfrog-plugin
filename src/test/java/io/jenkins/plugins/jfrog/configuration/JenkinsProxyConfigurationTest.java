@@ -1,6 +1,7 @@
 package io.jenkins.plugins.jfrog.configuration;
 
 import jenkins.model.Jenkins;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -63,6 +64,10 @@ public class JenkinsProxyConfigurationTest {
 
         setupProxy("acme.jfrog.info");
         assertFalse(new JenkinsProxyConfiguration().shouldBypassProxy(url));
+
+        setupProxy("acme.jfrog.io-dashed");
+        String dashedUrl = StringUtils.replace(url, "acme.jfrog.io", "acme.jfrog.io-dashed");
+        assertTrue(new JenkinsProxyConfiguration().shouldBypassProxy(dashedUrl));
     }
 
     private void setupProxy(String noProxyHost) {
