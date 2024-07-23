@@ -18,5 +18,4 @@ jobs:
     if: (contains(github.event.pull_request.labels.*.name, 'safe to test') || github.event_name == 'push') && github.repository_owner != 'jenkinsci'
     uses: jenkins-infra/jenkins-security-scan/.github/workflows/jenkins-security-scan.yaml@v2
     with:
-      java-cache: 'maven' # Optionally enable use of a build dependency cache. Specify 'maven' or 'gradle' as appropriate.
-      # java-version: 21 # Optionally specify what version of Java to set up for the build, or remove to use a recent default.
+      java-cache: 'maven'
