@@ -11,7 +11,6 @@ import hudson.model.AbstractProject;
 import hudson.model.Job;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import hudson.model.FreeStyleProject;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
@@ -27,6 +26,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
+import org.jenkinsci.plugins.workflow.job.WorkflowJobProperty;
 import org.jfrog.build.api.util.Log;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -292,8 +292,9 @@ public class JfStep extends Builder implements SimpleBuildStep {
 
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> jobType) {
-            // Return false to hide it in Freestyle jobs
-            return !FreeStyleProject.class.isAssignableFrom(jobType);
+            // Ensure this is only applicable to Freestyle projects to avoid confusion
+            // when used in other project types, as it extends SimpleBuildStep.
+            return WorkflowJobProperty.class.isAssignableFrom(jobType);
         }
     }
 }
