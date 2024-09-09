@@ -7,10 +7,7 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.AbstractProject;
-import hudson.model.Job;
-import hudson.model.Run;
-import hudson.model.TaskListener;
+import hudson.model.*;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
@@ -291,7 +288,8 @@ public class JfStep extends Builder implements SimpleBuildStep {
 
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> jobType) {
-            return true;
+            // Return false to hide it in Freestyle jobs
+            return !FreeStyleProject.class.isAssignableFrom(jobType);
         }
     }
 }
