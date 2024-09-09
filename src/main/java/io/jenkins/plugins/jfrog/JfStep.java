@@ -195,7 +195,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
     private void configAllServers(Launcher.ProcStarter launcher, String jfrogBinaryPath, boolean isWindows, Job<?, ?> job) throws IOException, InterruptedException {
         // Config all servers using the 'jf c add' command.
         List<JFrogPlatformInstance> jfrogInstances = JFrogPlatformBuilder.getJFrogPlatformInstances();
-        if (jfrogInstances != null && jfrogInstances.size() > 0) {
+        if (jfrogInstances != null && !jfrogInstances.isEmpty()) {
             for (JFrogPlatformInstance jfrogPlatformInstance : jfrogInstances) {
                 // Build 'jf' command
                 ArgumentListBuilder builder = new ArgumentListBuilder();
@@ -222,10 +222,11 @@ public class JfStep extends Builder implements SimpleBuildStep {
         } else {
             Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, job);
             builder.add("--user=" + credentials.getUsername());
-            String cliVersion = getJfrogCliVersion(launcher, launcher.pwd());
+            String cliVersion = getJfrogCliVersion(launcher);
+
             // Use password-stdin if available
-            if (isCliVersionGreaterThan(cliVersion, MIN_CLI_VERSION_PASSWORD_STDIN)) {
-                builder.add("--password-stdin=");
+            if (isCliVersionGreaterThanOrEqual(cliVersion, MIN_CLI_VERSION_PASSWORD_STDIN)) {
+                builder.add("--password-stdin");
                 ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes());
                 launcher.stdin(inputStream);
             } else {
@@ -305,20 +306,25 @@ public class JfStep extends Builder implements SimpleBuildStep {
         }
     }
 
-    private String getJfrogCliVersion(Launcher.ProcStarter launcher, FilePath workspace) throws IOException, InterruptedException {
+    String getJfrogCliVersion(Launcher.ProcStarter launcher) throws IOException, InterruptedException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         int exitCode = launcher.cmds("jf", "--version")
-                .pwd(workspace)
+                .pwd(launcher.pwd())
                 .stdout(outputStream)
                 .join();
         if (exitCode != 0) {
             throw new IOException("Failed to get JFrog CLI version");
         }
         String versionOutput = outputStream.toString(StandardCharsets.UTF_8).trim();
-        return versionOutput.split(" ")[2]; // Assuming the version is the third word in the output
+        String[] versionParts = versionOutput.split(" ");
+        if (versionOutput.isEmpty() ||(versionParts.length < 3) ) {
+            throw new IOException(String.format("Failed to parse JFrog CLI version. CLI Output: %s", versionOutput));
+        }
+        // Based on the output, the version should be located at the second index
+        return versionParts[2];
     }
 
-    private boolean isCliVersionGreaterThan(String currentVersion, String targetVersion) {
+    boolean isCliVersionGreaterThanOrEqual(String currentVersion, String targetVersion) {
         String[] currentParts = currentVersion.split("\\.");
         String[] targetParts = targetVersion.split("\\.");
         for (int i = 0; i < Math.min(currentParts.length, targetParts.length); i++) {
@@ -330,6 +336,6 @@ public class JfStep extends Builder implements SimpleBuildStep {
                 return false;
             }
         }
-        return currentParts.length > targetParts.length;
+        return currentParts.length >= targetParts.length;
     }
 }
