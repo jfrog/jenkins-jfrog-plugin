@@ -29,6 +29,7 @@ public class WorkflowListener extends FlowExecutionListener {
         try {
             WorkflowRun build = getWorkflowRun(execution);
             Utils.deleteBuildJfrogHomeDir(getWorkspace(build.getParent()), String.valueOf(build.getNumber()), getTaskListener(execution));
+            Utils.deleteEncryptionKeySecret();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -46,7 +46,7 @@ public class CliEnvConfigurator {
         if (encryptionKey.shouldEncrypt()) {
             // Set up a random encryption key and set as a Jenkins secret
             JenkinsSecretManager js = new JenkinsSecretManager();
-            js.createSecret(JFROG_CLI_ENCRYPTION_KEY, encryptionKey.getKey(),"JFrog CLI encryption key");
+            js.createSecret(JFROG_CLI_ENCRYPTION_KEY, encryptionKey.getKey(), "JFrog CLI encryption key");
         }
     }
 

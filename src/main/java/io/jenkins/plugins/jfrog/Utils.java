@@ -4,6 +4,7 @@ import hudson.FilePath;
 import hudson.model.Job;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.jfrog.callables.TempDirCreator;
+import io.jenkins.plugins.jfrog.configuration.JenkinsSecretManager;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.io.IOException;
@@ -62,5 +63,10 @@ public class Utils {
 
     public static FilePath createAndGetJfrogCliHomeTempDir(final FilePath ws, String buildNumber) throws IOException, InterruptedException {
         return createAndGetTempDir(ws).child(buildNumber).child(".jfrog");
+    }
+
+    public static void deleteEncryptionKeySecret() {
+        JenkinsSecretManager js = new JenkinsSecretManager();
+        js.deleteSecret(CliEnvConfigurator.JFROG_CLI_ENCRYPTION_KEY);
     }
 }

@@ -16,7 +16,7 @@ public class JenkinsSecretManager {
 
     public void createSecret(String name, String value, String description) {
         StringCredentialsImpl secret = new StringCredentialsImpl(
-                CredentialsScope.GLOBAL,
+                CredentialsScope.USER,
                 name,
                 description,
                 Secret.fromString(value)
@@ -31,14 +31,21 @@ public class JenkinsSecretManager {
 
     public void deleteSecret(String id) {
         List<Credentials> credentials = SystemCredentialsProvider.getInstance().getCredentials();
-        credentials.removeIf(cred -> {
-            cred.getScope();
-            return false;
-        });
-        try {
-            SystemCredentialsProvider.getInstance().save();
-        } catch (IOException e) {
-            e.printStackTrace();
+        Credentials toRemove = null;
+        for (Credentials credential : credentials) {
+            if (credential instanceof StringCredentialsImpl && ((StringCredentialsImpl) credential).getId().equals(id)) {
+                toRemove = credential;
+                break;
+            }
         }
+        if (toRemove != null) {
+            try {
+                SystemCredentialsProvider.getInstance().getCredentials().remove(toRemove);
+                SystemCredentialsProvider.getInstance().save();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
     }
 }
