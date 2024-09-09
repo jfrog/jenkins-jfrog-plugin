@@ -3,6 +3,7 @@ package io.jenkins.plugins.jfrog;
 import hudson.EnvVars;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
+import io.jenkins.plugins.jfrog.configuration.JenkinsSecretManager;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -43,8 +44,9 @@ public class CliEnvConfigurator {
             setupProxy(env);
         }
         if (encryptionKey.shouldEncrypt()) {
-            // Set up a random encryption key to make sure no raw text secrets are stored in the file system
-            env.putIfAbsent(JFROG_CLI_ENCRYPTION_KEY, encryptionKey.getKey());
+            // Set up a random encryption key and set as a Jenkins secret
+            JenkinsSecretManager js = new JenkinsSecretManager();
+            js.createSecret(JFROG_CLI_ENCRYPTION_KEY, encryptionKey.getKey(),"JFrog CLI encryption key");
         }
     }
 
