@@ -227,7 +227,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
             // Use password-stdin if available
             if (isCliVersionGreaterThanOrEqual(cliVersion, MIN_CLI_VERSION_PASSWORD_STDIN)) {
                 builder.add("--password-stdin");
-                ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes());
+                ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8));
                 launcher.stdin(inputStream);
             } else {
                 builder.addMasked("--password=" + credentials.getPassword());
