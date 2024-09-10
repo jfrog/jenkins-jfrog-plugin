@@ -92,7 +92,6 @@ public class JfStep extends Builder implements SimpleBuildStep {
         try (ByteArrayOutputStream taskOutputStream = new ByteArrayOutputStream()) {
             JfTaskListener jfTaskListener = new JfTaskListener(listener, taskOutputStream);
             Launcher.ProcStarter jfLauncher = setupJFrogEnvironment(run, env, launcher, jfTaskListener, workspace, jfrogBinaryPath, isWindows);
-            this.currentCliVersion = getJfrogCliVersion(jfLauncher);
             // Running the 'jf' command
             int exitValue = jfLauncher.cmds(builder).join();
             if (exitValue != 0) {
@@ -171,6 +170,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
             logIfNoToolProvided(env, listener);
             configAllServers(jfLauncher, jfrogBinaryPath, isWindows, run.getParent());
         }
+        this.currentCliVersion= getJfrogCliVersion(jfLauncher);
         return jfLauncher;
     }
 
