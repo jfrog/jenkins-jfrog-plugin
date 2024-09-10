@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Objects;
 
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 import static org.apache.commons.lang3.StringUtils.*;
@@ -309,7 +308,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
     }
 
     String getJfrogCliVersion(Launcher.ProcStarter launcher) throws IOException, InterruptedException {
-        if (!Objects.equals(this.currentCliVersion, "")){
+        if (this.currentCliVersion != null && !this.currentCliVersion.isEmpty()) {
             return this.currentCliVersion;
         }
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
