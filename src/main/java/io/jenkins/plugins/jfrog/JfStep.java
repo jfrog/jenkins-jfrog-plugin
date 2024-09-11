@@ -48,7 +48,7 @@ import static org.jfrog.build.extractor.BuildInfoExtractorUtils.createMapper;
 public class JfStep extends Builder implements SimpleBuildStep {
     private final ObjectMapper mapper = createMapper();
     static final String STEP_NAME = "jf";
-    private static final String MIN_CLI_VERSION_PASSWORD_STDIN ="2.31.0";
+    private static final String MIN_CLI_VERSION_PASSWORD_STDIN = "2.31.0";
     protected String[] args;
     protected String currentCliVersion;
 
@@ -165,7 +165,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
         FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
         CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir.getRemote(), jfrogCliConfigEncryption);
         Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
-        this.currentCliVersion = getJfrogCliVersion(jfLauncher);
+        this.currentCliVersion = getJfrogCliVersion(launcher.launch().envs(env).pwd(workspace), jfrogBinaryPath);
         // Configure all servers, skip if all server ids have already been configured.
         if (shouldConfig(jfrogHomeTempDir)) {
             logIfNoToolProvided(env, listener);
@@ -307,21 +307,24 @@ public class JfStep extends Builder implements SimpleBuildStep {
         }
     }
 
-    String getJfrogCliVersion(Launcher.ProcStarter launcher) throws IOException, InterruptedException {
+    String getJfrogCliVersion(Launcher.ProcStarter launcher, String jfrogBinaryPath) throws IOException, InterruptedException {
         if (this.currentCliVersion != null && !this.currentCliVersion.isEmpty()) {
             return this.currentCliVersion;
         }
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        int exitCode = launcher.cmds("jf", "--version")
+        ArgumentListBuilder builder = new ArgumentListBuilder();
+        builder.add(jfrogBinaryPath).add("--version");
+        int exitCode = launcher
+                .cmds(builder)
                 .pwd(launcher.pwd())
                 .stdout(outputStream)
                 .join();
         if (exitCode != 0) {
-            throw new IOException("Failed to get JFrog CLI version");
+            throw new IOException("Failed to get JFrog CLI version: "+outputStream.toString(StandardCharsets.UTF_8));
         }
         String versionOutput = outputStream.toString(StandardCharsets.UTF_8).trim();
         String[] versionParts = versionOutput.split(" ");
-        if (versionOutput.isEmpty() ||(versionParts.length < 3) ) {
+        if (versionOutput.isEmpty() || (versionParts.length < 3)) {
             throw new IOException(String.format("Failed to parse JFrog CLI version. CLI Output: %s", versionOutput));
         }
         // Based on the output, the version should be located at the second index

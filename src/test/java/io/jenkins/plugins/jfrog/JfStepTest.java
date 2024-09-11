@@ -68,7 +68,7 @@ public class JfStepTest {
 
         // Create an instance of JfStep and call the method
         JfStep jfStep = new JfStep("--version");
-        String version = jfStep.getJfrogCliVersion(procStarter);
+        String version = jfStep.getJfrogCliVersion(procStarter, getJFrogCLIPath(new EnvVars(),false));
 
         // Verify the result
         assertEquals("2.31.0", version);
