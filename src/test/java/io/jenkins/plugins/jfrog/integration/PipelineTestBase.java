@@ -19,6 +19,7 @@ import io.jenkins.plugins.jfrog.ArtifactoryInstaller;
 import io.jenkins.plugins.jfrog.BinaryInstaller;
 import io.jenkins.plugins.jfrog.JfrogInstallation;
 import io.jenkins.plugins.jfrog.ReleasesInstaller;
+import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
@@ -160,10 +161,12 @@ public class PipelineTestBase {
     private void setGlobalConfiguration() throws IOException {
         JFrogPlatformBuilder.DescriptorImpl jfrogBuilder = (JFrogPlatformBuilder.DescriptorImpl) jenkins.getInstance().getDescriptor(JFrogPlatformBuilder.class);
         Assert.assertNotNull(jfrogBuilder);
+        CredentialsConfig emptyCred = new CredentialsConfig(StringUtils.EMPTY, Credentials.EMPTY_CREDENTIALS);
         CredentialsConfig platformCred = new CredentialsConfig(Secret.fromString(ARTIFACTORY_USERNAME), Secret.fromString(ARTIFACTORY_PASSWORD), Secret.fromString(ACCESS_TOKEN), "credentials");
-        List<JFrogPlatformInstance> artifactoryServers = new ArrayList<>() {{
+        List<JFrogPlatformInstance> artifactoryServers = new ArrayList<JFrogPlatformInstance>() {{
             // Dummy server to test multiple configured servers.
             // The dummy server should be configured first to ensure the right server is being used (and not the first one).
+            add(new JFrogPlatformInstance("dummyServerId", "", emptyCred, "", "", ""));
             add(new JFrogPlatformInstance(TEST_CONFIGURED_SERVER_ID, PLATFORM_URL, platformCred, ARTIFACTORY_URL, "", ""));
         }};
         jfrogBuilder.setJfrogInstances(artifactoryServers);
