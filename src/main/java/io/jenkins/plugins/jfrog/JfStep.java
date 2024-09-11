@@ -81,6 +81,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
     public void perform(@NonNull Run<?, ?> run, @NonNull FilePath workspace, @NonNull EnvVars env, @NonNull Launcher launcher, @NonNull TaskListener listener) throws InterruptedException, IOException {
         workspace.mkdirs();
         // Build the 'jf' command
+        this.currentCliVersion = getJfrogCliVersion(launcher.launch());
         ArgumentListBuilder builder = new ArgumentListBuilder();
         boolean isWindows = !launcher.isUnix();
         String jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
@@ -170,7 +171,6 @@ public class JfStep extends Builder implements SimpleBuildStep {
             logIfNoToolProvided(env, listener);
             configAllServers(jfLauncher, jfrogBinaryPath, isWindows, run.getParent());
         }
-        this.currentCliVersion= getJfrogCliVersion(jfLauncher);
         return jfLauncher;
     }
 
