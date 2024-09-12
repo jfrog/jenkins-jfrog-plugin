@@ -329,19 +329,20 @@ public class JfStep extends Builder implements SimpleBuildStep {
         if (this.currentCliVersion != null) {
             return this.currentCliVersion;
         }
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        ArgumentListBuilder builder = new ArgumentListBuilder();
-        builder.add(jfrogBinaryPath).add("-v");
-        int exitCode = launcher
-                .cmds(builder)
-                .pwd(launcher.pwd())
-                .stdout(outputStream)
-                .join();
-        if (exitCode != 0) {
-            throw new IOException("Failed to get JFrog CLI version: " + outputStream.toString(StandardCharsets.UTF_8));
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()){
+            ArgumentListBuilder builder = new ArgumentListBuilder();
+            builder.add(jfrogBinaryPath).add("-v");
+            int exitCode = launcher
+                    .cmds(builder)
+                    .pwd(launcher.pwd())
+                    .stdout(outputStream)
+                    .join();
+            if (exitCode != 0) {
+                throw new IOException("Failed to get JFrog CLI version: " + outputStream.toString(StandardCharsets.UTF_8));
+            }
+            String versionOutput = outputStream.toString(StandardCharsets.UTF_8).trim();
+            String version = StringUtils.substringAfterLast(versionOutput, " ");
+            return new Version(version);
         }
-        String versionOutput = outputStream.toString(StandardCharsets.UTF_8).trim();
-        String version = StringUtils.substringAfterLast(versionOutput, " ");
-        return new Version(version);
     }
 }
