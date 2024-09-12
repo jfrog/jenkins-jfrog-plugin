@@ -24,10 +24,12 @@ import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
 import jenkins.tasks.SimpleBuildStep;
 import lombok.Getter;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jfrog.build.api.util.Log;
+import org.jfrog.build.client.Version;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
@@ -49,11 +51,11 @@ import static org.jfrog.build.extractor.BuildInfoExtractorUtils.createMapper;
 public class JfStep extends Builder implements SimpleBuildStep {
     private final ObjectMapper mapper = createMapper();
     static final String STEP_NAME = "jf";
-    private static final String MIN_CLI_VERSION_PASSWORD_STDIN = "2.31.0";
+    private static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.3");
     @Getter
     protected String[] args;
     //  The current JFrog CLI version in the agent
-    protected String currentCliVersion;
+    protected Version currentCliVersion;
     // The JFrog CLI binary path in the agent
     protected String jfrogBinaryPath;
     // True if the agent's OS is windows
@@ -226,7 +228,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
             Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, job);
             builder.add("--user=" + credentials.getUsername());
             // Use password-stdin if available
-            if (isCliVersionGreaterThanOrEqual(this.currentCliVersion, MIN_CLI_VERSION_PASSWORD_STDIN)) {
+            if (this.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN)) {
                 builder.add("--password-stdin");
                 ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8));
                 launcher.stdin(inputStream);
@@ -294,10 +296,11 @@ public class JfStep extends Builder implements SimpleBuildStep {
 
     /**
      * initialize values to be used across the class.
+     *
      * @param env       environment variables applicable to this step
      * @param launcher  a way to start processes
      * @param workspace a workspace to use for any file operations
-     * @throws IOException in case of any I/O error, or we failed to run the 'jf'
+     * @throws IOException          in case of any I/O error, or we failed to run the 'jf'
      * @throws InterruptedException if the step is interrupted
      */
     private void initClassValues(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
@@ -322,8 +325,8 @@ public class JfStep extends Builder implements SimpleBuildStep {
         }
     }
 
-    String getJfrogCliVersion(Launcher.ProcStarter launcher) throws IOException, InterruptedException {
-        if (this.currentCliVersion != null && !this.currentCliVersion.isEmpty()) {
+    Version getJfrogCliVersion(Launcher.ProcStarter launcher) throws IOException, InterruptedException {
+        if (this.currentCliVersion != null) {
             return this.currentCliVersion;
         }
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -338,26 +341,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
             throw new IOException("Failed to get JFrog CLI version: " + outputStream.toString(StandardCharsets.UTF_8));
         }
         String versionOutput = outputStream.toString(StandardCharsets.UTF_8).trim();
-        String[] versionParts = versionOutput.split(" ");
-        if (versionOutput.isEmpty() || (versionParts.length < 3)) {
-            throw new IOException(String.format("Failed to parse JFrog CLI version. CLI Output: %s", versionOutput));
-        }
-        // Based on the output, the version should be located at the second index
-        return versionParts[2];
-    }
-
-    boolean isCliVersionGreaterThanOrEqual(String currentVersion, String targetVersion) {
-        String[] currentParts = currentVersion.split("\\.");
-        String[] targetParts = targetVersion.split("\\.");
-        for (int i = 0; i < Math.min(currentParts.length, targetParts.length); i++) {
-            int currentPart = Integer.parseInt(currentParts[i]);
-            int targetPart = Integer.parseInt(targetParts[i]);
-            if (currentPart > targetPart) {
-                return true;
-            } else if (currentPart < targetPart) {
-                return false;
-            }
-        }
-        return currentParts.length >= targetParts.length;
+        String version = StringUtils.substringAfterLast(versionOutput, " ");
+        return new Version(version);
     }
 }

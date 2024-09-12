@@ -4,6 +4,7 @@ import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.util.ArgumentListBuilder;
+import org.jfrog.build.client.Version;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,24 +34,6 @@ public class JfStepTest {
     }
 
     @Test
-    void isCliVersionGreaterThanTest() {
-        JfStep jfStep = new JfStep("--version");
-
-        // Test cases where the current version is greater
-        assertTrue(jfStep.isCliVersionGreaterThanOrEqual("2.32.0", "2.31.0"));
-        assertTrue(jfStep.isCliVersionGreaterThanOrEqual("3.0.0", "2.31.0"));
-        assertTrue(jfStep.isCliVersionGreaterThanOrEqual("2.31.1", "2.31.0"));
-
-        // Test cases where the current version is equal
-        assertTrue(jfStep.isCliVersionGreaterThanOrEqual("2.31.0", "2.31.0"));
-
-        // Test cases where the current version is less
-        assertFalse(jfStep.isCliVersionGreaterThanOrEqual("2.30.0", "2.31.0"));
-        assertFalse(jfStep.isCliVersionGreaterThanOrEqual("2.31.0", "2.31.1"));
-        assertFalse(jfStep.isCliVersionGreaterThanOrEqual("1.31.0", "2.31.0"));
-    }
-
-    @Test
     void getJfrogCliVersionTest() throws IOException, InterruptedException {
         // Mock the Launcher
         Launcher launcher = mock(Launcher.class);
@@ -73,10 +56,10 @@ public class JfStepTest {
         // Create an instance of JfStep and call the method
         JfStep jfStep = new JfStep("--version");
         jfStep.isWindows = System.getProperty("os.name").toLowerCase().contains("win");
-        String version = jfStep.getJfrogCliVersion(procStarter);
+        Version version = jfStep.getJfrogCliVersion(procStarter);
 
         // Verify the result
-        assertEquals("2.31.0", version);
+        assertEquals("2.31.0", version.toString());
     }
 
     private static Stream<Arguments> jfrogCLIPathProvider() {
