@@ -52,7 +52,6 @@ public class JfStepTest {
 
     @Test
     void getJfrogCliVersionTest() throws IOException, InterruptedException {
-        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
         // Mock the Launcher
         Launcher launcher = mock(Launcher.class);
         // Mock the Launcher.ProcStarter
@@ -73,7 +72,8 @@ public class JfStepTest {
 
         // Create an instance of JfStep and call the method
         JfStep jfStep = new JfStep("--version");
-        String version = jfStep.getJfrogCliVersion(procStarter, JfStep.getJFrogCLIPath(new EnvVars(), isWindows));
+        jfStep.isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        String version = jfStep.getJfrogCliVersion(procStarter);
 
         // Verify the result
         assertEquals("2.31.0", version);

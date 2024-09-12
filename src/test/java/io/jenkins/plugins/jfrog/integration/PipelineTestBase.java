@@ -68,6 +68,7 @@ public class PipelineTestBase {
     static final String JFROG_CLI_TOOL_NAME_1 = "jfrog-cli";
     static final String JFROG_CLI_TOOL_NAME_2 = "jfrog-cli-2";
     static final String TEST_CONFIGURED_SERVER_ID = "serverId";
+    static final String TEST_CONFIGURED_SERVER_ID_2 = "serverId2";
 
     // Set up jenkins and configure latest JFrog CLI.
     public void initPipelineTest(JenkinsRule jenkins) throws Exception {
@@ -161,12 +162,10 @@ public class PipelineTestBase {
         JFrogPlatformBuilder.DescriptorImpl jfrogBuilder = (JFrogPlatformBuilder.DescriptorImpl) jenkins.getInstance().getDescriptor(JFrogPlatformBuilder.class);
         Assert.assertNotNull(jfrogBuilder);
         CredentialsConfig platformCred = new CredentialsConfig(Secret.fromString(ARTIFACTORY_USERNAME), Secret.fromString(ARTIFACTORY_PASSWORD), Secret.fromString(ACCESS_TOKEN), "credentials");
-        CredentialsConfig secondPlatformCred = new CredentialsConfig(Secret.fromString(ARTIFACTORY_USERNAME), Secret.fromString(ARTIFACTORY_PASSWORD), Secret.fromString(ACCESS_TOKEN), "credentials");
         List<JFrogPlatformInstance> artifactoryServers = new ArrayList<>() {{
-            // Dummy server to test multiple configured servers.
-            // The dummy server should be configured first to ensure the right server is being used (and not the first one).
-            add(new JFrogPlatformInstance("dummyServerId", "", secondPlatformCred, "", "", ""));
+            // Configure multiple servers to test multiple servers.
             add(new JFrogPlatformInstance(TEST_CONFIGURED_SERVER_ID, PLATFORM_URL, platformCred, ARTIFACTORY_URL, "", ""));
+            add(new JFrogPlatformInstance(TEST_CONFIGURED_SERVER_ID_2, PLATFORM_URL, platformCred, ARTIFACTORY_URL, "", ""));
         }};
         jfrogBuilder.setJfrogInstances(artifactoryServers);
         Jenkins.get().getDescriptorByType(JFrogPlatformBuilder.DescriptorImpl.class).setJfrogInstances(artifactoryServers);
