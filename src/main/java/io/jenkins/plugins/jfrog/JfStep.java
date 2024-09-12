@@ -148,11 +148,11 @@ public class JfStep extends Builder implements SimpleBuildStep {
     /**
      * Configure all JFrog relevant environment variables and all servers (if they haven't been configured yet).
      *
-     * @param run             running as part of a specific build
-     * @param env             environment variables applicable to this step
-     * @param launcher        a way to start processes
-     * @param listener        a place to send output
-     * @param workspace       a workspace to use for any file operations
+     * @param run       running as part of a specific build
+     * @param env       environment variables applicable to this step
+     * @param launcher  a way to start processes
+     * @param listener  a place to send output
+     * @param workspace a workspace to use for any file operations
      * @return launcher applicable to this step.
      * @throws InterruptedException if the step is interrupted
      * @throws IOException          in case of any I/O error, or we failed to run the 'jf' command
@@ -220,13 +220,12 @@ public class JfStep extends Builder implements SimpleBuildStep {
         builder.add(jfrogBinaryPath).add("c").add("add").add(jfrogPlatformInstance.getId());
         // Add credentials
         StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, job);
+        // Access Token
         if (accessTokenCredentials != null) {
             builder.addMasked("--access-token=" + accessTokenCredentials.getSecret().getPlainText());
         } else {
             Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, job);
             builder.add("--user=" + credentials.getUsername());
-
-
             // Use password-stdin if available
             if (isCliVersionGreaterThanOrEqual(this.currentCliVersion, MIN_CLI_VERSION_PASSWORD_STDIN)) {
                 builder.add("--password-stdin");
@@ -315,7 +314,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
         }
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         ArgumentListBuilder builder = new ArgumentListBuilder();
-        builder.add(jfrogBinaryPath).add("--version");
+        builder.add(jfrogBinaryPath).add("-v");
         int exitCode = launcher
                 .cmds(builder)
                 .pwd(launcher.pwd())
