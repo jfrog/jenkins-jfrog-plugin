@@ -293,7 +293,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> jobType) {
             // JfStep Extends SimpleBuildStep, which applies also to FreeStyleProjects, as well as workflow jobs.
-            // To avoid errors due to unsupported inputs in FreeStyleProjects,
+            // To avoid errors due to unsupported inputs in non-Pipelines job types.
             // Return applicable only for WorkflowJobProperty.
             return WorkflowJobProperty.class.isAssignableFrom(jobType);
         }
