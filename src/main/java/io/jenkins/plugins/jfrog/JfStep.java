@@ -216,7 +216,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
         }
     }
 
-    private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, String jfrogBinaryPath, Job<?, ?> job, Launcher.ProcStarter launcher) {
+    private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, String jfrogBinaryPath, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
         String credentialsId = jfrogPlatformInstance.getCredentialsConfig().getCredentialsId();
         builder.add(jfrogBinaryPath).add("c").add("add").add(jfrogPlatformInstance.getId());
         // Add credentials
@@ -230,8 +230,9 @@ public class JfStep extends Builder implements SimpleBuildStep {
             // Use password-stdin if available
             if (this.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN)) {
                 builder.add("--password-stdin");
-                ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8));
-                launcher.stdin(inputStream);
+                try(ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8))) {
+                    launcher.stdin(inputStream);
+                }
             } else {
                 builder.addMasked("--password=" + credentials.getPassword());
             }
