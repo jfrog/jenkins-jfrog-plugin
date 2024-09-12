@@ -83,10 +83,8 @@ public class JfStep extends Builder implements SimpleBuildStep {
     @Override
     public void perform(@NonNull Run<?, ?> run, @NonNull FilePath workspace, @NonNull EnvVars env, @NonNull Launcher launcher, @NonNull TaskListener listener) throws InterruptedException, IOException {
         workspace.mkdirs();
-
-        this.isWindows = !launcher.isUnix();
-        this.jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
-        this.currentCliVersion = getJfrogCliVersion(launcher.launch().envs(env).pwd(workspace));
+        // Initialize values to be used across the class
+        initClassValues(workspace, env, launcher);
 
         // Build the 'jf' command
         ArgumentListBuilder builder = new ArgumentListBuilder();
@@ -292,6 +290,21 @@ public class JfStep extends Builder implements SimpleBuildStep {
 
     private void logIllegalBuildPublishOutput(Log log, ByteArrayOutputStream taskOutputStream) {
         log.warn("Illegal build-publish output: " + taskOutputStream.toString(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * initialize values to be used across the class.
+     * @param env       environment variables applicable to this step
+     * @param launcher  a way to start processes
+     * @param workspace a workspace to use for any file operations
+     * @throws IOException in case of any I/O error, or we failed to run the 'jf'
+     * @throws InterruptedException if the step is interrupted
+     */
+    private void initClassValues(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
+        this.isWindows = !launcher.isUnix();
+        this.jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
+        Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
+        this.currentCliVersion = getJfrogCliVersion(procStarter);
     }
 
     @Symbol("jf")
