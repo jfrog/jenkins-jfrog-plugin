@@ -3,7 +3,6 @@ package io.jenkins.plugins.jfrog.configuration;
 import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import hudson.util.Secret;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 
@@ -15,6 +14,10 @@ import java.util.List;
 public class JenkinsSecretManager {
 
     public void createSecret(String name, String value, String description) {
+        if (secretExists(name)) {
+            System.out.println("Secret with name " + name + " already exists.");
+            return;
+        }
         StringCredentialsImpl secret = new StringCredentialsImpl(
                 CredentialsScope.USER,
                 name,
@@ -47,5 +50,15 @@ public class JenkinsSecretManager {
             }
         }
 
+    }
+
+    public boolean secretExists(String name) {
+        List<Credentials> credentials = SystemCredentialsProvider.getInstance().getCredentials();
+        for (Credentials credential : credentials) {
+            if (credential instanceof StringCredentialsImpl && ((StringCredentialsImpl) credential).getId().equals(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
