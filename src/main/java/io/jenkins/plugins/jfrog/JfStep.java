@@ -83,8 +83,10 @@ public class JfStep extends Builder implements SimpleBuildStep {
     @Override
     public void perform(@NonNull Run<?, ?> run, @NonNull FilePath workspace, @NonNull EnvVars env, @NonNull Launcher launcher, @NonNull TaskListener listener) throws InterruptedException, IOException {
         workspace.mkdirs();
+
         this.isWindows = !launcher.isUnix();
         this.jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
+        this.currentCliVersion = getJfrogCliVersion(launcher.launch().envs(env).pwd(workspace));
 
         // Build the 'jf' command
         ArgumentListBuilder builder = new ArgumentListBuilder();
@@ -167,7 +169,6 @@ public class JfStep extends Builder implements SimpleBuildStep {
         FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
         CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir.getRemote(), jfrogCliConfigEncryption);
         Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
-        this.currentCliVersion = getJfrogCliVersion(launcher.launch().envs(env).pwd(workspace));
         // Configure all servers, skip if all server ids have already been configured.
         if (shouldConfig(jfrogHomeTempDir)) {
             logIfNoToolProvided(env, listener);

@@ -54,7 +54,8 @@ class JFrogInstallationITest extends PipelineTestBase {
         // Download the latest CLI version.
         // Using remote repository to 'releases.jfrog.io' in the client's Artifactory.
         configureJfrogCliFromArtifactory(JFROG_CLI_TOOL_NAME_1, TEST_CONFIGURED_SERVER_ID, getRepoKey(TestRepository.CLI_REMOTE_REPO), true);
-        runPipeline(jenkins, "basic_version_command");
+        WorkflowRun job = runPipeline(jenkins, "basic_version_command");
+        assertTrue(job.getLog().contains("jf version "));
     }
 
     // Gets JfrogInstallation directory in Jenkins work root.
