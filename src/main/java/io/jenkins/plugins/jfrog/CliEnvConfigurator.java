@@ -79,6 +79,7 @@ public class CliEnvConfigurator {
         String jfrogCliEnvExclude = env.getOrDefault(JFROG_CLI_ENV_EXCLUDE, JFROG_CLI_DEFAULT_EXCLUSIONS);
         env.put(JFROG_CLI_ENV_EXCLUDE, String.join(";", jfrogCliEnvExclude, HTTP_PROXY_ENV, HTTPS_PROXY_ENV));
     }
+
     /**
      * Converts a list of No Proxy Hosts received by Jenkins into a semicolon-separated string format expected by JFrog CLI.
      *

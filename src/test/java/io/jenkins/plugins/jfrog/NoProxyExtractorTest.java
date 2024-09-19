@@ -7,7 +7,7 @@ import org.junit.runners.Parameterized;
 import java.util.Arrays;
 import java.util.Collection;
 
-import static io.jenkins.plugins.jfrog.CliEnvConfigurator.noProxyExtractor;
+import static io.jenkins.plugins.jfrog.CliEnvConfigurator.createNoProxyValue;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -42,6 +42,6 @@ public class NoProxyExtractorTest {
 
     @Test
     public void testNoProxyExtractor() {
-        assertEquals(expectedResult, noProxyExtractor(noProxyList));
+        assertEquals(expectedResult, createNoProxyValue(noProxyList));
     }
 }
