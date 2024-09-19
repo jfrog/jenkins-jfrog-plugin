@@ -5,6 +5,7 @@ import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import org.apache.commons.lang3.StringUtils;
 
+
 /**
  * Configures JFrog CLI environment variables for the job.
  *
@@ -66,7 +67,7 @@ public class CliEnvConfigurator {
         env.put(HTTP_PROXY_ENV, proxyUrl);
         env.put(HTTPS_PROXY_ENV, proxyUrl);
         if (StringUtils.isNotBlank(proxyConfiguration.noProxy)) {
-            env.put(NO_PROXY, proxyConfiguration.noProxy);
+            env.put(NO_PROXY, noProxyExtractor(proxyConfiguration.noProxy));
         }
     }
 
@@ -78,5 +79,14 @@ public class CliEnvConfigurator {
     private static void excludeProxyEnvFromPublishing(EnvVars env) {
         String jfrogCliEnvExclude = env.getOrDefault(JFROG_CLI_ENV_EXCLUDE, JFROG_CLI_DEFAULT_EXCLUSIONS);
         env.put(JFROG_CLI_ENV_EXCLUDE, String.join(";", jfrogCliEnvExclude, HTTP_PROXY_ENV, HTTPS_PROXY_ENV));
+    }
+
+    static String noProxyExtractor(String noProxyList) {
+        // Trim leading and trailing spaces
+        String noProxyListTrim = noProxyList.trim();
+        // Replace '|' with spaces and normalize whitespace
+        String noProxyListRemoveSpaceAndPipe = noProxyListTrim.replace("|", " ").replaceAll("\\s+", ";");
+        // Replace multiple spaces with a single semicolon
+        return noProxyListRemoveSpaceAndPipe.replaceAll(";+", ";").replaceAll(";$", "");
     }
 }
