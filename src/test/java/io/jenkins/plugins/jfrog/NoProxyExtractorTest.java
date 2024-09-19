@@ -14,11 +14,11 @@ import static org.junit.Assert.assertEquals;
  * @author nathana
  **/
 @RunWith(Parameterized.class)
-public class CliEnvConfiguratorNoProxyTest {
+public class NoProxyExtractorTest {
     private final String noProxyList;
     private final String expectedResult;
 
-    public CliEnvConfiguratorNoProxyTest(String noProxyList, String expectedResult) {
+    public NoProxyExtractorTest(String noProxyList, String expectedResult) {
         this.noProxyList = noProxyList;
         this.expectedResult = expectedResult;
     }
@@ -26,7 +26,6 @@ public class CliEnvConfiguratorNoProxyTest {
     @Parameterized.Parameters
     public static Collection<Object[]> dataProvider() {
         return Arrays.asList(
-                // Positive tests
                 new Object[]{"artifactory.jfrog.io", "artifactory.jfrog.io"},
                 new Object[]{"artifactory.jfrog.io    \n      artifactory1.jfrog.io          ", "artifactory.jfrog.io;artifactory1.jfrog.io"},
                 new Object[]{"   artifactory.jfrog.io    \n  \r     artifactory1.jfrog.io;artifactory2.jfrog.io    \n      artifactory3.jfrog.io | artifactory4.jfrog.io    \n      artifactory5.jfrog.io ", "artifactory.jfrog.io;artifactory1.jfrog.io;artifactory2.jfrog.io;artifactory3.jfrog.io;artifactory4.jfrog.io;artifactory5.jfrog.io"},
@@ -41,7 +40,7 @@ public class CliEnvConfiguratorNoProxyTest {
     }
 
     @Test
-    public void testValidateCliVersion() {
+    public void testNoProxyExtractor() {
         assertEquals(expectedResult, noProxyExtractor(noProxyList));
     }
 }

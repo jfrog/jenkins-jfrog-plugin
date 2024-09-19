@@ -5,7 +5,6 @@ import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import org.apache.commons.lang3.StringUtils;
 
-
 /**
  * Configures JFrog CLI environment variables for the job.
  *
