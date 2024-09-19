@@ -81,11 +81,9 @@ public class CliEnvConfigurator {
     }
 
     static String noProxyExtractor(String noProxyList) {
-        // Trim leading and trailing spaces
-        String noProxyListTrim = noProxyList.trim();
-        // Replace '|' with spaces and normalize whitespace
-        String noProxyListRemoveSpaceAndPipe = noProxyListTrim.replace("|", " ").replaceAll("\\s+", ";");
-        // Replace multiple spaces with a single semicolon
+        // Trim leading and trailing spaces, Replace '|' with spaces and normalize whitespace
+        String noProxyListRemoveSpaceAndPipe = noProxyList.trim().replaceAll("[\\s|]+", ";");
+        // Replace multiple semicolon with a single semicolon, and remove the last one if present
         return noProxyListRemoveSpaceAndPipe.replaceAll(";+", ";").replaceAll(";$", "");
     }
 }
