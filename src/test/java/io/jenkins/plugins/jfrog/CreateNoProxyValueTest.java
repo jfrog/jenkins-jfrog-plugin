@@ -14,12 +14,12 @@ import static org.junit.Assert.assertEquals;
  * @author nathana
  **/
 @RunWith(Parameterized.class)
-public class NoProxyExtractorTest {
-    private final String noProxyList;
+public class CreateNoProxyValueTest {
+    private final String noProxy;
     private final String expectedResult;
 
-    public NoProxyExtractorTest(String noProxyList, String expectedResult) {
-        this.noProxyList = noProxyList;
+    public CreateNoProxyValueTest(String noProxy, String expectedResult) {
+        this.noProxy = noProxy;
         this.expectedResult = expectedResult;
     }
 
@@ -42,6 +42,6 @@ public class NoProxyExtractorTest {
 
     @Test
     public void testNoProxyExtractor() {
-        assertEquals(expectedResult, createNoProxyValue(noProxyList));
+        assertEquals(expectedResult, createNoProxyValue(noProxy));
     }
 }
