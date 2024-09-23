@@ -41,7 +41,7 @@ public class CreateNoProxyValueTest {
     }
 
     @Test
-    public void testNoProxyExtractor() {
+    public void createNoProxyValueTest() {
         assertEquals(expectedResult, createNoProxyValue(noProxy));
     }
 }
