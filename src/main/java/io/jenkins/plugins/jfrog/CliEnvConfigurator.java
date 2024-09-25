@@ -66,7 +66,8 @@ public class CliEnvConfigurator {
         env.put(HTTP_PROXY_ENV, proxyUrl);
         env.put(HTTPS_PROXY_ENV, proxyUrl);
         if (StringUtils.isNotBlank(proxyConfiguration.noProxy)) {
-            env.put(NO_PROXY, createNoProxyValue(proxyConfiguration.noProxy));
+            String test = createNoProxyValue(proxyConfiguration.noProxy);
+            env.put(NO_PROXY, test);
         }
     }
 
@@ -81,15 +82,15 @@ public class CliEnvConfigurator {
     }
 
     /**
-     * Converts a list of No Proxy Hosts received by Jenkins into a semicolon-separated string format expected by JFrog CLI.
+     * Converts a list of No Proxy Hosts received by Jenkins into a comma-separated string format expected by JFrog CLI.
      *
      * @param noProxy - A string representing the list of No Proxy Hosts.
      * @return A semicolon-separated string of No Proxy Hosts.
      */
     static String createNoProxyValue(String noProxy) {
-        // Trim leading and trailing spaces, Replace '|' with spaces and normalize whitespace
-        String noProxyListRemoveSpaceAndPipe = noProxy.trim().replaceAll("[\\s|]+", ";");
-        // Replace multiple semicolon with a single semicolon, and remove the last one if present
-        return noProxyListRemoveSpaceAndPipe.replaceAll(";+", ";").replaceAll("^;|;$", "");
+        // Trim leading and trailing spaces, Replace '|' and ';' with spaces and normalize whitespace
+        String noProxyListRemoveSpaceAndPipe = noProxy.trim().replaceAll("[\\s|;]+", ",");
+        // Replace multiple comma with a single comma, and remove the last one if present
+        return noProxyListRemoveSpaceAndPipe.replaceAll(",+", ",").replaceAll("^,|,$", "");
     }
 }
