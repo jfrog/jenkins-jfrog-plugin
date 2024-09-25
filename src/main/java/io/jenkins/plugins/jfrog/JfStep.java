@@ -28,6 +28,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
+import org.jenkinsci.plugins.workflow.job.WorkflowJobProperty;
 import org.jfrog.build.api.util.Log;
 import org.jfrog.build.client.Version;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -322,7 +323,10 @@ public class JfStep extends Builder implements SimpleBuildStep {
 
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> jobType) {
-            return true;
+            // JfStep Extends SimpleBuildStep, which applies also to FreeStyleProjects, as well as workflow jobs.
+            // To avoid errors due to unsupported inputs in non-Pipelines job types.
+            // Return applicable only for WorkflowJobProperty.
+            return WorkflowJobProperty.class.isAssignableFrom(jobType);
         }
     }
 
