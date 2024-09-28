@@ -66,8 +66,7 @@ public class CliEnvConfigurator {
         env.put(HTTP_PROXY_ENV, proxyUrl);
         env.put(HTTPS_PROXY_ENV, proxyUrl);
         if (StringUtils.isNotBlank(proxyConfiguration.noProxy)) {
-            String test = createNoProxyValue(proxyConfiguration.noProxy);
-            env.put(NO_PROXY, test);
+            env.put(NO_PROXY, createNoProxyValue(proxyConfiguration.noProxy));
         }
     }
 
