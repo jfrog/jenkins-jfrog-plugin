@@ -89,7 +89,7 @@ public class CliEnvConfigurator {
     static String createNoProxyValue(String noProxy) {
         // Trim leading and trailing spaces, Replace '|' and ';' with spaces and normalize whitespace
         String noProxyListRemoveSpaceAndPipe = noProxy.trim().replaceAll("[\\s|;]+", ",");
-        // Replace multiple comma with a single comma, and remove the last one if present
+        // Replace multiple commas with a single comma, and remove the last one if present
         return noProxyListRemoveSpaceAndPipe.replaceAll(",+", ",").replaceAll("^,|,$", "");
     }
 }
