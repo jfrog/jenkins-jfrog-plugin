@@ -84,7 +84,7 @@ public class CliEnvConfigurator {
      * Converts a list of No Proxy Hosts received by Jenkins into a comma-separated string format expected by JFrog CLI.
      *
      * @param noProxy - A string representing the list of No Proxy Hosts.
-     * @return A semicolon-separated string of No Proxy Hosts.
+     * @return A comma-separated string of No Proxy Hosts.
      */
     static String createNoProxyValue(String noProxy) {
         // Trim leading and trailing spaces, Replace '|' and ';' with spaces and normalize whitespace
