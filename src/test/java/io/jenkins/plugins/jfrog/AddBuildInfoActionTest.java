@@ -16,9 +16,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,7 +52,7 @@ public class AddBuildInfoActionTest {
 
     @ParameterizedTest
     @MethodSource("positiveDataProvider")
-    public void addBuildInfoActionPositiveTest(String command, String output) throws IOException {
+    public void addBuildInfoActionPositiveTest(String command, String output) {
         doNothing().when(run).addAction(valueCapture.capture());
         runCliCommand(command, output);
 
@@ -75,15 +72,15 @@ public class AddBuildInfoActionTest {
 
     @ParameterizedTest
     @MethodSource("negativeDataProvider")
-    public void addBuildInfoActionNegativeTest(String command, String output) throws IOException {
+    public void addBuildInfoActionNegativeTest(String command, String output) {
         runCliCommand(command, output);
         Mockito.verify(run, never()).addAction(isA(Action.class));
     }
 
-    private void runCliCommand(String command, String output) throws IOException {
-        try (ByteArrayOutputStream taskOutputStream = new ByteArrayOutputStream()) {
-            taskOutputStream.writeBytes(output.getBytes(StandardCharsets.UTF_8));
-            new JfStep(command).addBuildInfoActionIfNeeded(new NullLog(), run, taskOutputStream);
+    private void runCliCommand(String command, String output) {
+        JfStep jfStep = new JfStep(command);
+        if (jfStep.isBuildPublish()) {
+            jfStep.addBuildInfoActionIfNeeded(new NullLog(), run, output);
         }
     }
 }

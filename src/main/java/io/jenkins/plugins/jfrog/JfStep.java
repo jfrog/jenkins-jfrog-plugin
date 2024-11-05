@@ -87,18 +87,31 @@ public class JfStep extends Builder implements SimpleBuildStep {
             builder = builder.toWindowsCommand();
         }
 
-        try (ByteArrayOutputStream taskOutputStream = new ByteArrayOutputStream()) {
-            JfTaskListener jfTaskListener = new JfTaskListener(listener, taskOutputStream);
-            Launcher.ProcStarter jfLauncher = setupJFrogEnvironment(run, env, launcher, jfTaskListener, workspace, jfrogBinaryPath, isWindows);
-            // Running the 'jf' command
-            int exitValue = jfLauncher.cmds(builder).join();
-            if (exitValue != 0) {
-                throw new RuntimeException("Running 'jf' command failed with exit code " + exitValue);
+        try {
+            Launcher.ProcStarter procStarter = setupJFrogEnvironment(run, env, launcher, listener, workspace, jfrogBinaryPath, isWindows);
+            if (isBuildPublish()) {
+                String stdOut = executeJfCommandReturningStdOut(procStarter, builder, listener);
+                addBuildInfoActionIfNeeded(new JenkinsBuildInfoLog(listener), run, stdOut);
+            } else {
+                executeJfCommand(procStarter, builder);
             }
-            addBuildInfoActionIfNeeded(new JenkinsBuildInfoLog(listener), run, taskOutputStream);
         } catch (Exception e) {
             String errorMessage = "Couldn't execute 'jf' command. " + ExceptionUtils.getRootCauseMessage(e);
             throw new RuntimeException(errorMessage, e);
+        }
+    }
+
+    private static String executeJfCommandReturningStdOut(Launcher.ProcStarter procStarter, ArgumentListBuilder builder, @NonNull TaskListener listener) throws IOException, InterruptedException {
+        ByteArrayOutputStream taskOutputStream = new ByteArrayOutputStream();
+        JfTaskListener jfTaskListener = new JfTaskListener(listener, taskOutputStream);
+        executeJfCommand(procStarter.stdout(jfTaskListener), builder);
+        return taskOutputStream.toString(StandardCharsets.UTF_8);
+    }
+
+    private static void executeJfCommand(Launcher.ProcStarter procStarter, ArgumentListBuilder builder) throws IOException, InterruptedException {
+        int exitValue = procStarter.cmds(builder).join();
+        if (exitValue != 0) {
+            throw new RuntimeException("Running 'jf' command failed with exit code " + exitValue);
         }
     }
 
@@ -162,7 +175,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
         }
         FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
         CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir.getRemote(), jfrogCliConfigEncryption);
-        Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
+        Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).stdout(listener).pwd(workspace);
         // Configure all servers, skip if all server ids have already been configured.
         if (shouldConfig(jfrogHomeTempDir)) {
             logIfNoToolProvided(env, listener);
@@ -190,7 +203,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
     /**
      * Locally configure all servers that was configured in the Jenkins UI.
      */
-    private void configAllServers(Launcher.ProcStarter launcher, String jfrogBinaryPath, boolean isWindows, Job<?, ?> job) throws IOException, InterruptedException {
+    private void configAllServers(Launcher.ProcStarter procStarter, String jfrogBinaryPath, boolean isWindows, Job<?, ?> job) throws IOException, InterruptedException {
         // Config all servers using the 'jf c add' command.
         List<JFrogPlatformInstance> jfrogInstances = JFrogPlatformBuilder.getJFrogPlatformInstances();
         if (jfrogInstances != null && jfrogInstances.size() > 0) {
@@ -202,10 +215,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
                     builder = builder.toWindowsCommand();
                 }
                 // Running 'jf' command
-                int exitValue = launcher.cmds(builder).join();
-                if (exitValue != 0) {
-                    throw new RuntimeException("Running 'jf' command failed with exit code " + exitValue);
-                }
+                executeJfCommand(procStarter, builder);
             }
         }
     }
@@ -238,20 +248,13 @@ public class JfStep extends Builder implements SimpleBuildStep {
      *
      * @param log              - Task logger
      * @param run              - The Jenkins project
-     * @param taskOutputStream - Task's output stream
+     * @param originalTaskOutput - Task's output stream
      */
-    void addBuildInfoActionIfNeeded(Log log, Run<?, ?> run, ByteArrayOutputStream taskOutputStream) {
-        if (args.length < 2 ||
-                !args[0].equals("rt") ||
-                !equalsAny(args[1], "bp", "build-publish")) {
-            return;
-        }
-
+    void addBuildInfoActionIfNeeded(Log log, Run<?, ?> run, String originalTaskOutput) {
         // Search for '{' and '}' in the output of 'jf rt build-publish'
-        String taskOutput = taskOutputStream.toString(StandardCharsets.UTF_8);
-        taskOutput = substringBetween(taskOutput, "{", "}");
+        String taskOutput = substringBetween(originalTaskOutput, "{", "}");
         if (taskOutput == null) {
-            logIllegalBuildPublishOutput(log, taskOutputStream);
+            logIllegalBuildPublishOutput(log, originalTaskOutput);
             return;
         }
 
@@ -260,11 +263,11 @@ public class JfStep extends Builder implements SimpleBuildStep {
         try {
             buildInfoOutputModel = mapper.readValue("{" + taskOutput + "}", BuildInfoOutputModel.class);
             if (buildInfoOutputModel == null) {
-                logIllegalBuildPublishOutput(log, taskOutputStream);
+                logIllegalBuildPublishOutput(log, originalTaskOutput);
                 return;
             }
         } catch (JsonProcessingException e) {
-            logIllegalBuildPublishOutput(log, taskOutputStream);
+            logIllegalBuildPublishOutput(log, originalTaskOutput);
             log.warn(ExceptionUtils.getRootCauseMessage(e));
             return;
         }
@@ -276,8 +279,14 @@ public class JfStep extends Builder implements SimpleBuildStep {
         }
     }
 
-    private void logIllegalBuildPublishOutput(Log log, ByteArrayOutputStream taskOutputStream) {
-        log.warn("Illegal build-publish output: " + taskOutputStream.toString(StandardCharsets.UTF_8));
+    boolean isBuildPublish() {
+        return args.length >= 2 &&
+                args[0].equals("rt") &&
+                equalsAny(args[1], "bp", "build-publish");
+    }
+
+    private void logIllegalBuildPublishOutput(Log log, String taskOutput) {
+        log.warn("Illegal build-publish output: " + taskOutput);
     }
 
     @Symbol("jf")
