@@ -45,7 +45,6 @@ public class Utils {
         try {
             FilePath jfrogCliHomeDir = createAndGetJfrogCliHomeTempDir(ws, buildNumber);
             jfrogCliHomeDir.deleteRecursive();
-            taskListener.getLogger().println(jfrogCliHomeDir.getRemote() + " deleted");
         } catch (IOException | InterruptedException e) {
             taskListener.getLogger().println("Failed while attempting to delete the JFrog CLI home dir \n" + ExceptionUtils.getRootCauseMessage(e));
         }
