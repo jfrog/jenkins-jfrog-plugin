@@ -60,6 +60,8 @@ public class JfStep extends Builder implements SimpleBuildStep {
     protected String jfrogBinaryPath;
     // True if the agent's OS is windows
     protected boolean isWindows;
+    // Indicates the launcher type
+    private boolean isPluginLauncher;
 
     @DataBoundConstructor
     public JfStep(Object args) {
@@ -217,35 +219,47 @@ public class JfStep extends Builder implements SimpleBuildStep {
     }
 
     private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, String jfrogBinaryPath, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
-        String credentialsId = jfrogPlatformInstance.getCredentialsConfig().getCredentialsId();
         builder.add(jfrogBinaryPath).add("c").add("add").add(jfrogPlatformInstance.getId());
-        // Add credentials
+        addCredentialsArguments(builder, jfrogPlatformInstance, job, launcher);
+        addUrlArguments(builder, jfrogPlatformInstance);
+        builder.add("--interactive=false").add("--overwrite=true");
+    }
+
+    private void addCredentialsArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
+        String credentialsId = jfrogPlatformInstance.getCredentialsConfig().getCredentialsId();
         StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, job);
-        // Access Token
+
         if (accessTokenCredentials != null) {
             builder.addMasked("--access-token=" + accessTokenCredentials.getSecret().getPlainText());
         } else {
             Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, job);
             builder.add("--user=" + credentials.getUsername());
-            // Use password-stdin if available
-            if (this.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN)) {
-                builder.add("--password-stdin");
-                try(ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8))) {
-                    launcher.stdin(inputStream);
-                }
-            } else {
-                builder.addMasked("--password=" + credentials.getPassword());
-            }
+            addPasswordArgument(builder, credentials, launcher);
         }
-        // Add URLs
+    }
+
+    // Password can be provided via stdin if supported; otherwise, default-to --password.
+    // Stdin support requires a minimum CLI version and not a special plugin launcher.
+    // In other types of launchers, the stdin input gets lost and the command fails.
+    private void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher) throws IOException {
+        boolean isCliVersionSupported = this.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
+        if (isCliVersionSupported && !this.isPluginLauncher) {
+            // Use stdin
+            builder.add("--password-stdin");
+            try (ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8))) {
+                launcher.stdin(inputStream);
+            }
+        } else {
+            // Use default
+            builder.addMasked("--password=" + credentials.getPassword());
+        }
+    }
+
+    private void addUrlArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance) {
         builder.add("--url=" + jfrogPlatformInstance.getUrl());
         builder.add("--artifactory-url=" + jfrogPlatformInstance.inferArtifactoryUrl());
         builder.add("--distribution-url=" + jfrogPlatformInstance.inferDistributionUrl());
         builder.add("--xray-url=" + jfrogPlatformInstance.inferXrayUrl());
-
-        builder.add("--interactive=false");
-        // The installation process takes place more than once per build, so we will configure the same server ID several times.
-        builder.add("--overwrite=true");
     }
 
     /**
@@ -309,6 +323,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
         this.jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
         Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
         this.currentCliVersion = getJfrogCliVersion(procStarter);
+        this.isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
     }
 
     @Symbol("jf")
@@ -330,7 +345,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
         if (this.currentCliVersion != null) {
             return this.currentCliVersion;
         }
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()){
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             ArgumentListBuilder builder = new ArgumentListBuilder();
             builder.add(jfrogBinaryPath).add("-v");
             int exitCode = launcher
