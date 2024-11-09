@@ -8,7 +8,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.stream.Stream;
 
-import static io.jenkins.plugins.jfrog.JfStep.getJFrogCLIPath;
+import static io.jenkins.plugins.jfrog.JfStep.Execution.getJFrogCLIPath;
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 
 /**

@@ -21,6 +21,7 @@
     - [Setting the build name and build number](#setting-the-build-name-and-the-build-number)
     - [Using multiple JFrog Platform instances](#using-multiple-jfrog-platform-instances)
     - [Publishing and accessing the build-info](#publishing-and-accessing-the-build-info)
+    - [Capturing the output of JFrog CLI commands](#capturing-the-output-of-jfrog-cli-commands)
 - [Using HTTP/s proxy](#using-https-proxy)
 - [Jenkins Configuration as Code](#jenkins-configuration-as-code)
 - [Examples](#examples)
@@ -179,6 +180,28 @@ stage('Publish build info') {
 
 When the job publishes the build-info to Artifactory, you can access it by clicking on the build-info icon, next to the
 job run.
+
+### Capturing the output of JFrog CLI commands
+
+The JFrog CLI commands output is returned as a string.
+To capture the output of JFrog CLI commands, wrap the JFrog CLI command in a `script` block:
+
+```groovy
+script {
+    String version = jf '-v'
+    echo "JFrog CLI version output: $version"
+}
+```
+
+<details>
+  <summary>Scripted Pipeline</summary>
+
+```groovy
+String version = jf '-v'
+echo "JFrog CLI version output: $version"
+```
+
+</details>
 
 ![build-info.png](images/readme/build-info.png)
 

@@ -1,0 +1,21 @@
+pipeline {
+    agent any
+    tools {
+        jfrog '${JFROG_CLI_TOOL_NAME_1}'
+    }
+    stages {
+        stage ('Testing') {
+            steps {
+                script {
+                    // Run 'jf -v' with string args to show the installed version of JFrog CLI and check the output.
+                    String version = jf '-v'
+                    assert version.startsWith('jf version')
+
+                    // Run 'jf -v' with commands array to show the installed version of JFrog CLI and check the output.
+                    version = jf(['-v'])
+                    assert version.startsWith('jf version')
+                }
+            }
+        }
+    }
+}

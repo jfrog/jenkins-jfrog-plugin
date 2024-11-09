@@ -83,7 +83,8 @@ public class AddBuildInfoActionTest {
     private void runCliCommand(String command, String output) throws IOException {
         try (ByteArrayOutputStream taskOutputStream = new ByteArrayOutputStream()) {
             taskOutputStream.writeBytes(output.getBytes(StandardCharsets.UTF_8));
-            new JfStep(command).addBuildInfoActionIfNeeded(new NullLog(), run, taskOutputStream);
+            JfStep jfStep = new JfStep(command);
+            JfStep.addBuildInfoActionIfNeeded(jfStep.getArgs(), new NullLog(), run, taskOutputStream);
         }
     }
 }
