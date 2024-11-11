@@ -7,7 +7,6 @@ import hudson.model.Job;
 import hudson.util.ArgumentListBuilder;
 import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
-import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jfrog.build.client.Version;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

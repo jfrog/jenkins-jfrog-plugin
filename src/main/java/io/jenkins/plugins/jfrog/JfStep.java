@@ -50,8 +50,9 @@ import static org.jfrog.build.extractor.BuildInfoExtractorUtils.createMapper;
 @SuppressWarnings("unused")
 public class JfStep extends Builder implements SimpleBuildStep {
     private final ObjectMapper mapper = createMapper();
-    static final String STEP_NAME = "jf";
     private static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.3");
+    static final String STEP_NAME = "jf";
+
     @Getter
     protected String[] args;
     //  The current JFrog CLI version in the agent
