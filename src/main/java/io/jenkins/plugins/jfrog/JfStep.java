@@ -61,7 +61,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
     // True if the agent's OS is windows
     protected boolean isWindows;
     // Indicates the launcher type
-    private boolean isPluginLauncher;
+    protected boolean isPluginLauncher;
 
     @DataBoundConstructor
     public JfStep(Object args) {
@@ -225,7 +225,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
         builder.add("--interactive=false").add("--overwrite=true");
     }
 
-    private void addCredentialsArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
+    void addCredentialsArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
         String credentialsId = jfrogPlatformInstance.getCredentialsConfig().getCredentialsId();
         StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, job);
 
