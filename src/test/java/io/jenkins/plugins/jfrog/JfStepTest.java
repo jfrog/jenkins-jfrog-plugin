@@ -101,7 +101,7 @@ public class JfStepTest {
 
         Job<?, ?> job = mock(Job.class);
         Launcher.ProcStarter launcher = mock(Launcher.ProcStarter.class);
-        
+
         // Create an instance of JfStep
         JfStep jfStep = new JfStep("Mock Test");
         jfStep.currentCliVersion = new Version(cliVersion);
