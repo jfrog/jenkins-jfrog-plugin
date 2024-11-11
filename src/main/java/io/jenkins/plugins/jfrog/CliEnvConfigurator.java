@@ -68,7 +68,7 @@ public class CliEnvConfigurator {
         env.put(HTTP_PROXY_ENV, proxyUrl);
         env.put(HTTPS_PROXY_ENV, proxyUrl);
         if (StringUtils.isNotBlank(proxyConfiguration.noProxy)) {
-            env.put(NO_PROXY, proxyConfiguration.noProxy);
+            env.put(NO_PROXY, createNoProxyValue(proxyConfiguration.noProxy));
         }
     }
 
@@ -80,5 +80,18 @@ public class CliEnvConfigurator {
     private static void excludeProxyEnvFromPublishing(EnvVars env) {
         String jfrogCliEnvExclude = env.getOrDefault(JFROG_CLI_ENV_EXCLUDE, JFROG_CLI_DEFAULT_EXCLUSIONS);
         env.put(JFROG_CLI_ENV_EXCLUDE, String.join(";", jfrogCliEnvExclude, HTTP_PROXY_ENV, HTTPS_PROXY_ENV));
+    }
+
+    /**
+     * Converts a list of No Proxy Hosts received by Jenkins into a comma-separated string format expected by JFrog CLI.
+     *
+     * @param noProxy - A string representing the list of No Proxy Hosts.
+     * @return A comma-separated string of No Proxy Hosts.
+     */
+    static String createNoProxyValue(String noProxy) {
+        // Trim leading and trailing spaces, Replace '|' and ';' with spaces and normalize whitespace
+        String noProxyListRemoveSpaceAndPipe = noProxy.trim().replaceAll("[\\s|;]+", ",");
+        // Replace multiple commas with a single comma, and remove the last one if present
+        return noProxyListRemoveSpaceAndPipe.replaceAll(",+", ",").replaceAll("^,|,$", "");
     }
 }
