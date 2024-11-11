@@ -22,7 +22,6 @@ import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import io.jenkins.plugins.jfrog.models.BuildInfoOutputModel;
 import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
 import jenkins.tasks.SimpleBuildStep;
-import lombok.Getter;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -53,7 +52,6 @@ public class JfStep extends Builder implements SimpleBuildStep {
     private static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.3");
     static final String STEP_NAME = "jf";
 
-    @Getter
     protected String[] args;
     //  The current JFrog CLI version in the agent
     protected Version currentCliVersion;
@@ -72,6 +70,10 @@ public class JfStep extends Builder implements SimpleBuildStep {
             return;
         }
         this.args = split(args.toString());
+    }
+
+    public String[] getArgs() {
+        return args;
     }
 
     /**
