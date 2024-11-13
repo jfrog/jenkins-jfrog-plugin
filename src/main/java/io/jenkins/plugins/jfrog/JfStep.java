@@ -59,9 +59,8 @@ public class JfStep extends Builder implements SimpleBuildStep {
     protected String jfrogBinaryPath;
     // True if the agent's OS is windows
     protected boolean isWindows;
-    // Indicates the launcher type
-    // Plugins launchers require plugin-specific handling in some cases,
-    // for example, stdin input.
+    // Identifies if the launcher is a plugin.
+    // Plugin launchers may need specific handling, such as with stdin input, to avoid issues in CLI interactions.
     protected boolean isPluginLauncher;
 
     @DataBoundConstructor
@@ -243,10 +242,10 @@ public class JfStep extends Builder implements SimpleBuildStep {
         }
     }
 
-    // Password can be provided via stdin if supported; otherwise, default-to --password.
-    // Stdin support requires a minimum CLI version and not a plugin launcher.
-    // In plugin launchers, the stdin input may get lost and fail the command,
-    // and therefore without plugin-specific code, this is not supported.
+    // Provides password input via stdin if supported; otherwise, defaults to --password argument.
+    // Stdin support requires a minimum CLI version and excludes plugin launchers.
+    // Plugin launchers may lose stdin input, causing command failure;
+    // hence, stdin is unsupported without plugin-specific handling.
     private void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher) throws IOException {
         boolean isCliVersionSupported = this.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
         if (!this.isPluginLauncher && isCliVersionSupported) {
@@ -256,7 +255,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
                 launcher.stdin(inputStream);
             }
         } else {
-            // Use default
+            // Use masked default password argument
             builder.addMasked("--password=" + credentials.getPassword());
         }
     }
@@ -316,20 +315,20 @@ public class JfStep extends Builder implements SimpleBuildStep {
     }
 
     /**
-     * initialize values to be used across the class.
+     * Initializes values required across the class for running CLI commands.
      *
-     * @param env       environment variables applicable to this step
-     * @param launcher  a way to start processes
-     * @param workspace a workspace to use for any file operations
-     * @throws IOException          in case of any I/O error, or we failed to run the 'jf'
-     * @throws InterruptedException if the step is interrupted
+     * @param workspace  Workspace to use for any file operations.
+     * @param env        Environment variables for this step.
+     * @param launcher   Launcher to start processes.
+     * @throws IOException          If an I/O error occurs or the 'jf' command fails to run.
+     * @throws InterruptedException If the step is interrupted.
      */
     private void initClassValues(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
         this.isWindows = !launcher.isUnix();
         this.jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
         this.isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
-        // Check CLI version only for non-plugin launchers,
-        // as plugin launchers may not have CLI installed at this time.
+
+        // Only check CLI version if it's a plugin launcher; regular launchers may not have CLI pre-installed.
         if (this.isPluginLauncher) {
             Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
             this.currentCliVersion = getJfrogCliVersion(procStarter);
