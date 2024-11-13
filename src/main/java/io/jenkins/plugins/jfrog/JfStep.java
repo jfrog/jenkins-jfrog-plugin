@@ -60,6 +60,8 @@ public class JfStep extends Builder implements SimpleBuildStep {
     // True if the agent's OS is windows
     protected boolean isWindows;
     // Indicates the launcher type
+    // Plugins launchers require plugin-specific handling in some cases,
+    // for example, stdin input.
     protected boolean isPluginLauncher;
 
     @DataBoundConstructor
@@ -242,11 +244,12 @@ public class JfStep extends Builder implements SimpleBuildStep {
     }
 
     // Password can be provided via stdin if supported; otherwise, default-to --password.
-    // Stdin support requires a minimum CLI version and not a special plugin launcher.
-    // In other types of launchers, the stdin input gets lost and the command fails.
+    // Stdin support requires a minimum CLI version and not a plugin launcher.
+    // In plugin launchers, the stdin input may get lost and fail the command,
+    // and therefore without plugin-specific code, this is not supported.
     private void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher) throws IOException {
         boolean isCliVersionSupported = this.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
-        if (isCliVersionSupported && !this.isPluginLauncher) {
+        if (!this.isPluginLauncher && isCliVersionSupported) {
             // Use stdin
             builder.add("--password-stdin");
             try (ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8))) {
@@ -324,9 +327,13 @@ public class JfStep extends Builder implements SimpleBuildStep {
     private void initClassValues(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
         this.isWindows = !launcher.isUnix();
         this.jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
-        Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
-        this.currentCliVersion = getJfrogCliVersion(procStarter);
         this.isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
+        // Check CLI version only for non-plugin launchers,
+        // as plugin launchers may not have CLI installed at this time.
+        if (this.isPluginLauncher) {
+            Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
+            this.currentCliVersion = getJfrogCliVersion(procStarter);
+        }
     }
 
     @Symbol("jf")
