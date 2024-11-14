@@ -320,7 +320,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
     private void initClassValues(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
         this.isWindows = !launcher.isUnix();
         this.jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
-        this.passwordStdinSupported = isPasswordStdSupported(workspace, env, launcher);
+        this.passwordStdinSupported = isPasswordStdinSupported(workspace, env, launcher);
     }
 
     @Symbol("jf")
@@ -370,7 +370,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
      * @param launcher  The command launcher.
      * @return true if stdin-based password handling is supported; false otherwise.
      */
-    public boolean isPasswordStdSupported(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
+    public boolean isPasswordStdinSupported(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
         // Determine if the launcher is a plugin (custom) launcher
         boolean isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
         if (isPluginLauncher) {
