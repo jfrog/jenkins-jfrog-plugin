@@ -53,14 +53,12 @@ public class JfStep extends Builder implements SimpleBuildStep {
     static final String STEP_NAME = "jf";
 
     protected String[] args;
-    // The current JFrog CLI version in the agent
-    protected Version currentCliVersion;
     // The JFrog CLI binary path in the agent
     protected String jfrogBinaryPath;
     // True if the agent's OS is windows
     protected boolean isWindows;
-    // Flag to indicate if the user of password stdin is supported.
-    protected boolean usePasswordFromStdin;
+    // Flag to indicate if the use of password stdin is supported.
+    protected boolean passwordStdinSupported;
 
     @DataBoundConstructor
     public JfStep(Object args) {
@@ -246,7 +244,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
     // Plugin launchers may lose stdin input, causing command failure;
     // hence, stdin is unsupported without plugin-specific handling.
     private void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher) throws IOException {
-        if (this.usePasswordFromStdin) {
+        if (this.passwordStdinSupported) {
             // Use stdin
             builder.add("--password-stdin");
             try (ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8))) {
@@ -322,7 +320,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
     private void initClassValues(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
         this.isWindows = !launcher.isUnix();
         this.jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
-        this.usePasswordFromStdin = isPasswordStdSupported(workspace, env, launcher);
+        this.passwordStdinSupported = isPasswordStdSupported(workspace, env, launcher);
     }
 
     @Symbol("jf")
@@ -341,9 +339,6 @@ public class JfStep extends Builder implements SimpleBuildStep {
     }
 
     Version getJfrogCliVersion(Launcher.ProcStarter launcher) throws IOException, InterruptedException {
-        if (this.currentCliVersion != null) {
-            return this.currentCliVersion;
-        }
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             ArgumentListBuilder builder = new ArgumentListBuilder();
             builder.add(jfrogBinaryPath).add("-v");
@@ -383,9 +378,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
         }
         // Check CLI version
         Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
-        if (this.currentCliVersion == null) {
-            this.currentCliVersion = getJfrogCliVersion(procStarter);
-        }
-        return this.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
+        Version currentCliVersion = getJfrogCliVersion(procStarter);
+        return currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
     }
 }

@@ -91,7 +91,7 @@ public class JfStepTest {
      */
     @ParameterizedTest
     @MethodSource("provideTestArguments")
-    void testAddCredentialsArguments(String cliVersion, boolean isPluginLauncher, String expectedOutput) throws IOException, InterruptedException {
+    void testAddCredentialsArguments(String cliVersion, boolean isPluginLauncher, String expectedOutput) throws IOException {
         // Mock the necessary objects
         JFrogPlatformInstance jfrogPlatformInstance = mock(JFrogPlatformInstance.class);
         CredentialsConfig credentialsConfig = mock(CredentialsConfig.class);
@@ -104,9 +104,8 @@ public class JfStepTest {
 
         // Create an instance of JfStep
         JfStep jfStep = new JfStep("Mock Test");
-        // Mock CLI version
-        jfStep.currentCliVersion = new Version(cliVersion);
-        jfStep.usePasswordFromStdin = jfStep.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN) && !isPluginLauncher;
+        // Mock password stdin supported or not.
+        jfStep.passwordStdinSupported = new Version(cliVersion).isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN) && !isPluginLauncher;
 
         // Create an ArgumentListBuilder
         ArgumentListBuilder builder = new ArgumentListBuilder();
