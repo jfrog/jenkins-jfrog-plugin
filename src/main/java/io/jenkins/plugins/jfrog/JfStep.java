@@ -53,15 +53,14 @@ public class JfStep extends Builder implements SimpleBuildStep {
     static final String STEP_NAME = "jf";
 
     protected String[] args;
-    //  The current JFrog CLI version in the agent
+    // The current JFrog CLI version in the agent
     protected Version currentCliVersion;
     // The JFrog CLI binary path in the agent
     protected String jfrogBinaryPath;
     // True if the agent's OS is windows
     protected boolean isWindows;
-    // Identifies if the launcher is a plugin.
-    // Plugin launchers may need specific handling, such as with stdin input, to avoid issues in CLI interactions.
-    protected boolean isPluginLauncher;
+    // Flag to indicate if the user of password stdin is supported.
+    protected boolean usePasswordFromStdin;
 
     @DataBoundConstructor
     public JfStep(Object args) {
@@ -247,8 +246,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
     // Plugin launchers may lose stdin input, causing command failure;
     // hence, stdin is unsupported without plugin-specific handling.
     private void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher) throws IOException {
-        boolean isCliVersionSupported = this.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
-        if (!this.isPluginLauncher && isCliVersionSupported) {
+        if (this.usePasswordFromStdin) {
             // Use stdin
             builder.add("--password-stdin");
             try (ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8))) {
@@ -317,22 +315,14 @@ public class JfStep extends Builder implements SimpleBuildStep {
     /**
      * Initializes values required across the class for running CLI commands.
      *
-     * @param workspace  Workspace to use for any file operations.
-     * @param env        Environment variables for this step.
-     * @param launcher   Launcher to start processes.
-     * @throws IOException          If an I/O error occurs or the 'jf' command fails to run.
-     * @throws InterruptedException If the step is interrupted.
+     * @param workspace Workspace to use for any file operations.
+     * @param env       Environment variables for this step.
+     * @param launcher  Launcher to start processes.
      */
     private void initClassValues(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
         this.isWindows = !launcher.isUnix();
         this.jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
-        this.isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
-
-        // Only check CLI version if it's a plugin launcher; regular launchers may not have CLI pre-installed.
-        if (this.isPluginLauncher) {
-            Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
-            this.currentCliVersion = getJfrogCliVersion(procStarter);
-        }
+        this.usePasswordFromStdin = isPasswordStdSupported(workspace, env, launcher);
     }
 
     @Symbol("jf")
@@ -369,5 +359,31 @@ public class JfStep extends Builder implements SimpleBuildStep {
             String version = StringUtils.substringAfterLast(versionOutput, " ");
             return new Version(version);
         }
+    }
+
+    /**
+     * Determines if the password can be securely passed via stdin to the CLI,
+     * rather than using the --password flag. This depends on two factors:
+     * 1. The JFrog CLI version on the agent (minimum supported version is 2.31.3).
+     * 2. Whether the launcher is a custom (plugin) launcher.
+     * <p>
+     * Note: Plugin-based launchers do not support stdin input handling by default
+     * and need special handling.
+     *
+     * @param workspace The workspace file path.
+     * @param env       The environment variables.
+     * @param launcher  The command launcher.
+     * @return true if stdin-based password handling is supported; false otherwise.
+     */
+    private boolean isPasswordStdSupported(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
+        // Determine if the launcher is a plugin (custom) launcher
+        boolean isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
+        if (isPluginLauncher) {
+            return false;
+        }
+        // Check CLI version
+        Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
+        this.currentCliVersion = getJfrogCliVersion(procStarter);
+        return this.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
     }
 }
