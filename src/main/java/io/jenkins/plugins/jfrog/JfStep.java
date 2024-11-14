@@ -49,7 +49,7 @@ import static org.jfrog.build.extractor.BuildInfoExtractorUtils.createMapper;
 @SuppressWarnings("unused")
 public class JfStep extends Builder implements SimpleBuildStep {
     private final ObjectMapper mapper = createMapper();
-    private static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.3");
+    static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.3");
     static final String STEP_NAME = "jf";
 
     protected String[] args;
@@ -375,7 +375,7 @@ public class JfStep extends Builder implements SimpleBuildStep {
      * @param launcher  The command launcher.
      * @return true if stdin-based password handling is supported; false otherwise.
      */
-    private boolean isPasswordStdSupported(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
+    public boolean isPasswordStdSupported(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
         // Determine if the launcher is a plugin (custom) launcher
         boolean isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
         if (isPluginLauncher) {
@@ -383,7 +383,9 @@ public class JfStep extends Builder implements SimpleBuildStep {
         }
         // Check CLI version
         Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
-        this.currentCliVersion = getJfrogCliVersion(procStarter);
+        if (this.currentCliVersion == null) {
+            this.currentCliVersion = getJfrogCliVersion(procStarter);
+        }
         return this.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
     }
 }

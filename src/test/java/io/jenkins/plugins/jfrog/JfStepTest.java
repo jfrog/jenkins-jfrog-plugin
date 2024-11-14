@@ -18,6 +18,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.stream.Stream;
 
+import static io.jenkins.plugins.jfrog.JfStep.MIN_CLI_VERSION_PASSWORD_STDIN;
 import static io.jenkins.plugins.jfrog.JfStep.getJFrogCLIPath;
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 import static org.junit.jupiter.api.Assertions.*;
@@ -90,7 +91,7 @@ public class JfStepTest {
      */
     @ParameterizedTest
     @MethodSource("provideTestArguments")
-    void testAddCredentialsArguments(String cliVersion, boolean isPluginLauncher, String expectedOutput) throws IOException {
+    void testAddCredentialsArguments(String cliVersion, boolean isPluginLauncher, String expectedOutput) throws IOException, InterruptedException {
         // Mock the necessary objects
         JFrogPlatformInstance jfrogPlatformInstance = mock(JFrogPlatformInstance.class);
         CredentialsConfig credentialsConfig = mock(CredentialsConfig.class);
@@ -103,9 +104,9 @@ public class JfStepTest {
 
         // Create an instance of JfStep
         JfStep jfStep = new JfStep("Mock Test");
+        // Mock CLI version
         jfStep.currentCliVersion = new Version(cliVersion);
-        jfStep.isPluginLauncher = isPluginLauncher;
-
+        jfStep.usePasswordFromStdin = jfStep.currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN) && !isPluginLauncher;
 
         // Create an ArgumentListBuilder
         ArgumentListBuilder builder = new ArgumentListBuilder();
