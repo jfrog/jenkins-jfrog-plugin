@@ -144,6 +144,7 @@ public class JfStep extends Step {
          * @param launcher  Launcher to start processes.
          */
         private void initClassValues(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
+            workspace.mkdirs();
             isWindows = !launcher.isUnix();
             jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
             passwordStdinSupported = isPasswordStdinSupported(workspace, env, launcher);
