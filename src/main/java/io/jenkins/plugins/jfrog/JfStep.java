@@ -1,6 +1,7 @@
 package io.jenkins.plugins.jfrog;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.jfrog.build.client.Version;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hudson.*;
 import hudson.model.Job;
@@ -16,6 +17,7 @@ import io.jenkins.plugins.jfrog.models.BuildInfoOutputModel;
 import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
 import lombok.Getter;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.workflow.steps.*;
@@ -23,6 +25,7 @@ import org.jfrog.build.api.util.Log;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +45,13 @@ import static org.jfrog.build.extractor.BuildInfoExtractorUtils.createMapper;
 public class JfStep extends Step {
     private static final ObjectMapper mapper = createMapper();
     protected String[] args;
+    static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.3");
+    // The JFrog CLI binary path in the agent
+    protected static String jfrogBinaryPath;
+    // True if the agent's OS is windows
+    protected static boolean isWindows;
+    // Flag to indicate if the use of password stdin is supported.
+    protected static boolean passwordStdinSupported;
 
     @DataBoundConstructor
     public JfStep(Object args) {
@@ -58,8 +68,28 @@ public class JfStep extends Step {
         return new Execution(args, context);
     }
 
+    public static Version getJfrogCliVersion(Launcher.ProcStarter launcher) throws IOException, InterruptedException {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            ArgumentListBuilder builder = new ArgumentListBuilder();
+            builder.add(jfrogBinaryPath).add("-v");
+            int exitCode = launcher
+                    .cmds(builder)
+                    .pwd(launcher.pwd())
+                    .stdout(outputStream)
+                    .join();
+            if (exitCode != 0) {
+                throw new IOException("Failed to get JFrog CLI version: " + outputStream.toString(StandardCharsets.UTF_8));
+            }
+            String versionOutput = outputStream.toString(StandardCharsets.UTF_8).trim();
+            String version = StringUtils.substringAfterLast(versionOutput, " ");
+            return new Version(version);
+        }
+    }
+
     public static class Execution extends SynchronousNonBlockingStepExecution<String> {
+        private static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.1");
         private final String[] args;
+
 
         protected Execution(String[] args, @Nonnull StepContext context) {
             super(context);
@@ -75,7 +105,9 @@ public class JfStep extends Step {
             EnvVars env = getContext().get(EnvVars.class);
             Run<?, ?> run = getContext().get(Run.class);
 
-            workspace.mkdirs();
+            // Initialize values to be used across the class
+            initClassValues(workspace, env, launcher);
+
             // Build the 'jf' command
             ArgumentListBuilder builder = new ArgumentListBuilder();
             boolean isWindows = !launcher.isUnix();
@@ -89,7 +121,7 @@ public class JfStep extends Step {
             String output;
             try (ByteArrayOutputStream taskOutputStream = new ByteArrayOutputStream()) {
                 JfTaskListener jfTaskListener = new JfTaskListener(listener, taskOutputStream);
-                Launcher.ProcStarter jfLauncher = setupJFrogEnvironment(run, env, launcher, jfTaskListener, workspace, jfrogBinaryPath, isWindows);
+                Launcher.ProcStarter jfLauncher = setupJFrogEnvironment(run, env, launcher, jfTaskListener, workspace);
                 // Running the 'jf' command
                 int exitValue = jfLauncher.cmds(builder).join();
                 output = taskOutputStream.toString(StandardCharsets.UTF_8);
@@ -102,6 +134,45 @@ public class JfStep extends Step {
                 throw new RuntimeException(errorMessage, e);
             }
             return output;
+        }
+
+        /**
+         * Initializes values required across the class for running CLI commands.
+         *
+         * @param workspace Workspace to use for any file operations.
+         * @param env       Environment variables for this step.
+         * @param launcher  Launcher to start processes.
+         */
+        private void initClassValues(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
+            isWindows = !launcher.isUnix();
+            jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
+            passwordStdinSupported = isPasswordStdinSupported(workspace, env, launcher);
+        }
+
+        /**
+         * Determines if the password can be securely passed via stdin to the CLI,
+         * rather than using the --password flag. This depends on two factors:
+         * 1. The JFrog CLI version on the agent (minimum supported version is 2.31.3).
+         * 2. Whether the launcher is a custom (plugin) launcher.
+         * <p>
+         * Note: Plugin-based launchers do not support stdin input handling by default
+         * and need special handling.
+         *
+         * @param workspace The workspace file path.
+         * @param env       The environment variables.
+         * @param launcher  The command launcher.
+         * @return true if stdin-based password handling is supported; false otherwise.
+         */
+        public boolean isPasswordStdinSupported(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
+            // Determine if the launcher is a plugin (custom) launcher
+            boolean isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
+            if (isPluginLauncher) {
+                return false;
+            }
+            // Check CLI version
+            Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
+            Version currentCliVersion = getJfrogCliVersion(procStarter);
+            return currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
         }
 
         /**
@@ -144,18 +215,16 @@ public class JfStep extends Step {
         /**
          * Configure all JFrog relevant environment variables and all servers (if they haven't been configured yet).
          *
-         * @param run             running as part of a specific build
-         * @param env             environment variables applicable to this step
-         * @param launcher        a way to start processes
-         * @param listener        a place to send output
-         * @param workspace       a workspace to use for any file operations
-         * @param jfrogBinaryPath path to jfrog cli binary on the filesystem
-         * @param isWindows       is Windows the applicable OS
+         * @param run       running as part of a specific build
+         * @param env       environment variables applicable to this step
+         * @param launcher  a way to start processes
+         * @param listener  a place to send output
+         * @param workspace a workspace to use for any file operations
          * @return launcher applicable to this step.
          * @throws InterruptedException if the step is interrupted
          * @throws IOException          in case of any I/O error, or we failed to run the 'jf' command
          */
-        public Launcher.ProcStarter setupJFrogEnvironment(Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener, FilePath workspace, String jfrogBinaryPath, boolean isWindows) throws IOException, InterruptedException {
+        public Launcher.ProcStarter setupJFrogEnvironment(Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener, FilePath workspace) throws IOException, InterruptedException {
             JFrogCliConfigEncryption jfrogCliConfigEncryption = run.getAction(JFrogCliConfigEncryption.class);
             if (jfrogCliConfigEncryption == null) {
                 // Set up the config encryption action to allow encrypting the JFrog CLI configuration and make sure we only create one key
@@ -168,7 +237,7 @@ public class JfStep extends Step {
             // Configure all servers, skip if all server ids have already been configured.
             if (shouldConfig(jfrogHomeTempDir)) {
                 logIfNoToolProvided(env, listener);
-                configAllServers(jfLauncher, jfrogBinaryPath, isWindows, run.getParent());
+                configAllServers(jfLauncher, run.getParent());
             }
             return jfLauncher;
         }
@@ -192,14 +261,14 @@ public class JfStep extends Step {
         /**
          * Locally configure all servers that was configured in the Jenkins UI.
          */
-        private void configAllServers(Launcher.ProcStarter launcher, String jfrogBinaryPath, boolean isWindows, Job<?, ?> job) throws IOException, InterruptedException {
+        private void configAllServers(Launcher.ProcStarter launcher, Job<?, ?> job) throws IOException, InterruptedException {
             // Config all servers using the 'jf c add' command.
             List<JFrogPlatformInstance> jfrogInstances = JFrogPlatformBuilder.getJFrogPlatformInstances();
             if (jfrogInstances != null && !jfrogInstances.isEmpty()) {
                 for (JFrogPlatformInstance jfrogPlatformInstance : jfrogInstances) {
                     // Build 'jf' command
                     ArgumentListBuilder builder = new ArgumentListBuilder();
-                    addConfigArguments(builder, jfrogPlatformInstance, jfrogBinaryPath, job);
+                    addConfigArguments(builder, jfrogPlatformInstance, job, launcher);
                     if (isWindows) {
                         builder = builder.toWindowsCommand();
                     }
@@ -212,29 +281,58 @@ public class JfStep extends Step {
             }
         }
 
-        private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, String jfrogBinaryPath, Job<?, ?> job) {
-            String credentialsId = jfrogPlatformInstance.getCredentialsConfig().getCredentialsId();
+        private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
             builder.add(jfrogBinaryPath).add("c").add("add").add(jfrogPlatformInstance.getId());
-            // Add credentials
-            StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, job);
-            if (accessTokenCredentials != null) {
-                builder.addMasked("--access-token=" + accessTokenCredentials.getSecret().getPlainText());
-            } else {
-                Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, job);
-                builder.add("--user=" + credentials.getUsername());
-                builder.addMasked("--password=" + credentials.getPassword());
-            }
-            // Add URLs
-            builder.add("--url=" + jfrogPlatformInstance.getUrl());
-            builder.add("--artifactory-url=" + jfrogPlatformInstance.inferArtifactoryUrl());
-            builder.add("--distribution-url=" + jfrogPlatformInstance.inferDistributionUrl());
-            builder.add("--xray-url=" + jfrogPlatformInstance.inferXrayUrl());
-
-            builder.add("--interactive=false");
-            // The installation process takes place more than once per build, so we will configure the same server ID several times.
-            builder.add("--overwrite=true");
+            addCredentialsArguments(builder, jfrogPlatformInstance, job, launcher);
+            addUrlArguments(builder, jfrogPlatformInstance);
+            builder.add("--interactive=false").add("--overwrite=true");
         }
     }
+
+    private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, String jfrogBinaryPath, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
+        builder.add(jfrogBinaryPath).add("c").add("add").add(jfrogPlatformInstance.getId());
+        addCredentialsArguments(builder, jfrogPlatformInstance, job, launcher);
+        addUrlArguments(builder, jfrogPlatformInstance);
+        builder.add("--interactive=false").add("--overwrite=true");
+    }
+
+    static void addCredentialsArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
+        String credentialsId = jfrogPlatformInstance.getCredentialsConfig().getCredentialsId();
+        StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, job);
+
+        if (accessTokenCredentials != null) {
+            builder.addMasked("--access-token=" + accessTokenCredentials.getSecret().getPlainText());
+        } else {
+            Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, job);
+            builder.add("--user=" + credentials.getUsername());
+            addPasswordArgument(builder, credentials, launcher);
+        }
+    }
+
+    // Provides password input via stdin if supported; otherwise, defaults to --password argument.
+    // Stdin support requires a minimum CLI version and excludes plugin launchers.
+    // Plugin launchers may lose stdin input, causing command failure;
+    // hence, stdin is unsupported without plugin-specific handling.
+    private static void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher) throws IOException {
+        if (passwordStdinSupported) {
+            // Use stdin
+            builder.add("--password-stdin");
+            try (ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8))) {
+                launcher.stdin(inputStream);
+            }
+        } else {
+            // Use masked default password argument
+            builder.addMasked("--password=" + credentials.getPassword());
+        }
+    }
+
+    private static void addUrlArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance) {
+        builder.add("--url=" + jfrogPlatformInstance.getUrl());
+        builder.add("--artifactory-url=" + jfrogPlatformInstance.inferArtifactoryUrl());
+        builder.add("--distribution-url=" + jfrogPlatformInstance.inferDistributionUrl());
+        builder.add("--xray-url=" + jfrogPlatformInstance.inferXrayUrl());
+    }
+
     /**
      * Add build-info Action if the command is 'jf rt bp' or 'jf rt build-publish'.
      *
