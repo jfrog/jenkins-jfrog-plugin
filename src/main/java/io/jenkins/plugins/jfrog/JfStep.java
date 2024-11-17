@@ -289,13 +289,6 @@ public class JfStep extends Step {
         }
     }
 
-    private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, String jfrogBinaryPath, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
-        builder.add(jfrogBinaryPath).add("c").add("add").add(jfrogPlatformInstance.getId());
-        addCredentialsArguments(builder, jfrogPlatformInstance, job, launcher);
-        addUrlArguments(builder, jfrogPlatformInstance);
-        builder.add("--interactive=false").add("--overwrite=true");
-    }
-
     static void addCredentialsArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
         String credentialsId = jfrogPlatformInstance.getCredentialsConfig().getCredentialsId();
         StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, job);
@@ -313,7 +306,7 @@ public class JfStep extends Step {
     // Stdin support requires a minimum CLI version and excludes plugin launchers.
     // Plugin launchers may lose stdin input, causing command failure;
     // hence, stdin is unsupported without plugin-specific handling.
-    private static void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher) throws IOException {
+    static void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher) throws IOException {
         if (passwordStdinSupported) {
             // Use stdin
             builder.add("--password-stdin");
@@ -326,7 +319,7 @@ public class JfStep extends Step {
         }
     }
 
-    private static void addUrlArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance) {
+    static void addUrlArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance) {
         builder.add("--url=" + jfrogPlatformInstance.getUrl());
         builder.add("--artifactory-url=" + jfrogPlatformInstance.inferArtifactoryUrl());
         builder.add("--distribution-url=" + jfrogPlatformInstance.inferDistributionUrl());
