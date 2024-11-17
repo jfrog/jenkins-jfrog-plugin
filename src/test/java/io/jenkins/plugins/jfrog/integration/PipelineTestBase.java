@@ -165,7 +165,7 @@ public class PipelineTestBase {
             // Dummy server to test multiple configured servers.
             // The dummy server should be configured first to ensure the right server is being used (and not the first one).
             // platformCred cannot be empty since it is used to config the server.
-            add(new JFrogPlatformInstance("dummyServerId", "http://not-a-real-platform", platformCred, ARTIFACTORY_URL, "", ""));
+            add(new JFrogPlatformInstance("dummyServerId", "https://not-a-real-platform", platformCred, ARTIFACTORY_URL, "", ""));
             add(new JFrogPlatformInstance(TEST_CONFIGURED_SERVER_ID, PLATFORM_URL, platformCred, ARTIFACTORY_URL, "", ""));
         }};
         jfrogBuilder.setJfrogInstances(artifactoryServers);

@@ -110,8 +110,6 @@ public class JfStep extends Step {
 
             // Build the 'jf' command
             ArgumentListBuilder builder = new ArgumentListBuilder();
-            boolean isWindows = !launcher.isUnix();
-            String jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
 
             builder.add(jfrogBinaryPath).add(args);
             if (isWindows) {
