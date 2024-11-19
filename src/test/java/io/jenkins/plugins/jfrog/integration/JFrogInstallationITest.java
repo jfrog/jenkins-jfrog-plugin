@@ -226,4 +226,15 @@ class JFrogInstallationITest extends PipelineTestBase {
             assertTrue(StringUtils.containsIgnoreCase(output, "jfrog:"));
         }
     }
+
+    @Test
+    public void testOutput(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+
+        // Download the latest CLI version from releases.jfrog.io.
+        configureJfrogCliFromReleases(StringUtils.EMPTY, false);
+
+        // Run pipeline that asserts the output is correct
+        runPipeline(jenkins, "version_output");
+    }
 }
