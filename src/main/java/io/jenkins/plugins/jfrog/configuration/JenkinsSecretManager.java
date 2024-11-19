@@ -52,6 +52,16 @@ public class JenkinsSecretManager {
 
     }
 
+    public Secret getSecret(String name) {
+        List<Credentials> credentials = SystemCredentialsProvider.getInstance().getCredentials();
+        for (Credentials credential : credentials) {
+            if (credential instanceof StringCredentialsImpl && ((StringCredentialsImpl) credential).getId().equals(name)) {
+                return ((StringCredentialsImpl) credential).getSecret();
+            }
+        }
+        return null;
+    }
+
     public boolean secretExists(String name) {
         List<Credentials> credentials = SystemCredentialsProvider.getInstance().getCredentials();
         for (Credentials credential : credentials) {

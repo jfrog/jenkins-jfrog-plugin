@@ -3,6 +3,7 @@ package io.jenkins.plugins.jfrog;
 import hudson.EnvVars;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
+import io.jenkins.plugins.jfrog.configuration.JenkinsSecretManager;
 import jenkins.model.Jenkins;
 import org.junit.Before;
 import org.junit.Rule;
@@ -39,26 +40,26 @@ public class CliEnvConfiguratorTest {
         assertEnv(envVars, JFROG_CLI_HOME_DIR, "a/b/c");
     }
 
-//    @Test
-//    public void configEncryptionTest() {
-//        JFrogCliConfigEncryption configEncryption = new JFrogCliConfigEncryption(envVars);
-//        assertTrue(configEncryption.shouldEncrypt());
-//        assertEquals(32, configEncryption.getKey().length());
-//
-//        invokeConfigureCliEnv("a/b/c", configEncryption);
-//        assertEnv(envVars, JFROG_CLI_ENCRYPTION_KEY, configEncryption.getKey());
-//    }
+    @Test
+    public void configEncryptionTest() {
+        JFrogCliConfigEncryption configEncryption = new JFrogCliConfigEncryption(envVars);
+        assertTrue(configEncryption.shouldEncrypt());
+        assertEquals(32, configEncryption.getKey().length());
 
-//    @Test
-//    public void configEncryptionWithHomeDirTest() {
-//        // Config JFROG_CLI_HOME_DIR to disable key encryption
-//        envVars.put(JFROG_CLI_HOME_DIR, "/a/b/c");
-//        JFrogCliConfigEncryption configEncryption = new JFrogCliConfigEncryption(envVars);
-//        invokeConfigureCliEnv("", configEncryption);
-//
-//        assertFalse(configEncryption.shouldEncrypt());
-//        assertFalse(envVars.containsKey(JFROG_CLI_ENCRYPTION_KEY));
-//    }
+        invokeConfigureCliEnv("a/b/c", configEncryption);
+        assertEquals(configEncryption.getKey(), new JenkinsSecretManager().getSecret(JFROG_CLI_ENCRYPTION_KEY).getPlainText());
+    }
+
+    @Test
+    public void configEncryptionWithHomeDirTest() {
+        // Config JFROG_CLI_HOME_DIR to disable key encryption
+        envVars.put(JFROG_CLI_HOME_DIR, "/a/b/c");
+        JFrogCliConfigEncryption configEncryption = new JFrogCliConfigEncryption(envVars);
+        invokeConfigureCliEnv("", configEncryption);
+
+        assertFalse(configEncryption.shouldEncrypt());
+        assertNull(new JenkinsSecretManager().getSecret(JFROG_CLI_ENCRYPTION_KEY));
+    }
 
     void assertEnv(EnvVars envVars, String key, String expectedValue) {
         assertEquals(expectedValue, envVars.get(key));
