@@ -278,7 +278,7 @@ public class JfStep extends Step {
             }
         }
 
-        private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
+        private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher) {
             builder.add(jfrogBinaryPath).add("c").add("add").add(jfrogPlatformInstance.getId());
             addCredentialsArguments(builder, jfrogPlatformInstance, job, launcher);
             addUrlArguments(builder, jfrogPlatformInstance);
@@ -286,7 +286,7 @@ public class JfStep extends Step {
         }
     }
 
-    static void addCredentialsArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher) throws IOException {
+    static void addCredentialsArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher) {
         String credentialsId = jfrogPlatformInstance.getCredentialsConfig().getCredentialsId();
         StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, job);
 
@@ -303,7 +303,7 @@ public class JfStep extends Step {
     // Stdin support requires a minimum CLI version and excludes plugin launchers.
     // Plugin launchers may lose stdin input, causing command failure;
     // hence, stdin is unsupported without plugin-specific handling.
-    static void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher) throws IOException {
+    static void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher) {
         if (passwordStdinSupported) {
             // Use stdin
             builder.add("--password-stdin");

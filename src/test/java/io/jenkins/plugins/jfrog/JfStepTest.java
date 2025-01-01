@@ -72,9 +72,8 @@ public class JfStepTest {
         when(procStarter.join()).thenReturn(0);
 
         // Create an instance of JfStep and call the method
-        JfStep jfStep = new JfStep("--version");
         JfStep.isWindows = System.getProperty("os.name").toLowerCase().contains("win");
-        Version version = jfStep.getJfrogCliVersion(procStarter);
+        Version version = JfStep.getJfrogCliVersion(procStarter);
 
         // Verify the result
         assertEquals("2.31.0", version.toString());
@@ -89,11 +88,10 @@ public class JfStepTest {
      * @param cliVersion       The CLI version
      * @param isPluginLauncher Whether the launcher is the plugin launcher
      * @param expectedOutput   The expected output
-     * @throws IOException error
      */
     @ParameterizedTest
     @MethodSource("provideTestArguments")
-    void testAddCredentialsArguments(String cliVersion, boolean isPluginLauncher, String expectedOutput) throws IOException {
+    void testAddCredentialsArguments(String cliVersion, boolean isPluginLauncher, String expectedOutput) {
         // Mock the necessary objects
         JFrogPlatformInstance jfrogPlatformInstance = mock(JFrogPlatformInstance.class);
         CredentialsConfig credentialsConfig = mock(CredentialsConfig.class);
@@ -104,8 +102,6 @@ public class JfStepTest {
         Job<?, ?> job = mock(Job.class);
         Launcher.ProcStarter launcher = mock(Launcher.ProcStarter.class);
 
-        // Create an instance of JfStep
-        JfStep jfStep = new JfStep("Mock Test");
         // Mock password stdin supported or not.
         JfStep.passwordStdinSupported = new Version(cliVersion).isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN) && !isPluginLauncher;
 
