@@ -87,9 +87,7 @@ public class JfStep extends Step {
     }
 
     public static class Execution extends SynchronousNonBlockingStepExecution<String> {
-        private static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.1");
         private final String[] args;
-
 
         protected Execution(String[] args, @Nonnull StepContext context) {
             super(context);
@@ -154,8 +152,8 @@ public class JfStep extends Step {
          * 1. The JFrog CLI version on the agent (minimum supported version is 2.31.3).
          * 2. Whether the launcher is a custom (plugin) launcher.
          * <p>
-         * Note: Plugin-based launchers do not support stdin input handling by default
-         * and need special handling.
+         * Note: The primary reason for this limitation is that Docker plugin which is widely used
+         * does not support stdin input, because it is a custom launcher.
          *
          * @param workspace The workspace file path.
          * @param env       The environment variables.
@@ -309,9 +307,8 @@ public class JfStep extends Step {
         if (passwordStdinSupported) {
             // Use stdin
             builder.add("--password-stdin");
-            try (ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8))) {
-                launcher.stdin(inputStream);
-            }
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(credentials.getPassword().getPlainText().getBytes(StandardCharsets.UTF_8));
+            launcher.stdin(inputStream);
         } else {
             // Use masked default password argument
             builder.addMasked("--password=" + credentials.getPassword());
