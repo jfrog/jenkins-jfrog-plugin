@@ -86,7 +86,7 @@ public class JfStepTest {
      * Plugin launchers do not support password-stdin, as they do not have access to the standard input by default.
      *
      * @param cliVersion       The CLI version
-     * @param isPluginLauncher Whether the launcher is the plugin launcher
+     * @param isPluginLauncher Whether the launcher is a plugin launcher
      * @param expectedOutput   The expected output
      */
     @ParameterizedTest
