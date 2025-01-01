@@ -103,8 +103,7 @@ public class JfStep extends Step {
             EnvVars env = getContext().get(EnvVars.class);
             Run<?, ?> run = getContext().get(Run.class);
 
-            // Initialize values to be used across the class
-            initClassValues(workspace, env, launcher);
+            initStaticVariables(workspace, env, launcher);
 
             // Build the 'jf' command
             ArgumentListBuilder builder = new ArgumentListBuilder();
@@ -133,13 +132,13 @@ public class JfStep extends Step {
         }
 
         /**
-         * Initializes values required across the class for running CLI commands.
+         * Initializes static variables there are required during runtime.
          *
          * @param workspace Workspace to use for any file operations.
          * @param env       Environment variables for this step.
          * @param launcher  Launcher to start processes.
          */
-        private void initClassValues(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
+        private void initStaticVariables(FilePath workspace, EnvVars env, Launcher launcher) throws IOException, InterruptedException {
             workspace.mkdirs();
             isWindows = !launcher.isUnix();
             jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
