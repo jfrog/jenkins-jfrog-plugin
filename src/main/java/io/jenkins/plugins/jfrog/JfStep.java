@@ -47,7 +47,7 @@ public class JfStep extends Step {
     protected String[] args;
     static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.3");
     // The JFrog CLI binary path in the agent
-    static String jfrogBinaryPath;
+    private static String jfrogBinaryPath;
     // True if the agent's OS is windows
     static boolean isWindows;
     // Flag to indicate if the use of password stdin is supported.
