@@ -57,11 +57,6 @@ public class JfStep extends Step {
         this.args = split(args.toString());
     }
 
-    @Override
-    public StepExecution start(StepContext context) {
-        return new Execution(args, context);
-    }
-
     public static Version getJfrogCliVersion(Launcher.ProcStarter launcher, String jfrogBinaryPath) throws IOException, InterruptedException {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             ArgumentListBuilder builder = new ArgumentListBuilder();
@@ -78,6 +73,11 @@ public class JfStep extends Step {
             String version = StringUtils.substringAfterLast(versionOutput, " ");
             return new Version(version);
         }
+    }
+
+    @Override
+    public StepExecution start(StepContext context) {
+        return new Execution(args, context);
     }
 
     public static class Execution extends SynchronousNonBlockingStepExecution<String> {
@@ -98,12 +98,11 @@ public class JfStep extends Step {
             Run<?, ?> run = getContext().get(Run.class);
 
             workspace.mkdirs();
+            // Build the 'jf' command
+            ArgumentListBuilder builder = new ArgumentListBuilder();
             boolean isWindows = !launcher.isUnix();
             String jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
             boolean passwordStdinSupported = isPasswordStdinSupported(workspace, env, launcher, jfrogBinaryPath);
-
-            // Build the 'jf' command
-            ArgumentListBuilder builder = new ArgumentListBuilder();
 
             builder.add(jfrogBinaryPath).add(args);
             if (isWindows) {
@@ -113,7 +112,7 @@ public class JfStep extends Step {
             String output;
             try (ByteArrayOutputStream taskOutputStream = new ByteArrayOutputStream()) {
                 JfTaskListener jfTaskListener = new JfTaskListener(listener, taskOutputStream);
-                Launcher.ProcStarter jfLauncher = setupJFrogEnvironment(run, env, launcher, jfTaskListener, workspace, jfrogBinaryPath, isWindows,passwordStdinSupported);
+                Launcher.ProcStarter jfLauncher = setupJFrogEnvironment(run, env, launcher, jfTaskListener, workspace, jfrogBinaryPath, isWindows, passwordStdinSupported);
                 // Running the 'jf' command
                 int exitValue = jfLauncher.cmds(builder).join();
                 output = taskOutputStream.toString(StandardCharsets.UTF_8);
@@ -126,6 +125,76 @@ public class JfStep extends Step {
                 throw new RuntimeException(errorMessage, e);
             }
             return output;
+        }
+
+        /**
+         * Get JFrog CLI path in agent, according to the JFROG_BINARY_PATH environment variable.
+         * The JFROG_BINARY_PATH also can be set implicitly in Declarative Pipeline by choosing the JFrog CLI tool or
+         * explicitly in Scripted Pipeline.
+         *
+         * @param env       - Job's environment variables
+         * @param isWindows - True if the agent's OS is windows
+         * @return JFrog CLI path in agent.
+         */
+        static String getJFrogCLIPath(EnvVars env, boolean isWindows) {
+            // JFROG_BINARY_PATH is set according to the master OS. If not configured, the value of jfrogBinaryPath will
+            // eventually be 'jf' or 'jf.exe'. In that case, the JFrog CLI from the system path is used.
+            String jfrogBinaryPath = Paths.get(env.get(JFROG_BINARY_PATH, ""), Utils.getJfrogCliBinaryName(isWindows)).toString();
+
+            // Modify jfrogBinaryPath according to the agent's OS
+            return isWindows ?
+                    FilenameUtils.separatorsToWindows(jfrogBinaryPath) :
+                    FilenameUtils.separatorsToUnix(jfrogBinaryPath);
+        }
+
+        /**
+         * Log if the JFrog CLI binary path doesn't exist in job's environment variable.
+         * This environment variable exists in one of the following scenarios:
+         * 1. Declarative Pipeline: A 'jfrog' tool was set
+         * 2. Scripted Pipeline: Using the "withEnv(["JFROG_BINARY_PATH=${tool 'jfrog-cli'}"])" syntax
+         *
+         * @param env      - Job's environment variables
+         * @param listener - Job's logger
+         */
+        private void logIfNoToolProvided(EnvVars env, TaskListener listener) {
+            if (env.containsKey(JFROG_BINARY_PATH)) {
+                return;
+            }
+            JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(listener);
+            buildInfoLog.info("A 'jfrog' tool was not set. Using JFrog CLI from the system path.");
+        }
+
+        /**
+         * Configure all JFrog relevant environment variables and all servers (if they haven't been configured yet).
+         *
+         * @param run                    running as part of a specific build
+         * @param env                    environment variables applicable to this step
+         * @param launcher               a way to start processes
+         * @param listener               a place to send output
+         * @param workspace              a workspace to use for any file operations
+         * @param jfrogBinaryPath        path to jfrog cli binary on the filesystem
+         * @param isWindows              is Windows the applicable OS
+         * @param passwordStdinSupported indicates if the password can be securely passed via stdin to the CLI
+         * @return launcher applicable to this step.
+         * @throws InterruptedException if the step is interrupted
+         * @throws IOException          in case of any I/O error, or we failed to run the 'jf' command
+         */
+        public Launcher.ProcStarter setupJFrogEnvironment(Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener, FilePath workspace, String jfrogBinaryPath, boolean isWindows, boolean passwordStdinSupported) throws IOException, InterruptedException {
+            JFrogCliConfigEncryption jfrogCliConfigEncryption = run.getAction(JFrogCliConfigEncryption.class);
+            if (jfrogCliConfigEncryption == null) {
+                // Set up the config encryption action to allow encrypting the JFrog CLI configuration and make sure we only create one key
+                jfrogCliConfigEncryption = new JFrogCliConfigEncryption(env);
+                run.addAction(jfrogCliConfigEncryption);
+            }
+            FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
+            CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir.getRemote(), jfrogCliConfigEncryption);
+            Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
+            // Configure all servers, skip if all server ids have already been configured.
+            if (shouldConfig(jfrogHomeTempDir)) {
+                logIfNoToolProvided(env, listener);
+                configAllServers(jfLauncher, jfrogBinaryPath, isWindows, run.getParent(), passwordStdinSupported);
+            }
+            return jfLauncher;
         }
 
         /**
@@ -161,54 +230,6 @@ public class JfStep extends Step {
             return supported;
         }
 
-        static String getJFrogCLIPath(EnvVars env, boolean isWindows) {
-            // JFROG_BINARY_PATH is set according to the master OS. If not configured, the value of jfrogBinaryPath will
-            // eventually be 'jf' or 'jf.exe'. In that case, the JFrog CLI from the system path is used.
-            String jfrogBinaryPath = Paths.get(env.get(JFROG_BINARY_PATH, ""), Utils.getJfrogCliBinaryName(isWindows)).toString();
-            // Modify jfrogBinaryPath according to the agent's OS
-            return isWindows ?
-                    FilenameUtils.separatorsToWindows(jfrogBinaryPath) :
-                    FilenameUtils.separatorsToUnix(jfrogBinaryPath);
-        }
-
-        private void logIfNoToolProvided(EnvVars env, TaskListener listener) {
-            if (env.containsKey(JFROG_BINARY_PATH)) {
-                return;
-            }
-            JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(listener);
-            buildInfoLog.info("A 'jfrog' tool was not set. Using JFrog CLI from the system path.");
-        }
-
-        /**
-         * Configure all JFrog relevant environment variables and all servers (if they haven't been configured yet).
-         *
-         * @param run       running as part of a specific build
-         * @param env       environment variables applicable to this step
-         * @param launcher  a way to start processes
-         * @param listener  a place to send output
-         * @param workspace a workspace to use for any file operations
-         * @return launcher applicable to this step.
-         * @throws InterruptedException if the step is interrupted
-         * @throws IOException          in case of any I/O error, or we failed to run the 'jf' command
-         */
-        public Launcher.ProcStarter setupJFrogEnvironment(Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener, FilePath workspace, String jfrogBinaryPath, boolean isWindows,boolean passwordStdinSupported) throws IOException, InterruptedException {
-            JFrogCliConfigEncryption jfrogCliConfigEncryption = run.getAction(JFrogCliConfigEncryption.class);
-            if (jfrogCliConfigEncryption == null) {
-                // Set up the config encryption action to allow encrypting the JFrog CLI configuration and make sure we only create one key
-                jfrogCliConfigEncryption = new JFrogCliConfigEncryption(env);
-                run.addAction(jfrogCliConfigEncryption);
-            }
-            FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
-            CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir.getRemote(), jfrogCliConfigEncryption);
-            Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
-            // Configure all servers, skip if all server ids have already been configured.
-            if (shouldConfig(jfrogHomeTempDir)) {
-                logIfNoToolProvided(env, listener);
-                configAllServers(jfLauncher, run.getParent(), jfrogBinaryPath, isWindows,passwordStdinSupported);
-            }
-            return jfLauncher;
-        }
-
         /**
          * Before we run a 'jf' command for the first time, we want to configure all servers first.
          * We know that all servers have already been configured if there is a "jfrog-cli.conf" file in the ".jfrog" home directory.
@@ -228,14 +249,14 @@ public class JfStep extends Step {
         /**
          * Locally configure all servers that was configured in the Jenkins UI.
          */
-        private void configAllServers(Launcher.ProcStarter launcher, Job<?, ?> job, String jfrogBinaryPath, boolean isWindows,boolean passwordStdinSupported) throws IOException, InterruptedException {
+        private void configAllServers(Launcher.ProcStarter launcher, String jfrogBinaryPath, boolean isWindows, Job<?, ?> job, boolean passwordStdinSupported) throws IOException, InterruptedException {
             // Config all servers using the 'jf c add' command.
             List<JFrogPlatformInstance> jfrogInstances = JFrogPlatformBuilder.getJFrogPlatformInstances();
             if (jfrogInstances != null && !jfrogInstances.isEmpty()) {
                 for (JFrogPlatformInstance jfrogPlatformInstance : jfrogInstances) {
                     // Build 'jf' command
                     ArgumentListBuilder builder = new ArgumentListBuilder();
-                    addConfigArguments(builder, jfrogPlatformInstance, job, launcher, jfrogBinaryPath, passwordStdinSupported);
+                    addConfigArguments(builder, jfrogPlatformInstance, job, jfrogBinaryPath, job, launcher, passwordStdinSupported);
                     if (isWindows) {
                         builder = builder.toWindowsCommand();
                     }
@@ -248,7 +269,7 @@ public class JfStep extends Step {
             }
         }
 
-        private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher, String jfrogBinaryPath, boolean passwordStdinSupported) {
+        private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job1, String jfrogBinaryPath, Job<?, ?> job, Launcher.ProcStarter launcher, boolean passwordStdinSupported) {
             builder.add(jfrogBinaryPath).add("c").add("add").add(jfrogPlatformInstance.getId());
             addCredentialsArguments(builder, jfrogPlatformInstance, job, launcher, passwordStdinSupported);
             addUrlArguments(builder, jfrogPlatformInstance);
@@ -283,7 +304,7 @@ public class JfStep extends Step {
      * @param launcher               The {@link Launcher.ProcStarter} used to execute the command.
      * @param passwordStdinSupported A boolean flag indicating whether the CLI supports password input via stdin.
      */
-    static void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher, boolean passwordStdinSupported) {
+     private static void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher, boolean passwordStdinSupported) {
         if (passwordStdinSupported) {
             // Add argument to read password from stdin
             builder.add("--password-stdin");
@@ -295,13 +316,12 @@ public class JfStep extends Step {
         }
     }
 
-    static void addUrlArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance) {
+    private static void addUrlArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance) {
         builder.add("--url=" + jfrogPlatformInstance.getUrl());
         builder.add("--artifactory-url=" + jfrogPlatformInstance.inferArtifactoryUrl());
         builder.add("--distribution-url=" + jfrogPlatformInstance.inferDistributionUrl());
         builder.add("--xray-url=" + jfrogPlatformInstance.inferXrayUrl());
     }
-
     /**
      * Add build-info Action if the command is 'jf rt bp' or 'jf rt build-publish'.
      *
