@@ -57,6 +57,15 @@ public class JfStep extends Step {
         this.args = split(args.toString());
     }
 
+    /**
+     * Retrieves the version of the JFrog CLI.
+     *
+     * @param launcher        The process launcher used to execute the JFrog CLI command.
+     * @param jfrogBinaryPath The path to the JFrog CLI binary.
+     * @return The version of the JFrog CLI.
+     * @throws IOException          If an I/O error occurs while executing the command or reading the output.
+     * @throws InterruptedException If the process is interrupted while waiting for the command to complete.
+     */
     public static Version getJfrogCliVersion(Launcher.ProcStarter launcher, String jfrogBinaryPath) throws IOException, InterruptedException {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             ArgumentListBuilder builder = new ArgumentListBuilder();
@@ -304,7 +313,7 @@ public class JfStep extends Step {
      * @param launcher               The {@link Launcher.ProcStarter} used to execute the command.
      * @param passwordStdinSupported A boolean flag indicating whether the CLI supports password input via stdin.
      */
-     private static void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher, boolean passwordStdinSupported) {
+    private static void addPasswordArgument(ArgumentListBuilder builder, Credentials credentials, Launcher.ProcStarter launcher, boolean passwordStdinSupported) {
         if (passwordStdinSupported) {
             // Add argument to read password from stdin
             builder.add("--password-stdin");
@@ -322,6 +331,7 @@ public class JfStep extends Step {
         builder.add("--distribution-url=" + jfrogPlatformInstance.inferDistributionUrl());
         builder.add("--xray-url=" + jfrogPlatformInstance.inferXrayUrl());
     }
+
     /**
      * Add build-info Action if the command is 'jf rt bp' or 'jf rt build-publish'.
      *
