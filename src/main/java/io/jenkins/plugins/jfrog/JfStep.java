@@ -226,17 +226,13 @@ public class JfStep extends Step {
 
             boolean isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
             if (isPluginLauncher) {
-                buildInfoLog.info("Launcher is a plugin launcher. Password stdin is not supported.");
+                buildInfoLog.debug("Password stdin is not supported,Launcher is a plugin launcher.");
                 return false;
             }
             Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
             Version currentCliVersion = getJfrogCliVersion(procStarter, jfrogBinaryPath);
-            boolean supported = currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
-
-            buildInfoLog.info("JFrog CLI version: " + currentCliVersion);
-            buildInfoLog.info("Password stdin supported: " + supported);
-
-            return supported;
+            buildInfoLog.debug("Password stdin is supported");
+            return currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
         }
 
         /**
