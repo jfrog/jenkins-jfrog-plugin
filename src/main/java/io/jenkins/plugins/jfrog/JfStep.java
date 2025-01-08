@@ -127,14 +127,35 @@ public class JfStep extends Step {
             return output;
         }
 
+        /**
+         * Determines if the password can be securely passed via stdin to the CLI,
+         * rather than using the --password flag. This depends on two factors:
+         * 1. The JFrog CLI version on the agent (minimum supported version is 2.31.3).
+         * 2. Whether the launcher is a custom (plugin) launcher.
+         * <p>
+         * Note: The primary reason for this limitation is that Docker plugin which is widely used
+         * does not support stdin input, because it is a custom launcher.
+         *
+         * @param workspace The workspace file path.
+         * @param env       The environment variables.
+         * @param launcher  The command launcher.
+         * @return true if stdin-based password handling is supported; false otherwise.
+         */
         public boolean isPasswordStdinSupported(FilePath workspace, EnvVars env, Launcher launcher, String jfrogBinaryPath) throws IOException, InterruptedException {
+            TaskListener listener = getContext().get(TaskListener.class);
             boolean isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
             if (isPluginLauncher) {
+                listener.getLogger().println("Launcher is a plugin launcher. Password stdin is not supported.");
                 return false;
             }
             Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
             Version currentCliVersion = getJfrogCliVersion(procStarter, jfrogBinaryPath);
-            return currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
+            boolean supported = currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
+
+            listener.getLogger().println("JFrog CLI version: " + currentCliVersion);
+            listener.getLogger().println("Password stdin supported: " + supported);
+
+            return supported;
         }
 
         static String getJFrogCLIPath(EnvVars env, boolean isWindows) {
