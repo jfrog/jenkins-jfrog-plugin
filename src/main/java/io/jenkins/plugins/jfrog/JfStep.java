@@ -143,17 +143,18 @@ public class JfStep extends Step {
          */
         public boolean isPasswordStdinSupported(FilePath workspace, EnvVars env, Launcher launcher, String jfrogBinaryPath) throws IOException, InterruptedException {
             TaskListener listener = getContext().get(TaskListener.class);
+            JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(listener);
             boolean isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
             if (isPluginLauncher) {
-                listener.getLogger().println("Launcher is a plugin launcher. Password stdin is not supported.");
+                buildInfoLog.info("Launcher is a plugin launcher. Password stdin is not supported.");
                 return false;
             }
             Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
             Version currentCliVersion = getJfrogCliVersion(procStarter, jfrogBinaryPath);
             boolean supported = currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
 
-            listener.getLogger().println("JFrog CLI version: " + currentCliVersion);
-            listener.getLogger().println("Password stdin supported: " + supported);
+            buildInfoLog.info("JFrog CLI version: " + currentCliVersion);
+            buildInfoLog.info("Password stdin supported: " + supported);
 
             return supported;
         }
