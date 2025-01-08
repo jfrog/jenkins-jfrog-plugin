@@ -72,8 +72,8 @@ public class JfStepTest {
         when(procStarter.join()).thenReturn(0);
 
         // Create an instance of JfStep and call the method
-        JfStep.isWindows = System.getProperty("os.name").toLowerCase().contains("win");
-        Version version = JfStep.getJfrogCliVersion(procStarter);
+        String jfrogBinaryPath = "path/to/jfrog";
+        Version version = JfStep.getJfrogCliVersion(procStarter, jfrogBinaryPath);
 
         // Verify the result
         assertEquals("2.31.0", version.toString());
@@ -102,14 +102,14 @@ public class JfStepTest {
         Job<?, ?> job = mock(Job.class);
         Launcher.ProcStarter launcher = mock(Launcher.ProcStarter.class);
 
-        // Mock password stdin supported or not.
-        JfStep.passwordStdinSupported = new Version(cliVersion).isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN) && !isPluginLauncher;
+        // Determine if password stdin is supported
+        boolean passwordStdinSupported = new Version(cliVersion).isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN) && !isPluginLauncher;
 
         // Create an ArgumentListBuilder
         ArgumentListBuilder builder = new ArgumentListBuilder();
 
         // Call the addCredentialsArguments method
-        JfStep.addCredentialsArguments(builder, jfrogPlatformInstance, job, launcher);
+        JfStep.addCredentialsArguments(builder, jfrogPlatformInstance, job, launcher, passwordStdinSupported);
 
         // Verify the arguments
         assertTrue(builder.toList().contains(expectedOutput));
