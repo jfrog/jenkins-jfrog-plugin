@@ -251,6 +251,8 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
+                <!-- Using fixed version to prevent duplication of source attachments caused by version 3.3+ -->
+                <version>3.2.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
