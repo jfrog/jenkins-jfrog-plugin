@@ -7,6 +7,8 @@ pipeline {
         stage ('Testing') {
             steps {
                 script {
+                    jf 'c use ${TEST_CONFIGURED_SERVER_ID}'
+
                     // Run 'jf -v' with string args to show the installed version of JFrog CLI and check the output.
                     String version = jf '-v'
                     assert version.startsWith('jf version')
