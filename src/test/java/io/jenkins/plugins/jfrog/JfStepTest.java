@@ -135,27 +135,17 @@ public class JfStepTest {
 
     @Test
     void testIsPasswordInputViaStdinSupported_True() {
-        // Mock the environment variables
         EnvVars envVars = mock(EnvVars.class);
         when(envVars.get("JFROG_CLI_PASSWORD_STDIN_SUPPORTED", "false")).thenReturn("true");
-
-        // Create an instance of JfStep.Execution
         JfStep.Execution execution = mock(JfStep.Execution.class, Mockito.CALLS_REAL_METHODS);
-
-        // Call the method and assert the result
         assertTrue(execution.isPasswordInputViaStdinSupported(envVars));
     }
 
     @Test
     void testIsPasswordInputViaStdinSupported_False() {
-        // Mock the environment variables
         EnvVars envVars = mock(EnvVars.class);
         when(envVars.get("JFROG_CLI_PASSWORD_STDIN_SUPPORTED", "false")).thenReturn("false");
-
-        // Create an instance of JfStep.Execution
         JfStep.Execution execution = mock(JfStep.Execution.class, Mockito.CALLS_REAL_METHODS);
-
-        // Call the method and assert the result
         assertFalse(execution.isPasswordInputViaStdinSupported(envVars));
     }
 }
