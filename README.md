@@ -151,6 +151,17 @@ environment {
 }
 ```
 
+### Setting the password via standard input
+
+The plugin by default sets the password standard input as false. If you wish to change the default value, add the
+following code to your pipeline script: this adds flag as --password-stdin to the JFrog CLI commands.
+
+```groovy
+environment {
+    JFROG_CLI_PASSWORD_STDIN_SUPPORT = "true"
+}
+```
+
 ### Using multiple JFrog Platform instances
 
 If you have multiple JFrog Platform instances configured, you can use the `–-server-id` command option with

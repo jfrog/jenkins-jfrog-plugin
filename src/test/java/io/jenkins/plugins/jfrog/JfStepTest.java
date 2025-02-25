@@ -91,7 +91,7 @@ public class JfStepTest {
      */
     @ParameterizedTest
     @MethodSource("provideTestArguments")
-    void testAddCredentialsArguments(String cliVersion, boolean isPluginLauncher, String expectedOutput) {
+    void testAddCredentialsArguments(String cliVersion, EnvVars envVars, String expectedOutput) {
         // Mock the necessary objects
         JFrogPlatformInstance jfrogPlatformInstance = mock(JFrogPlatformInstance.class);
         CredentialsConfig credentialsConfig = mock(CredentialsConfig.class);
@@ -103,7 +103,7 @@ public class JfStepTest {
         Launcher.ProcStarter launcher = mock(Launcher.ProcStarter.class);
 
         // Determine if password stdin is supported
-        boolean passwordStdinSupported = new Version(cliVersion).isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN) && !isPluginLauncher;
+        boolean passwordStdinSupported = new Version(cliVersion).isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN) && envVars.get("JFROG_CLI_PASSWORD_STDIN_SUPPORT", "false").equals("true");
 
         // Create an ArgumentListBuilder
         ArgumentListBuilder builder = new ArgumentListBuilder();
@@ -118,25 +118,29 @@ public class JfStepTest {
     private static Stream<Arguments> provideTestArguments() {
         String passwordFlag = "--password=";
         String passwordStdinFlag = "--password-stdin";
+        EnvVars envVarsTrue = mock(EnvVars.class);
+        when(envVarsTrue.get("JFROG_CLI_PASSWORD_STDIN_SUPPORT", "false")).thenReturn("true");
+        EnvVars envVarsFalse = mock(EnvVars.class);
+        when(envVarsFalse.get("JFROG_CLI_PASSWORD_STDIN_SUPPORT", "false")).thenReturn("false");
         // Min version for password stdin is 2.31.3
         return Stream.of(
                 // Supported CLI version but Plugin Launcher
-                Arguments.of("2.57.0", true, passwordFlag),
-                // Unsupported Version
-                Arguments.of("2.31.0", false, passwordFlag),
-                // Supported CLI version and local launcher
-                Arguments.of("2.57.0", false, passwordStdinFlag),
+                Arguments.of("2.57.0", envVarsTrue, passwordFlag),
                 // Unsupported CLI version and Plugin Launcher
-                Arguments.of("2.31.0", true, passwordFlag),
+                Arguments.of("2.31.0", envVarsTrue, passwordFlag),
+                // Unsupported Version
+                Arguments.of("2.31.0", envVarsFalse, passwordFlag),
+                // Supported CLI version and local launcher
+                Arguments.of("2.57.0", envVarsFalse, passwordStdinFlag),
                 // Minimum supported CLI version for password stdin
-                Arguments.of("2.31.3", false, passwordStdinFlag)
+                Arguments.of("2.31.3", envVarsFalse, passwordStdinFlag)
         );
     }
 
     @Test
     void testIsPasswordInputViaStdinSupported_True() {
         EnvVars envVars = mock(EnvVars.class);
-        when(envVars.get("JFROG_CLI_PASSWORD_STDIN_SUPPORTED", "false")).thenReturn("true");
+        when(envVars.get("JFROG_CLI_PASSWORD_STDIN_SUPPORT", "false")).thenReturn("true");
         JfStep.Execution execution = mock(JfStep.Execution.class, Mockito.CALLS_REAL_METHODS);
         assertTrue(execution.isPasswordInputViaStdinSupported(envVars));
     }
@@ -144,7 +148,7 @@ public class JfStepTest {
     @Test
     void testIsPasswordInputViaStdinSupported_False() {
         EnvVars envVars = mock(EnvVars.class);
-        when(envVars.get("JFROG_CLI_PASSWORD_STDIN_SUPPORTED", "false")).thenReturn("false");
+        when(envVars.get("JFROG_CLI_PASSWORD_STDIN_SUPPORT", "false")).thenReturn("false");
         JfStep.Execution execution = mock(JfStep.Execution.class, Mockito.CALLS_REAL_METHODS);
         assertFalse(execution.isPasswordInputViaStdinSupported(envVars));
     }

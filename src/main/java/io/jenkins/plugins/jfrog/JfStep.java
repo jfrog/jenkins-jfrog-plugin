@@ -207,39 +207,10 @@ public class JfStep extends Step {
         }
 
         /**
-         * Determines if the password can be securely passed via stdin to the CLI,
-         * rather than using the --password flag. This depends on two factors:
-         * 1. The JFrog CLI version on the agent (minimum supported version is 2.31.3).
-         * 2. Whether the launcher is a custom (plugin) launcher.
-         * <p>
-         * Note: The primary reason for this limitation is that Docker plugin which is widely used
-         * does not support stdin input, because it is a custom launcher.
-         *
-         * @param workspace The workspace file path.
-         * @param env       The environment variables.
-         * @param launcher  The command launcher.
-         * @return true if stdin-based password handling is supported; false otherwise.
-         */
-        public boolean isPasswordStdinSupported(FilePath workspace, EnvVars env, Launcher launcher, String jfrogBinaryPath) throws IOException, InterruptedException {
-            TaskListener listener = getContext().get(TaskListener.class);
-            JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(listener);
-
-            boolean isPluginLauncher = launcher.getClass().getName().contains("org.jenkinsci.plugins");
-            if (isPluginLauncher) {
-                buildInfoLog.debug("Password stdin is not supported,Launcher is a plugin launcher.");
-                return false;
-            }
-            Launcher.ProcStarter procStarter = launcher.launch().envs(env).pwd(workspace);
-            Version currentCliVersion = getJfrogCliVersion(procStarter, jfrogBinaryPath);
-            buildInfoLog.debug("Password stdin is supported");
-            return currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
-        }
-
-        /**
          * Determines if the password can be securely passed via stdin to the CLI
          * rather than using the --password flag. This depends on two factors:
          * 1. The JFrog CLI version on the agent (minimum supported version is 2.31.3).
-         * 2. Whether the JFROG_CLI_PASSWORD_STDIN_SUPPORTED is set, default will be false.
+         * 2. Whether the JFROG_CLI_PASSWORD_STDIN_SUPPORT is set, default will be false.
          * <p>
          * Note: The primary reason for this limitation is that Docker plugin which is widely used
          * does not support stdin input, because it is a custom launcher.
@@ -247,11 +218,14 @@ public class JfStep extends Step {
          * @return true if stdin-based password handling is supported; false otherwise.
          */
         public boolean isPasswordInputViaStdinSupported(EnvVars environmentVariables) {
-            boolean isSupported = Boolean.parseBoolean(environmentVariables.get("JFROG_CLI_PASSWORD_STDIN_SUPPORTED", "false"));
-            if (!isSupported) {
-                buildInfoLog.debug("Password input via stdin is not supported, Launcher is a plugin launcher.");
+            boolean isSupported = Boolean.parseBoolean(environmentVariables.get("JFROG_CLI_PASSWORD_STDIN_SUPPORT", "false"));
+            Version currentCliVersion = getJfrogCliVersion(procStarter, jfrogBinaryPath);
+            boolean isMinimumCLIVersionPasswdSTDIN = currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
+            if (isMinimumCLIVersionPasswdSTDIN && isSupported) {
+                return true;
             }
-            return isSupported;
+            buildInfoLog.debug("Password input via stdin is not supported, Launcher is a plugin launcher.");
+            return false;
         }
 
         /**
