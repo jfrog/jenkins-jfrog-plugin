@@ -111,7 +111,7 @@ public class JfStep extends Step {
             ArgumentListBuilder builder = new ArgumentListBuilder();
             boolean isWindows = !launcher.isUnix();
             String jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
-            boolean passwordStdinSupported = isPasswordInputViaStdinSupported(workspace, env, launcher, jfrogBinaryPath);
+            boolean passwordStdinSupported = isPasswordStdinEnabled(workspace, env, launcher, jfrogBinaryPath);
 
             builder.add(jfrogBinaryPath).add(args);
             if (isWindows) {
@@ -217,14 +217,16 @@ public class JfStep extends Step {
          * @param environmentVariables The environment variables.
          * @return true if stdin-based password handling is supported; false otherwise.
          */
-        public boolean isPasswordInputViaStdinSupported(FilePath workspace, EnvVars environmentVariables, Launcher launcher, String jfrogBinaryPath) throws IOException, InterruptedException {
+        public boolean isPasswordStdinEnabled(FilePath workspace, EnvVars environmentVariables, Launcher launcher, String jfrogBinaryPath) throws IOException, InterruptedException {
             TaskListener listener = getContext().get(TaskListener.class);
             JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(listener);
             boolean isSupported = Boolean.parseBoolean(environmentVariables.get("JFROG_CLI_PASSWORD_STDIN_SUPPORT", "false"));
             Launcher.ProcStarter procStarter = launcher.launch().envs(environmentVariables).pwd(workspace);
             Version currentCliVersion = getJfrogCliVersion(procStarter, jfrogBinaryPath);
             boolean isMinimumCLIVersionPasswdSTDIN = currentCliVersion.isAtLeast(MIN_CLI_VERSION_PASSWORD_STDIN);
-            if (isMinimumCLIVersionPasswdSTDIN && isSupported) {
+            if (!isMinimumCLIVersionPasswdSTDIN && isSupported) {
+                buildInfoLog.error("Password input via stdin is not supported, JFrog CLI version is below the minimum required version.");
+            }else if (isMinimumCLIVersionPasswdSTDIN && isSupported) {
                 return true;
             }
             buildInfoLog.debug("Password input via stdin is not supported, Launcher is a plugin launcher.");
