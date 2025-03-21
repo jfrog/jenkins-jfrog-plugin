@@ -236,14 +236,11 @@ public class JfStep extends Step {
                 buildInfoLog.debug("Password stdin is supported");
                 return isMinimumCLIVersionPasswdSTDIN;
             }
-            boolean isSupported = Boolean.parseBoolean(readJFrogCliPwdStdinSupport);
-            if (!isMinimumCLIVersionPasswdSTDIN && isSupported) {
-                buildInfoLog.error("Password input via stdin is not supported, JFrog CLI version is below the minimum required version.");
-            } else if (isMinimumCLIVersionPasswdSTDIN && isSupported) {
-                return true;
-            }
-            buildInfoLog.debug("Password input via stdin is not supported, Launcher is a plugin launcher.");
-            return false;
+    boolean isSupported = Boolean.parseBoolean(readJFrogCliPwdStdinSupport);
+    if (isSupported && !isMinimumCLIVersionPasswdSTDIN) {
+        buildInfoLog.error("Password input via stdin is not supported, JFrog CLI version is below the minimum required version.");
+    }
+    return isSupported && isMinimumCLIVersionPasswdSTDIN;
         }
 
         /**
