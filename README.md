@@ -151,6 +151,20 @@ environment {
 }
 ```
 
+### Setting the password via standard input
+
+The plugin by default tries to detect and set the password standard input. If you wish to change the default behaviour, 
+add the following environment variable to your pipeline script: this adds flag as --password-stdin to the JFrog CLI 
+commands. The primary reason for this environment variable is few plugins does not support stdin input, because it is 
+a custom launcher. When a custom launcher is being used, the stdin we prepare in the plugin does not get passed to the
+custom launchers, for example docker launchers.
+
+```groovy
+environment {
+    JFROG_CLI_PASSWORD_STDIN_SUPPORT = "true"
+}
+```
+
 ### Using multiple JFrog Platform instances
 
 If you have multiple JFrog Platform instances configured, you can use the `–-server-id` command option with
