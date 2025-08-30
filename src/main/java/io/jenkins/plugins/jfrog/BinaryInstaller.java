@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -227,7 +228,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
                         }
                         
                         String localSha256 = new String(Files.readAllBytes(sha256File.toPath()), StandardCharsets.UTF_8);
-                        return expectedSha256.equals(localSha256);
+                        return constantTimeEquals(expectedSha256, localSha256);
                     }
                 });
             }
@@ -274,6 +275,31 @@ public abstract class BinaryInstaller extends ToolInstaller {
             // If cleanup fails, it's not critical - just log and continue
             LOGGER.fine("Failed to cleanup stale locks: " + e.getMessage());
         }
+    }
+    
+    /**
+     * Constant-time comparison of two strings to prevent timing attacks.
+     * This is especially important for comparing cryptographic hashes like SHA256.
+     * 
+     * @param a First string to compare
+     * @param b Second string to compare
+     * @return true if strings are equal, false otherwise
+     */
+    private static boolean constantTimeEquals(String a, String b) {
+        if (a == null || b == null) {
+            return Objects.equals(a, b);
+        }
+        
+        if (a.length() != b.length()) {
+            return false;
+        }
+        
+        int result = 0;
+        for (int i = 0; i < a.length(); i++) {
+            result |= a.charAt(i) ^ b.charAt(i);
+        }
+        
+        return result == 0;
     }
 }
 
