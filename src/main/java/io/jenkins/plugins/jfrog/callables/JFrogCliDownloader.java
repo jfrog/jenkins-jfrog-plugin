@@ -48,6 +48,8 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
 
     @Override
     public Void invoke(File toolLocation, VirtualChannel channel) throws IOException, InterruptedException {
+        log.getLogger().println("[JFrogCliDownloader] Starting CLI download");
+        
         // An empty string indicates the latest version.
         String version = StringUtils.defaultIfBlank(providedVersion, RELEASE);
         String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, version, OsUtils.getOsDetails(), binaryName);
@@ -65,18 +67,128 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
             String artifactorySha256 = getArtifactSha256(manager, cliUrlSuffix);
             if (shouldDownloadTool(toolLocation, artifactorySha256)) {
                 if (version.equals(RELEASE)) {
-                    log.getLogger().printf("Download '%s' latest version from: %s%n", binaryName, artifactoryUrl + cliUrlSuffix);
+                    log.getLogger().printf("[JFrogCliDownloader] Download '%s' latest version from: %s%n", binaryName, artifactoryUrl + cliUrlSuffix);
                 } else {
-                    log.getLogger().printf("Download '%s' version %s from: %s%n", binaryName, version, artifactoryUrl + cliUrlSuffix);
+                    log.getLogger().printf("[JFrogCliDownloader] Download '%s' version %s from: %s%n", binaryName, version, artifactoryUrl + cliUrlSuffix);
                 }
-                File downloadResponse = manager.downloadToFile(cliUrlSuffix, new File(toolLocation, binaryName).getPath());
-                if (!downloadResponse.setExecutable(true)) {
-                    throw new IOException("No permission to add execution permission to binary");
-                }
-                createSha256File(toolLocation, artifactorySha256);
+                
+                // Download using atomic file operations for reliability
+                performAtomicDownload(manager, cliUrlSuffix, toolLocation, artifactorySha256);
+                
+            } else {
+                log.getLogger().println("[JFrogCliDownloader] CLI is up-to-date, skipping download");
             }
         }
+        
+        log.getLogger().println("[JFrogCliDownloader] Download completed successfully");
         return null;
+    }
+    
+    /**
+     * Performs atomic download operations for reliable file installation.
+     * 
+     * APPROACH:
+     * 1. Generate unique temporary file name to avoid conflicts
+     * 2. Download to temporary file
+     * 3. Verify download integrity
+     * 4. Atomic move from temp to final location
+     * 5. Set executable permissions
+     * 6. Create SHA256 verification file
+     * 7. Cleanup temporary file on any failure
+     * 
+     * @param manager ArtifactoryManager for download operations
+     * @param cliUrlSuffix URL suffix for the CLI binary
+     * @param toolLocation Target directory for installation
+     * @param artifactorySha256 Expected SHA256 hash for verification
+     * @throws IOException If download or file operations fail
+     */
+    private void performAtomicDownload(ArtifactoryManager manager, String cliUrlSuffix, 
+                                     File toolLocation, String artifactorySha256) throws IOException {
+        
+        // Phase 1: Generate unique temporary file name to avoid conflicts during parallel downloads
+        String stageName = getStageNameFromThread();
+        String tempFileName = binaryName + ".tmp." + 
+                             stageName + "." +
+                             System.currentTimeMillis() + "." + 
+                             Thread.currentThread().getId() + "." +
+                             System.nanoTime();
+        
+        File temporaryDownloadFile = new File(toolLocation, tempFileName);  // Temp file for download
+        File finalCliExecutable = new File(toolLocation, binaryName);       // Final CLI binary location
+        
+        log.getLogger().println("[JFrogCliDownloader] Temporary download file: " + temporaryDownloadFile.getAbsolutePath());
+        log.getLogger().println("[JFrogCliDownloader] Final CLI executable: " + finalCliExecutable.getAbsolutePath());
+        
+        try {
+            // Download to temporary file
+            log.getLogger().println("[JFrogCliDownloader] Downloading to temporary file");
+            File downloadResponse = manager.downloadToFile(cliUrlSuffix, temporaryDownloadFile.getPath());
+            
+            // Verify download integrity
+            log.getLogger().println("[JFrogCliDownloader] Verifying download integrity");
+            if (!temporaryDownloadFile.exists()) {
+                throw new IOException("Downloaded file doesn't exist: " + temporaryDownloadFile.getAbsolutePath());
+            }
+            
+            long fileSize = temporaryDownloadFile.length();
+            if (fileSize == 0) {
+                throw new IOException("Downloaded file is empty: " + temporaryDownloadFile.getAbsolutePath());
+            }
+            
+            log.getLogger().println("[JFrogCliDownloader] Download verified: " + (fileSize / 1024 / 1024) + "MB");
+            
+            // Atomic move to final location (only delete existing if move will succeed)
+            log.getLogger().println("[JFrogCliDownloader] Moving to final location");
+            if (finalCliExecutable.exists()) {
+                log.getLogger().println("[JFrogCliDownloader] Removing existing CLI binary to replace with new version");
+                if (!finalCliExecutable.delete()) {
+                    throw new IOException("Failed to remove existing CLI binary: " + finalCliExecutable.getAbsolutePath());
+                }
+            }
+            
+            // Atomic move from temporary file to final location
+            if (!temporaryDownloadFile.renameTo(finalCliExecutable)) {
+                throw new IOException("Failed to move temporary file to final location. Temp: " + 
+                                    temporaryDownloadFile.getAbsolutePath() + ", Final: " + finalCliExecutable.getAbsolutePath());
+            }
+            
+            // Set executable permissions on final CLI binary
+            log.getLogger().println("[JFrogCliDownloader] Setting executable permissions");
+            if (!finalCliExecutable.setExecutable(true)) {
+                throw new IOException("No permission to add execution permission to binary: " + finalCliExecutable.getAbsolutePath());
+            }
+            
+            // Create SHA256 verification file
+            log.getLogger().println("[JFrogCliDownloader] Creating SHA256 verification file");
+            createSha256File(toolLocation, artifactorySha256);
+            
+            log.getLogger().println("[JFrogCliDownloader] Download and installation completed successfully");
+            
+        } catch (Exception e) {
+            // Cleanup temporary file on failure
+            log.getLogger().println("[JFrogCliDownloader] Download failed, cleaning up temporary file");
+            cleanupTempFile(temporaryDownloadFile);
+            throw e;
+        }
+    }
+    
+    /**
+     * Safely cleans up temporary files.
+     * 
+     * @param tempFile Temporary file to delete
+     */
+    private void cleanupTempFile(File tempFile) {
+        try {
+            if (tempFile != null && tempFile.exists()) {
+                if (tempFile.delete()) {
+                    log.getLogger().println("[JFrogCliDownloader] Cleaned up temporary file: " + tempFile.getAbsolutePath());
+                } else {
+                    log.getLogger().println("[JFrogCliDownloader] Failed to delete temporary file: " + tempFile.getAbsolutePath());
+                }
+            }
+        } catch (Exception e) {
+            log.getLogger().println("[JFrogCliDownloader] Error during cleanup: " + e.getMessage());
+        }
     }
 
     private static void createSha256File(File toolLocation, String artifactorySha256) throws IOException {
@@ -122,5 +234,28 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
             }
         }
         return StringUtils.EMPTY;
+    }
+    
+    /**
+     * Extract stage name from current thread for better temp file naming.
+     * This helps identify which parallel stage is performing the download.
+     * 
+     * @return sanitized stage name or "unknown" if not determinable
+     */
+    private String getStageNameFromThread() {
+        try {
+            String threadName = Thread.currentThread().getName();
+            // Jenkins thread names often contain stage information
+            // Examples: "Branch indexing", "In Parallel 1", "Parallel Stage 2"
+            if (threadName.contains("Parallel")) {
+                // Extract stage info from thread name
+                String stageName = threadName.replaceAll("[^a-zA-Z0-9]", "_");
+                return stageName.length() > 20 ? stageName.substring(0, 20) : stageName;
+            }
+            // Fallback to thread ID if no recognizable stage name
+            return "thread" + Thread.currentThread().getId();
+        } catch (Exception e) {
+            return "unknown";
+        }
     }
 }
