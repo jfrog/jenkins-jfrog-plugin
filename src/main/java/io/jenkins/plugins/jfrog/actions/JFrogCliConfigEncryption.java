@@ -3,6 +3,11 @@ package io.jenkins.plugins.jfrog.actions;
 import hudson.EnvVars;
 import hudson.model.Action;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.UUID;
 
 import static io.jenkins.plugins.jfrog.CliEnvConfigurator.JFROG_CLI_HOME_DIR;
@@ -24,11 +29,40 @@ public class JFrogCliConfigEncryption implements Action {
         }
         this.shouldEncrypt = true;
         // UUID is a cryptographically strong encryption key. Without the dashes, it contains exactly 32 characters.
-        this.key = UUID.randomUUID().toString().replaceAll("-", "");
+        String workspacePath = Paths.get("").toAbsolutePath().toString();
+
+        Path encryptionDir = Paths.get(workspacePath, ".jfrog", "encryption");
+
+        try {
+            Files.createDirectories(encryptionDir);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        String fileName = UUID.randomUUID().toString() + ".key";
+        Path keyFilePath = encryptionDir.resolve(fileName);
+
+        String encryptionKeyContent = UUID.randomUUID().toString().replaceAll("-", "");
+        try {
+            Files.write(keyFilePath, encryptionKeyContent.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        this.key =keyFilePath.toString();
     }
 
     public String getKey() {
-        return key;
+        if (this.key == null || this.key.isEmpty()) {
+            return null;
+        }
+
+        try {
+            byte[] keyBytes = Files.readAllBytes(Paths.get(this.key));
+            return new String(keyBytes, StandardCharsets.UTF_8).trim();
+        } catch (IOException e) {
+            System.err.println("Error reading encryption key file: " + e.getMessage());
+            return null;
+        }
     }
 
     public boolean shouldEncrypt() {
