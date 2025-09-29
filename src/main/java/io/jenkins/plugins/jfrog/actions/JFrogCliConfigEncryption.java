@@ -19,7 +19,7 @@ import static io.jenkins.plugins.jfrog.CliEnvConfigurator.JFROG_CLI_HOME_DIR;
  **/
 public class JFrogCliConfigEncryption implements Action {
     private boolean shouldEncrypt;
-    private String key;
+    private String keyOrPath;
 
     public JFrogCliConfigEncryption(EnvVars env) {
         if (env.containsKey(JFROG_CLI_HOME_DIR)) {
@@ -32,32 +32,24 @@ public class JFrogCliConfigEncryption implements Action {
         String workspacePath = Paths.get("").toAbsolutePath().toString();
 
         Path encryptionDir = Paths.get(workspacePath, ".jfrog", "encryption");
-
         try {
             Files.createDirectories(encryptionDir);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        String fileName = UUID.randomUUID().toString() + ".key";
-        Path keyFilePath = encryptionDir.resolve(fileName);
-
-        String encryptionKeyContent = UUID.randomUUID().toString().replaceAll("-", "");
-        try {
+            String fileName = UUID.randomUUID().toString() + ".key";
+            Path keyFilePath = encryptionDir.resolve(fileName);
+            String encryptionKeyContent = UUID.randomUUID().toString().replaceAll("-", "");
             Files.write(keyFilePath, encryptionKeyContent.getBytes(StandardCharsets.UTF_8));
+            this.keyOrPath =keyFilePath.toString();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        this.key =keyFilePath.toString();
     }
 
     public String getKey() {
-        if (this.key == null || this.key.isEmpty()) {
+        if (this.keyOrPath == null || this.keyOrPath.isEmpty()) {
             return null;
         }
-
         try {
-            byte[] keyBytes = Files.readAllBytes(Paths.get(this.key));
+            byte[] keyBytes = Files.readAllBytes(Paths.get(this.keyOrPath));
             return new String(keyBytes, StandardCharsets.UTF_8).trim();
         } catch (IOException e) {
             System.err.println("Error reading encryption key file: " + e.getMessage());
