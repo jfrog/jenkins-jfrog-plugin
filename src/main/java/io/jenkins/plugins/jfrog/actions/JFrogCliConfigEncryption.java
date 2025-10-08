@@ -29,8 +29,10 @@ public class JFrogCliConfigEncryption implements Action {
         }
         this.shouldEncrypt = true;
         // UUID is a cryptographically strong encryption key. Without the dashes, it contains exactly 32 characters.
-        String workspacePath = Paths.get("").toAbsolutePath().toString();
-
+        String workspacePath = env.get("WORKSPACE");
+        if (workspacePath == null || workspacePath.isEmpty()) {
+            workspacePath = System.getProperty("java.io.tmpdir");
+        }
         Path encryptionDir = Paths.get(workspacePath, ".jfrog", "encryption");
         try {
             Files.createDirectories(encryptionDir);
