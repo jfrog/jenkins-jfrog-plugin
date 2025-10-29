@@ -2,57 +2,57 @@ package io.jenkins.plugins.jfrog.configuration;
 
 import jenkins.model.Jenkins;
 import org.apache.commons.lang3.StringUtils;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.jvnet.hudson.test.JenkinsRule;
 
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.stream.Stream;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-@RunWith(Parameterized.class)
-public class JenkinsProxyConfigurationTest {
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-    @Rule
-    public JenkinsRule jenkinsRule = new JenkinsRule();
+@WithJenkins
+class JenkinsProxyConfigurationTest {
 
     private final hudson.ProxyConfiguration jenkinsProxyConfiguration = new hudson.ProxyConfiguration("proxy.jfrog.io", 1234);
-    private final String url;
 
-    public JenkinsProxyConfigurationTest(String url) {
-        this.url = url;
+    private JenkinsRule jenkinsRule;
+
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        jenkinsRule = rule;
     }
 
     @SuppressWarnings("HttpUrlsUsage")
-    @Parameterized.Parameters
-    public static Collection<Object[]> dataProvider() {
-        return Arrays.asList(
+    static Stream<Arguments> dataProvider() {
+        return Stream.of(
                 // HTTP
-                new Object[]{"http://acme.jfrog.io"},
-                new Object[]{"http://acme.jfrog.io/"},
-                new Object[]{"http://acme.jfrog.io/artifactory"},
-                new Object[]{"http://acme.jfrog.io:8081/artifactory"},
+                Arguments.of("http://acme.jfrog.io"),
+                Arguments.of("http://acme.jfrog.io/"),
+                Arguments.of("http://acme.jfrog.io/artifactory"),
+                Arguments.of("http://acme.jfrog.io:8081/artifactory"),
 
                 // HTTPS
-                new Object[]{"https://acme.jfrog.io"},
-                new Object[]{"https://acme.jfrog.io/"},
-                new Object[]{"https://acme.jfrog.io/artifactory"},
-                new Object[]{"https://acme.jfrog.io:8081/artifactory"},
+                Arguments.of("https://acme.jfrog.io"),
+                Arguments.of("https://acme.jfrog.io/"),
+                Arguments.of("https://acme.jfrog.io/artifactory"),
+                Arguments.of("https://acme.jfrog.io:8081/artifactory"),
 
                 // SSH
-                new Object[]{"ssh://acme.jfrog.io"},
-                new Object[]{"ssh://acme.jfrog.io/"},
-                new Object[]{"ssh://acme.jfrog.io/artifactory"},
-                new Object[]{"ssh://acme.jfrog.io:8081/artifactory"}
+                Arguments.of("ssh://acme.jfrog.io"),
+                Arguments.of("ssh://acme.jfrog.io/"),
+                Arguments.of("ssh://acme.jfrog.io/artifactory"),
+                Arguments.of("ssh://acme.jfrog.io:8081/artifactory")
         );
     }
 
-    @Test
-    public void testShouldBypassProxy() {
+    @ParameterizedTest
+    @MethodSource("dataProvider")
+    void testShouldBypassProxy(String url) {
         setupProxy("*");
         assertTrue(new JenkinsProxyConfiguration().shouldBypassProxy(url));
 

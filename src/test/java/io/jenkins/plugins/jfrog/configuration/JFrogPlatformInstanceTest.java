@@ -1,13 +1,13 @@
 package io.jenkins.plugins.jfrog.configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author yahavi
  **/
-public class JFrogPlatformInstanceTest {
+class JFrogPlatformInstanceTest {
 
     private static final String DISTRIBUTION_URL = "https://acme.jfrog.io/distribution";
     private static final String ARTIFACTORY_URL = "https://acme.jfrog.io/artifactory";
@@ -16,7 +16,7 @@ public class JFrogPlatformInstanceTest {
     private static final String SERVER_ID = "acme";
 
     @Test
-    public void testInferArtifactoryUrl() {
+    void testInferArtifactoryUrl() {
         // Check that Artifactory URL inferred from the platform URL
         JFrogPlatformInstance jfrogPlatformInstance = new JFrogPlatformInstance(SERVER_ID, URL, null, "", "", "");
         assertEquals("", jfrogPlatformInstance.getArtifactoryUrl());
@@ -29,7 +29,7 @@ public class JFrogPlatformInstanceTest {
     }
 
     @Test
-    public void testInferDistributionUrl() {
+    void testInferDistributionUrl() {
         // Check that Distribution URL inferred from the platform URL
         JFrogPlatformInstance jfrogPlatformInstance = new JFrogPlatformInstance(SERVER_ID, URL, null, "", "", "");
         assertEquals("", jfrogPlatformInstance.getDistributionUrl());
@@ -42,7 +42,7 @@ public class JFrogPlatformInstanceTest {
     }
 
     @Test
-    public void testInferXrayUrl() {
+    void testInferXrayUrl() {
         // Check that Xray URL inferred from the platform URL
         JFrogPlatformInstance jfrogPlatformInstance = new JFrogPlatformInstance(SERVER_ID, URL, null, "", "", "");
         assertEquals("", jfrogPlatformInstance.getXrayUrl());

@@ -4,26 +4,28 @@ import hudson.EnvVars;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import jenkins.model.Jenkins;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 import static io.jenkins.plugins.jfrog.CliEnvConfigurator.*;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 /**
  * @author yahavi
  **/
-public class CliEnvConfiguratorTest {
-    @Rule
-    public JenkinsRule jenkinsRule = new JenkinsRule();
-    JenkinsProxyConfiguration proxyConfiguration;
-    EnvVars envVars;
+@WithJenkins
+class CliEnvConfiguratorTest {
 
-    @Before
-    public void setUp() {
+    protected JenkinsRule jenkinsRule;
+    protected JenkinsProxyConfiguration proxyConfiguration;
+    protected EnvVars envVars;
+
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        jenkinsRule = rule;
         envVars = new EnvVars();
         envVars.put("JOB_NAME", "buildName");
         envVars.put("BUILD_NUMBER", "1");
@@ -31,7 +33,7 @@ public class CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvBasicTest() {
+    void configureCliEnvBasicTest() {
         invokeConfigureCliEnv("a/b/c", new JFrogCliConfigEncryption(envVars));
         assertEnv(envVars, JFROG_CLI_BUILD_NAME, "buildName");
         assertEnv(envVars, JFROG_CLI_BUILD_NUMBER, "1");
@@ -40,7 +42,7 @@ public class CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configEncryptionTest() {
+    void configEncryptionTest() {
         JFrogCliConfigEncryption configEncryption = new JFrogCliConfigEncryption(envVars);
         assertTrue(configEncryption.shouldEncrypt());
         assertEquals(32, configEncryption.getKey().length());
@@ -50,7 +52,7 @@ public class CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configEncryptionWithHomeDirTest() {
+    void configEncryptionWithHomeDirTest() {
         // Config JFROG_CLI_HOME_DIR to disable key encryption
         envVars.put(JFROG_CLI_HOME_DIR, "/a/b/c");
         JFrogCliConfigEncryption configEncryption = new JFrogCliConfigEncryption(envVars);
@@ -60,15 +62,15 @@ public class CliEnvConfiguratorTest {
         assertFalse(envVars.containsKey(JFROG_CLI_ENCRYPTION_KEY));
     }
 
-    void assertEnv(EnvVars envVars, String key, String expectedValue) {
+    protected static void assertEnv(EnvVars envVars, String key, String expectedValue) {
         assertEquals(expectedValue, envVars.get(key));
     }
 
-    void invokeConfigureCliEnv() {
+    protected void invokeConfigureCliEnv() {
         this.invokeConfigureCliEnv("", new JFrogCliConfigEncryption(envVars));
     }
 
-    void invokeConfigureCliEnv(String jfrogHomeTempDir, JFrogCliConfigEncryption configEncryption) {
+    protected void invokeConfigureCliEnv(String jfrogHomeTempDir, JFrogCliConfigEncryption configEncryption) {
         setProxyConfiguration();
         configureCliEnv(envVars, jfrogHomeTempDir, configEncryption);
     }
