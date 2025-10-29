@@ -22,7 +22,6 @@ import io.jenkins.plugins.jfrog.ReleasesInstaller;
 import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
-import io.jenkins.plugins.jfrog.jenkins.EnableJenkins;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -36,9 +35,9 @@ import org.jfrog.artifactory.client.ArtifactoryClientBuilder;
 import org.jfrog.artifactory.client.ArtifactoryRequest;
 import org.jfrog.artifactory.client.ArtifactoryResponse;
 import org.jfrog.artifactory.client.impl.ArtifactoryRequestImpl;
-import org.junit.Assert;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.IOException;
@@ -46,39 +45,40 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
-@EnableJenkins
-public class PipelineTestBase {
+@WithJenkins
+class PipelineTestBase {
+
     private static long currentTime;
     private static Artifactory artifactoryClient;
-    private JenkinsRule jenkins;
+    protected JenkinsRule jenkins;
     private Slave slave;
     private static StringSubstitutor pipelineSubstitution;
     private static final String SLAVE_LABEL = "TestSlave";
-    static final String PLATFORM_URL = System.getenv("JFROG_URL");
+    protected static final String PLATFORM_URL = System.getenv("JFROG_URL");
     private static final String ARTIFACTORY_URL = StringUtils.removeEnd(PLATFORM_URL, "/") + "/artifactory";
     private static final String ARTIFACTORY_USERNAME = System.getenv("JFROG_USERNAME");
     private static final String ARTIFACTORY_PASSWORD = System.getenv("JFROG_PASSWORD");
     private static final String ACCESS_TOKEN = System.getenv("JFROG_ADMIN_TOKEN");
     private static final Path INTEGRATION_BASE_PATH = Paths.get(".").toAbsolutePath().normalize()
             .resolve(Paths.get("src", "test", "resources", "integration"));
-    static final String JFROG_CLI_TOOL_NAME_1 = "jfrog-cli";
-    static final String JFROG_CLI_TOOL_NAME_2 = "jfrog-cli-2";
-    static final String TEST_CONFIGURED_SERVER_ID = "serverId";
+    protected static final String JFROG_CLI_TOOL_NAME_1 = "jfrog-cli";
+    protected static final String JFROG_CLI_TOOL_NAME_2 = "jfrog-cli-2";
+    protected static final String TEST_CONFIGURED_SERVER_ID = "serverId";
 
     // Set up jenkins and configure latest JFrog CLI.
-    public void initPipelineTest(JenkinsRule jenkins) throws Exception {
-        setupJenkins(jenkins);
+    protected void initPipelineTest() throws Exception {
+        setupJenkins();
         // Download the latest CLI version.
         configureJfrogCliFromReleases(StringUtils.EMPTY, true);
     }
 
-    // Set up test' environment
+    // Set up test environment
     @BeforeAll
-    public static void setupEnvironment() {
+    static void beforeAll() {
         currentTime = System.currentTimeMillis();
         verifyEnvironment();
         createClients();
@@ -87,15 +87,19 @@ public class PipelineTestBase {
         Arrays.stream(TestRepository.values()).forEach(PipelineTestBase::createRepo);
     }
 
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        jenkins = rule;
+    }
+
     @AfterAll
-    public static void tearDown() {
+    static void afterAll() {
         // Remove repositories
         Arrays.stream(TestRepository.values()).forEach(PipelineTestBase::removeRepo);
         artifactoryClient.close();
     }
 
-    public void setupJenkins(JenkinsRule jenkins) throws IOException {
-        this.jenkins = jenkins;
+    protected void setupJenkins() throws IOException {
         createSlave();
         setGlobalConfiguration();
     }
@@ -126,7 +130,7 @@ public class PipelineTestBase {
      * @param name - Pipeline name from 'jenkins-jfrog-plugin/src/test/resources/integration/pipelines'
      * @return the Jenkins job
      */
-    WorkflowRun runPipeline(JenkinsRule jenkins, String name) throws Exception {
+    protected WorkflowRun runPipeline(String name) throws Exception {
         WorkflowJob project = jenkins.createProject(WorkflowJob.class);
         FilePath slaveWs = slave.getWorkspaceFor(project);
         if (slaveWs == null) {
@@ -159,7 +163,7 @@ public class PipelineTestBase {
      */
     private void setGlobalConfiguration() throws IOException {
         JFrogPlatformBuilder.DescriptorImpl jfrogBuilder = (JFrogPlatformBuilder.DescriptorImpl) jenkins.getInstance().getDescriptor(JFrogPlatformBuilder.class);
-        Assert.assertNotNull(jfrogBuilder);
+        assertNotNull(jfrogBuilder);
         CredentialsConfig platformCred = new CredentialsConfig(Secret.fromString(ARTIFACTORY_USERNAME), Secret.fromString(ARTIFACTORY_PASSWORD), Secret.fromString(ACCESS_TOKEN), "credentials");
         List<JFrogPlatformInstance> artifactoryServers = new ArrayList<>() {{
             // Dummy server to test multiple configured servers.
@@ -265,7 +269,7 @@ public class PipelineTestBase {
      * @param path - Filesystem path to fix
      * @return path compatible with Windows
      */
-    static String fixWindowsPath(String path) {
+    protected static String fixWindowsPath(String path) {
         return StringUtils.replace(path, "\\", "\\\\");
     }
 
@@ -282,13 +286,13 @@ public class PipelineTestBase {
         return pipelineSubstitution.replace(pipeline);
     }
 
-    public static void configureJfrogCliFromReleases(String cliVersion, Boolean override) throws Exception {
+    protected static void configureJfrogCliFromReleases(String cliVersion, Boolean override) throws Exception {
         ReleasesInstaller releasesInstaller = new ReleasesInstaller();
         releasesInstaller.setVersion(cliVersion);
         configureJfrogCliTool(JFROG_CLI_TOOL_NAME_1, releasesInstaller, override);
     }
 
-    public static void configureJfrogCliFromArtifactory(String toolName, String serverId, String repo, Boolean override) throws Exception {
+    protected static void configureJfrogCliFromArtifactory(String toolName, String serverId, String repo, Boolean override) throws Exception {
         configureJfrogCliTool(toolName, new ArtifactoryInstaller(serverId, repo, ""), override);
     }
 
@@ -300,7 +304,7 @@ public class PipelineTestBase {
      * @param override  The tool will override pre-configured ones and be set if true, otherwise it will be added to the installation array.
      * @throws IOException failed to configure the new tool.
      */
-    public static void configureJfrogCliTool(String toolName, BinaryInstaller installer, Boolean override) throws Exception {
+    protected static void configureJfrogCliTool(String toolName, BinaryInstaller installer, Boolean override) throws Exception {
         Saveable NOOP = () -> {
         };
         DescribableList<ToolProperty<?>, ToolPropertyDescriptor> toolProperties = new DescribableList<>(NOOP);

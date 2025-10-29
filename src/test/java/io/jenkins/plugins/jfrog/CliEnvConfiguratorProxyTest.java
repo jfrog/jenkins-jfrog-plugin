@@ -1,28 +1,27 @@
 package io.jenkins.plugins.jfrog;
 
 import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static io.jenkins.plugins.jfrog.CliEnvConfigurator.*;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 
 /**
  * @author yahavi
  **/
 @SuppressWarnings("HttpUrlsUsage")
-public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
+class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
 
-    @Before
-    public void setUp() {
-        super.setUp();
+    @BeforeEach
+    void beforeEach() {
         proxyConfiguration = new JenkinsProxyConfiguration();
         proxyConfiguration.host = "acme.proxy.io";
     }
 
     @Test
-    public void configureCliEnvHttpProxyTest() {
+    void configureCliEnvHttpProxyTest() {
         proxyConfiguration.port = 80;
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "http://acme.proxy.io:80");
@@ -31,7 +30,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvHttpsProxyTest() {
+    void configureCliEnvHttpsProxyTest() {
         proxyConfiguration.port = 443;
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "https://acme.proxy.io:443");
@@ -40,7 +39,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvHttpProxyAuthTest() {
+    void configureCliEnvHttpProxyAuthTest() {
         proxyConfiguration.port = 80;
         proxyConfiguration.username = "andor";
         proxyConfiguration.password = "RogueOne";
@@ -51,7 +50,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvHttpsProxyAuthTest() {
+    void configureCliEnvHttpsProxyAuthTest() {
         proxyConfiguration.port = 443;
         proxyConfiguration.username = "andor";
         proxyConfiguration.password = "RogueOne";
@@ -62,14 +61,14 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvNoOverrideHttpTest() {
+    void configureCliEnvNoOverrideHttpTest() {
         envVars.put(HTTP_PROXY_ENV, "http://acme2.proxy.io:777");
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "http://acme2.proxy.io:777");
     }
 
     @Test
-    public void configureCliEnvNoOverrideTest() {
+    void configureCliEnvNoOverrideTest() {
         envVars.put(HTTP_PROXY_ENV, "http://acme2.proxy.io:80");
         envVars.put(HTTPS_PROXY_ENV, "http://acme2.proxy.io:443");
         invokeConfigureCliEnv();
