@@ -32,7 +32,7 @@ jobs:
           cache: false
 
       - name: Setup Artifactory
-        uses: jfrog/.github/actions/install-local-artifactory@main
+        uses: jfrog/.github/actions/install-local-artifactory@macos-fix
         with:
           RTLIC: ${{ secrets.RTLIC }}
 
