@@ -1,0 +1,43 @@
+name: PR Audit
+
+on:
+  push:
+  pull_request_target:
+    types: [labeled, opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+  security-events: write
+
+jobs:
+  jfrog-audit:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'safe to test') || github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ secrets.ARTIFACTORY_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}
+
+      - name: Configure JFrog CLI server
+        run: |
+          echo "Configuring JFrog CLI server..."
+          jf config add audit-server --url="${{ secrets.ARTIFACTORY_URL }}" --access-token="${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" --interactive=false
+
+      - name: Verify JFrog CLI config
+        run: |
+          echo "Checking JFrog CLI configuration..."
+          jf c show
+          echo "---"
+          echo "Testing Artifactory connectivity..."
+          jf rt ping --server-id=audit-server || echo "Warning: Could not ping Artifactory"
+
+      - name: Run jf audit
+        run: jf audit --format=table --server-id=audit-server

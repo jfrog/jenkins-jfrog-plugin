@@ -268,9 +268,19 @@ public class JFrogPlatformBuilder extends GlobalConfiguration {
             return false;
         }
         for (String url : urls) {
-            //noinspection HttpUrlsUsage
-            if (startsWith(url, "http://")) {
-                return true;
+            // Security check: Detect insecure HTTP protocol by parsing URL
+            try {
+                java.net.URI uri = new java.net.URI(url);
+                String scheme = uri.getScheme();
+                // Only HTTP (not HTTPS) is considered unsafe
+                if (scheme != null && scheme.equalsIgnoreCase("http")) {
+                    return true;
+                }
+            } catch (java.net.URISyntaxException e) {
+                // If URL is malformed, check with string comparison as fallback
+                if (url != null && url.toLowerCase().startsWith("http:")) {
+                    return true;
+                }
             }
         }
         return false;
