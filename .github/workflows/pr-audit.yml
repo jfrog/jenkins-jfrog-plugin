@@ -17,13 +17,12 @@ jobs:
         uses: jfrog/setup-jfrog-cli@v4
 
       - name: Verify JFrog CLI config
-        run: jf c show || echo "No config found, will create one"
-
-      - name: Configure JFrog Platform (if needed)
         run: |
-          if ! jf c show > /dev/null 2>&1; then
-            jf c add --url=$JF_URL --access-token=$JF_ACCESS_TOKEN --interactive=false
-          fi
+          echo "Checking JFrog CLI configuration..."
+          jf c show
+          echo "---"
+          echo "Testing Xray connectivity..."
+          jf rt ping || echo "Warning: Could not ping Artifactory"
 
       - name: Run jf audit
         run: jf audit --format=table
