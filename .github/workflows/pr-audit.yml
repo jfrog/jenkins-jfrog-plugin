@@ -6,15 +6,24 @@ on:
 jobs:
   jfrog-audit:
     runs-on: ubuntu-latest
+    env:
+      JF_URL: ${{ secrets.ARTIFACTORY_URL }}
+      JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
-        env:
-          JF_URL: ${{ secrets.ARTIFACTORY_URL }}
-          JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}
+
+      - name: Verify JFrog CLI config
+        run: jf c show || echo "No config found, will create one"
+
+      - name: Configure JFrog Platform (if needed)
+        run: |
+          if ! jf c show > /dev/null 2>&1; then
+            jf c add --url=$JF_URL --access-token=$JF_ACCESS_TOKEN --interactive=false
+          fi
 
       - name: Run jf audit
         run: jf audit --format=table
