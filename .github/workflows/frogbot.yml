@@ -30,7 +30,7 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          java-version: "11"
+          java-version: "17"
           distribution: "temurin"
 
       # Run JFrog CLI audit on PR changes
@@ -73,7 +73,7 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          java-version: "11"
+          java-version: "17"
           distribution: "temurin"
 
       - uses: jfrog/frogbot@v2

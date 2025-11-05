@@ -3,7 +3,7 @@ name: PR Audit
 on:
   push:
   pull_request_target:
-    types: [labeled]
+    types: [labeled, opened, synchronize]
 
 permissions:
   contents: read
@@ -13,7 +13,7 @@ permissions:
 jobs:
   jfrog-audit:
     runs-on: ubuntu-latest
-    if: (contains(github.event.pull_request.labels.*.name, 'safe to test') || github.event_name == 'push') && github.repository_owner != 'jenkinsci'
+    if: contains(github.event.pull_request.labels.*.name, 'safe to test') || github.event_name == 'push'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
