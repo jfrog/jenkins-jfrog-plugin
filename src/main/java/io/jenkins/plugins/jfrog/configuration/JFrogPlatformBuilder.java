@@ -29,6 +29,7 @@ import static org.apache.commons.lang3.StringUtils.*;
  * @author gail
  */
 public class JFrogPlatformBuilder extends GlobalConfiguration {
+    // frogbot:ignore insecure-protocol - Protocol constant for validation, actual usage is gated by allowHttpConnections security flag
     @SuppressWarnings("HttpUrlsUsage")
     private static final String[] KNOWN_PROTOCOLS = {"http://", "https://", "ssh://"};
     private static final String UNSAFE_HTTP_ERROR = "HTTP (non HTTPS) connections to the JFrog platform services are " +
