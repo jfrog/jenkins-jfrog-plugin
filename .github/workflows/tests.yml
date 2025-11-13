@@ -12,15 +12,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        # macOS excluded - JGC-413: artifactory bootstrap in osx is broken
+        os: [ ubuntu-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Skip macOS - JGC-413
-        if: matrix.os == 'macos-latest'
-        run: |
-          echo "::warning::JGC-413 - Skip until artifactory bootstrap in osx is fixed"
-          exit 0
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
