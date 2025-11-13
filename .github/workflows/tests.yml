@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Skip macOS - JGC-413
-        if: matrix.os.name == 'macos' || matrix.os.name == 'macos-latest'
+        if: matrix.os == 'macos-latest'
         run: |
           echo "::warning::JGC-413 - Skip until artifactory bootstrap in osx is fixed"
           exit 0
