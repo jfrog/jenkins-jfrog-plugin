@@ -263,6 +263,13 @@ public class JfStep extends Step {
          * Locally configure all servers that was configured in the Jenkins UI.
          */
         private void configAllServers(Launcher.ProcStarter launcher, String jfrogBinaryPath, boolean isWindows, Job<?, ?> job, boolean passwordStdinSupported) throws IOException, InterruptedException {
+            configAllServersForBuilder(launcher, jfrogBinaryPath, isWindows, job, passwordStdinSupported);
+        }
+
+        /**
+         * Public static method to configure all servers - used by both Pipeline and Freestyle builders.
+         */
+        public static void configAllServersForBuilder(Launcher.ProcStarter launcher, String jfrogBinaryPath, boolean isWindows, Job<?, ?> job, boolean passwordStdinSupported) throws IOException, InterruptedException {
             // Config all servers using the 'jf c add' command.
             List<JFrogPlatformInstance> jfrogInstances = JFrogPlatformBuilder.getJFrogPlatformInstances();
             if (jfrogInstances != null && !jfrogInstances.isEmpty()) {
@@ -282,7 +289,7 @@ public class JfStep extends Step {
             }
         }
 
-        private void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job1, String jfrogBinaryPath, Job<?, ?> job, Launcher.ProcStarter launcher, boolean passwordStdinSupported) {
+        private static void addConfigArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job1, String jfrogBinaryPath, Job<?, ?> job, Launcher.ProcStarter launcher, boolean passwordStdinSupported) {
             builder.add(jfrogBinaryPath).add("c").add("add").add(jfrogPlatformInstance.getId());
             addCredentialsArguments(builder, jfrogPlatformInstance, job, launcher, passwordStdinSupported);
             addUrlArguments(builder, jfrogPlatformInstance);

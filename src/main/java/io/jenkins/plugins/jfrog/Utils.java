@@ -1,12 +1,17 @@
 package io.jenkins.plugins.jfrog;
 
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.model.Job;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.jfrog.callables.TempDirCreator;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.io.IOException;
+import java.nio.file.Paths;
+
+import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 
 /**
  * @author gail
@@ -32,6 +37,26 @@ public class Utils {
             return BINARY_NAME + ".exe";
         }
         return BINARY_NAME;
+    }
+
+    /**
+     * Get JFrog CLI path in agent, according to the JFROG_BINARY_PATH environment variable.
+     * The JFROG_BINARY_PATH can be set implicitly by choosing the JFrog CLI tool in the job configuration
+     * or explicitly by setting the environment variable.
+     *
+     * @param env       Job's environment variables
+     * @param isWindows True if the agent's OS is Windows
+     * @return JFrog CLI path in agent (e.g., "/path/to/jf" or "C:\path\to\jf.exe")
+     */
+    public static String getJFrogCLIPath(EnvVars env, boolean isWindows) {
+        // JFROG_BINARY_PATH is set according to the master OS. If not configured, the value of jfrogBinaryPath will
+        // eventually be 'jf' or 'jf.exe'. In that case, the JFrog CLI from the system path is used.
+        String jfrogBinaryPath = Paths.get(env.get(JFROG_BINARY_PATH, ""), getJfrogCliBinaryName(isWindows)).toString();
+
+        // Modify jfrogBinaryPath according to the agent's OS
+        return isWindows ?
+                FilenameUtils.separatorsToWindows(jfrogBinaryPath) :
+                FilenameUtils.separatorsToUnix(jfrogBinaryPath);
     }
 
     /**

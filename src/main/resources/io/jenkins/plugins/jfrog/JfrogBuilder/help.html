@@ -1,0 +1,40 @@
+<div>
+    <p>
+        Execute JFrog CLI commands as part of a Freestyle job build step.
+    </p>
+    <p>
+        This builder allows you to run any JFrog CLI command to interact with your JFrog Platform, including:
+    </p>
+    <ul>
+        <li>Upload and download artifacts to/from Artifactory</li>
+        <li>Scan builds and artifacts with JFrog Xray</li>
+        <li>Publish build-info</li>
+        <li>Manage Docker images</li>
+        <li>Execute Maven, Gradle, npm, and other build tool commands</li>
+    </ul>
+    <p>
+        <strong>⚠️ Prerequisites:</strong> Before using this builder, you <strong>must</strong>:
+    </p>
+    <ol>
+        <li><strong>Configure JFrog CLI as a tool</strong> in Jenkins:
+            <ul>
+                <li>Go to <strong>Manage Jenkins → Global Tool Configuration</strong></li>
+                <li>Find the <strong>JFrog CLI</strong> section</li>
+                <li>Add a JFrog CLI installation (automatic or manual)</li>
+            </ul>
+        </li>
+        <li><strong>Configure your JFrog Platform instance</strong>:
+            <ul>
+                <li>Go to <strong>Manage Jenkins → Configure System</strong></li>
+                <li>Find the <strong>JFrog Plugin Configuration</strong> section</li>
+                <li>Add your JFrog Platform URL and credentials</li>
+            </ul>
+        </li>
+    </ol>
+    <p>
+        For more information about JFrog CLI commands, see the 
+        <a href="https://www.jfrog.com/confluence/display/CLI/JFrog+CLI" target="_blank">JFrog CLI documentation</a>.
+    </p>
+</div>
+
+
