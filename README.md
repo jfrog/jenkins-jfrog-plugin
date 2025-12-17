@@ -22,6 +22,7 @@
     - [Using multiple JFrog Platform instances](#using-multiple-jfrog-platform-instances)
     - [Publishing and accessing the build-info](#publishing-and-accessing-the-build-info)
     - [Capturing the output of JFrog CLI commands](#capturing-the-output-of-jfrog-cli-commands)
+- [Using JFrog CLI in Freestyle jobs](#using-jfrog-cli-in-freestyle-jobs)
 - [Using HTTP/s proxy](#using-https-proxy)
 - [Jenkins Configuration as Code](#jenkins-configuration-as-code)
 - [Examples](#examples)
@@ -218,6 +219,74 @@ echo "JFrog CLI version output: $version"
 </details>
 
 ![build-info.png](images/readme/build-info.png)
+
+## Using JFrog CLI in Freestyle jobs
+
+The Jenkins JFrog Plugin also supports Freestyle jobs through the "Run JFrog CLI" build step. This allows you to execute JFrog CLI commands without using Pipeline syntax.
+
+### Prerequisites
+
+Before using the Freestyle job support, make sure you have completed the plugin setup:
+
+1. **Configure JFrog CLI as a tool** (see [Configuring JFrog CLI as a Tool](#configuring-jfrog-cli-as-a-tool))
+2. **Configure your JFrog Platform instance** (see [Installing and configuring the plugin](#installing-and-configuring-the-plugin))
+
+### Adding the build step
+
+1. Create a new Freestyle job or open an existing one
+2. In the Build section, click "Add build step"
+3. Select "Run JFrog CLI" from the dropdown menu
+4. **Select JFrog CLI Installation** from the dropdown (choose the installation you configured in Global Tool Configuration)
+   - If you leave it as "(Use JFrog CLI from system PATH)", it will try to use `jf` from your system PATH
+5. Enter your JFrog CLI command in the "JFrog CLI Command" field (must start with `jf` or `jfrog`)
+
+### Example Freestyle job configuration
+
+**Command field:**
+```
+jf rt u target/*.jar my-repo/libs-release-local/
+```
+
+This will upload all JAR files from the `target` directory to the specified Artifactory repository.
+
+### Common Freestyle job examples
+
+**Upload artifacts:**
+```
+jf rt u build/libs/*.jar my-repo/
+```
+
+**Download artifacts:**
+```
+jf rt dl my-repo/artifact.jar download/
+```
+
+**Publish build-info:**
+```
+jf rt bp
+```
+
+**Ping Artifactory:**
+```
+jf rt ping
+```
+
+**Docker push:**
+```
+jfrog docker push my-image:latest
+```
+
+**Maven build with JFrog:**
+```
+jfrog mvn clean install
+```
+
+### Notes for Freestyle jobs
+
+- Commands must start with either `jf` or `jfrog` (e.g., `jf rt ping` or `jfrog rt ping`)
+- The plugin automatically sets `JFROG_CLI_BUILD_NAME` and `JFROG_CLI_BUILD_NUMBER` environment variables
+- Make sure JFrog CLI is configured as a tool in Jenkins (Manage Jenkins → Global Tool Configuration)
+- The JFrog Platform instance must be configured in Jenkins (Manage Jenkins → Configure System)
 
 ## Using HTTP/S proxy
 
