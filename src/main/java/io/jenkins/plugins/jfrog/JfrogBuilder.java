@@ -40,6 +40,8 @@ import static org.apache.commons.lang3.StringUtils.split;
  */
 @Getter
 public class JfrogBuilder extends Builder {
+    private static final String JFROG_CLI_CONFIG_FILE = "jfrog-cli.conf";
+    
     private String command;
     private String jfrogInstallation;
 
@@ -58,6 +60,18 @@ public class JfrogBuilder extends Builder {
         this.jfrogInstallation = jfrogInstallation;
     }
 
+    /**
+     * Executes the JFrog CLI command as part of a freestyle build step.
+     * This method validates the command, sets up the JFrog CLI environment,
+     * executes the command, and processes any build-info artifacts.
+     *
+     * @param build    The current build being executed
+     * @param launcher The launcher to execute commands on the build node
+     * @param listener The build listener for logging output and errors
+     * @return true if the command executed successfully with exit code 0, false otherwise
+     * @throws InterruptedException if the build is interrupted during execution
+     * @throws IOException          if there's an I/O error accessing the workspace or executing commands
+     */
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
         FilePath workspace = build.getWorkspace();
@@ -71,9 +85,16 @@ public class JfrogBuilder extends Builder {
         if (StringUtils.isNotBlank(jfrogInstallation)) {
             JfrogInstallation installation = getInstallation();
             if (installation != null) {
-                installation = installation.forNode(build.getBuiltOn(), listener);
-                installation = installation.forEnvironment(env);
-                installation.buildEnvVars(env);
+                hudson.model.Node node = build.getBuiltOn();
+                if (node != null) {
+                    installation = installation.forNode(node, listener);
+                }
+                if (installation != null) {
+                    installation = installation.forEnvironment(env);
+                }
+                if (installation != null) {
+                    installation.buildEnvVars(env);
+                }
             }
         }
         
@@ -87,10 +108,9 @@ public class JfrogBuilder extends Builder {
         
         String trimmedCommand = command.trim();
         
-        // Validate that the command starts with 'jf' or 'jfrog'
-        if (!trimmedCommand.startsWith("jf ") && !trimmedCommand.startsWith("jfrog ") 
-                && !trimmedCommand.equals("jf") && !trimmedCommand.equals("jfrog")) {
-            listener.error("JFrog CLI command must start with 'jf' or 'jfrog' (e.g., 'jf rt ping' or 'jfrog rt ping')");
+        // Validate that the command starts with 'jf' or 'jfrog' followed by subcommand/arguments
+        if (!trimmedCommand.startsWith("jf ") && !trimmedCommand.startsWith("jfrog ")) {
+            listener.error("JFrog CLI command must start with 'jf' or 'jfrog' followed by a subcommand (e.g., 'jf rt ping' or 'jfrog rt ping')");
             return false;
         }
         
@@ -108,7 +128,7 @@ public class JfrogBuilder extends Builder {
         // Build the 'jf' command
         ArgumentListBuilder builder = new ArgumentListBuilder();
         boolean isWindows = !launcher.isUnix();
-        String jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
+        String jfrogBinaryPath = Utils.getJFrogCLIPath(env, isWindows);
         boolean passwordStdinSupported = isPasswordStdinEnabled(workspace, env, launcher, jfrogBinaryPath, listener);
 
         builder.add(jfrogBinaryPath).add(args);
@@ -120,13 +140,14 @@ public class JfrogBuilder extends Builder {
             JfTaskListener jfTaskListener = new JfTaskListener(listener, taskOutputStream);
             Launcher.ProcStarter jfLauncher = setupJFrogEnvironment(
                     build, env, launcher, jfTaskListener, workspace, 
-                    jfrogBinaryPath, isWindows, passwordStdinSupported, listener
+                    jfrogBinaryPath, isWindows, passwordStdinSupported, listener  // Pass original listener for console logging
             );
 
             // Running the 'jf' command
             int exitValue = jfLauncher.cmds(builder).join();
             if (exitValue != 0) {
                 listener.error("Running 'jf' command failed with exit code " + exitValue);
+                listener.error("Please check the console output above for detailed error information.");
                 return false;
             }
 
@@ -158,8 +179,18 @@ public class JfrogBuilder extends Builder {
         if (jfrogInstallation == null) {
             return null;
         }
-        for (JfrogInstallation installation : ((DescriptorImpl) getDescriptor()).getInstallations()) {
-            if (jfrogInstallation.equals(installation.getName())) {
+        
+        if (!(getDescriptor() instanceof DescriptorImpl)) {
+            return null;
+        }
+        
+        JfrogInstallation[] installations = ((DescriptorImpl) getDescriptor()).getInstallations();
+        if (installations == null) {
+            return null;
+        }
+        
+        for (JfrogInstallation installation : installations) {
+            if (installation != null && jfrogInstallation.equals(installation.getName())) {
                 return installation;
             }
         }
@@ -184,11 +215,30 @@ public class JfrogBuilder extends Builder {
 
     /**
      * Configure all JFrog relevant environment variables and all servers.
+     * Creates a temporary JFrog CLI home directory for this build, sets up server configurations,
+     * and prepares the launcher with the necessary environment.
+     * 
+     * <p><b>Note on Resource Management:</b> The temporary JFrog CLI home directory created by this method
+     * is intended to persist for the duration of the build. Cleanup of this directory should be handled
+     * by the build completion logic if necessary, not within this method.</p>
+     *
+     * @param run                      The current build/run
+     * @param env                      Environment variables for the build
+     * @param launcher                 The launcher to execute commands
+     * @param cliOutputListener        Task listener for capturing JFrog CLI command output
+     * @param workspace                The build workspace
+     * @param jfrogBinaryPath          Path to the JFrog CLI binary
+     * @param isWindows                Whether the agent OS is Windows
+     * @param passwordStdinSupported   Whether password input via stdin is supported
+     * @param consoleListener          Build listener for console logging messages
+     * @return Configured ProcStarter ready to execute JFrog CLI commands
+     * @throws IOException          If there's an error creating directories or configuring servers
+     * @throws InterruptedException If the operation is interrupted
      */
     private Launcher.ProcStarter setupJFrogEnvironment(
-            Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener,
+            Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener cliOutputListener,
             FilePath workspace, String jfrogBinaryPath, boolean isWindows,
-            boolean passwordStdinSupported, TaskListener originalListener
+            boolean passwordStdinSupported, TaskListener consoleListener
     ) throws IOException, InterruptedException {
         JFrogCliConfigEncryption jfrogCliConfigEncryption = run.getAction(JFrogCliConfigEncryption.class);
         if (jfrogCliConfigEncryption == null) {
@@ -198,11 +248,11 @@ public class JfrogBuilder extends Builder {
 
         FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
         CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir.getRemote(), jfrogCliConfigEncryption);
-        Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
+        Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(cliOutputListener);
 
         // Configure all servers, skip if all server ids have already been configured.
         if (shouldConfig(jfrogHomeTempDir)) {
-            logIfNoToolProvided(env, originalListener);
+            logIfNoToolProvided(env, consoleListener);
             JfStep.Execution.configAllServersForBuilder(
                     jfLauncher, jfrogBinaryPath, isWindows, run.getParent(), passwordStdinSupported
             );
@@ -214,9 +264,13 @@ public class JfrogBuilder extends Builder {
      * Check if servers need to be configured.
      */
     private boolean shouldConfig(FilePath jfrogHomeTempDir) throws IOException, InterruptedException {
+        if (jfrogHomeTempDir == null || !jfrogHomeTempDir.exists()) {
+            return true;
+        }
+        
         List<FilePath> filesList = jfrogHomeTempDir.list();
         for (FilePath file : filesList) {
-            if (file.getName().contains("jfrog-cli.conf")) {
+            if (file != null && file.getName().contains(JFROG_CLI_CONFIG_FILE)) {
                 return false;
             }
         }
@@ -306,4 +360,3 @@ public class JfrogBuilder extends Builder {
         }
     }
 }
-

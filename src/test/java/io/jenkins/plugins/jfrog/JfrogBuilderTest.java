@@ -137,13 +137,13 @@ public class JfrogBuilderTest {
         JfrogBuilder invalidBuilder = new JfrogBuilder("maven clean install");
         when(build.getWorkspace()).thenReturn(workspace);
         when(build.getEnvironment(listener)).thenReturn(new EnvVars());
-        when(listener.error("JFrog CLI command must start with 'jf' or 'jfrog' (e.g., 'jf rt ping' or 'jfrog rt ping')")).thenReturn(null);
+        when(listener.error("JFrog CLI command must start with 'jf' or 'jfrog' followed by a subcommand (e.g., 'jf rt ping' or 'jfrog rt ping')")).thenReturn(null);
         when(listener.getLogger()).thenReturn(logger);
         
         boolean result = invalidBuilder.perform(build, launcher, listener);
         
         assertFalse(result);
-        verify(listener).error("JFrog CLI command must start with 'jf' or 'jfrog' (e.g., 'jf rt ping' or 'jfrog rt ping')");
+        verify(listener).error("JFrog CLI command must start with 'jf' or 'jfrog' followed by a subcommand (e.g., 'jf rt ping' or 'jfrog rt ping')");
     }
 
     @Test
