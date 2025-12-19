@@ -23,9 +23,11 @@ jobs:
 
       - name: Install Java
         uses: actions/setup-java@v4
+        id: setup-java
         with:
           java-version: "17"
           distribution: "temurin"
+          cache: 'maven'
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -42,4 +44,5 @@ jobs:
           JFROG_URL: "http://localhost:8081/"
           JFROG_USERNAME: "admin"
           JFROG_PASSWORD: "password"
+          JAVA_HOME: ${{ steps.setup-java.outputs.path }}
         run: mvn -V -B -U --no-transfer-progress clean verify -DskipITs=false "-Dfindbugs.failOnError=false"
