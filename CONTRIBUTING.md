@@ -5,6 +5,11 @@
 
 # ⚒️ Building and Testing the Sources
 
+## Prerequisites
+
+- **Java 17 or later** - The plugin requires Java 17 as the minimum version due to security requirements and Jenkins parent plugin dependencies.
+- **Maven 3.6+** - For building the project
+
 ## Build and Run Jenkins JFrog Plugin
 
 Clone the sources and CD to the root directory of the project:
