@@ -17,6 +17,7 @@
     - [Automatic installation from release.jfrog.io](#automatic-installation-from-releasejfrogio)
     - [Automatic installation from Artifactory](#automatic-installation-from-artifactory)
     - [Manual installation](#manual-installation)
+    - [CLI Installation Behavior](#cli-installation-behavior)
 - [Using JFrog CLI in your pipeline jobs](#using-jfrog-cli-in-your-pipeline-jobs)
     - [Setting the build name and build number](#setting-the-build-name-and-the-build-number)
     - [Using multiple JFrog Platform instances](#using-multiple-jfrog-platform-instances)
@@ -88,6 +89,42 @@ Install JFrog CLI manually on your build agent, and then set the path to the dir
 as shown in the below screenshot.
 
 <img src="images/readme/manual-installation.png" width="30%">
+
+### CLI Installation Behavior
+
+The plugin uses an intelligent installation strategy that handles various scenarios gracefully:
+
+#### Fresh Installation
+When JFrog CLI is not yet installed on an agent:
+- The plugin acquires an installation lock to coordinate parallel pipeline steps
+- If another step is already installing, subsequent steps wait (up to 5 minutes)
+- This ensures reliable installation even with parallel pipeline execution
+
+#### Upgrade Behavior
+When an existing JFrog CLI installation is detected:
+- The plugin checks if an upgrade is available (via SHA256 comparison)
+- If an upgrade is needed and the binary is **not in use**, it's replaced with the new version
+- If the binary is **currently in use** by another process (common on Windows with parallel steps):
+  - The upgrade is gracefully skipped
+  - The existing CLI version is used for the current build
+  - A warning is logged: *"Upgrade skipped. Using existing version. Upgrade will be attempted in next build."*
+  - The next build will automatically attempt the upgrade again
+
+This behavior ensures:
+- **Build reliability**: Builds don't fail due to file locking conflicts on Windows
+- **Automatic recovery**: Upgrades are deferred, not lost
+- **Parallel step safety**: Multiple parallel steps can safely use the CLI without conflicts
+
+#### Windows Considerations
+On Windows agents, file locking can occur when:
+- Multiple parallel pipeline steps attempt to install/upgrade the CLI simultaneously
+- Antivirus software scans the binary during installation
+- The CLI is actively being executed by another step
+
+The plugin handles these scenarios gracefully by:
+1. Using file-based locking for installation coordination
+2. Detecting Windows file locking errors
+3. Falling back to existing versions when upgrades can't proceed
 
 ## Using JFrog CLI in your pipeline jobs
 
