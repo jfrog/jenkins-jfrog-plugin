@@ -72,8 +72,16 @@ public class JfrogCliWrapper extends SimpleBuildWrapper {
         hudson.model.Node node = workspaceToNode(workspace);
         if (node != null) {
             installation = installation.forNode(node, listener);
+            if (installation == null) {
+                listener.error("[JFrog CLI] Installation '" + jfrogInstallation + "' is not available for current node");
+                return;
+            }
         }
         installation = installation.forEnvironment(initialEnvironment);
+        if (installation == null) {
+            listener.error("[JFrog CLI] Installation '" + jfrogInstallation + "' is not available for current environment");
+            return;
+        }
 
         // Add environment variables that will persist for the entire build
         EnvVars envVars = new EnvVars();
