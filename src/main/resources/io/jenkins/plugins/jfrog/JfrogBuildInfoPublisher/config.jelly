@@ -1,0 +1,11 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:entry title="JFrog CLI Installation" field="jfrogInstallation"
+             description="Select the JFrog CLI installation to use. If using the 'Set up JFrog CLI environment' build wrapper, you can leave this as system PATH.">
+        <f:select />
+    </f:entry>
+    <f:entry title="Publish only on success" field="publishOnlyOnSuccess"
+             description="If checked, build info will only be published when the build is successful. If unchecked, build info will be published regardless of build result.">
+        <f:checkbox default="true" />
+    </f:entry>
+</j:jelly>
