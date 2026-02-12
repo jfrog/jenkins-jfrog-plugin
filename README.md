@@ -261,12 +261,25 @@ echo "JFrog CLI version output: $version"
 
 The Jenkins JFrog Plugin also supports Freestyle jobs through the "Run JFrog CLI" build step. This allows you to execute JFrog CLI commands without using Pipeline syntax.
 
-### Prerequisites
+### Setting up the Build Environment (Recommended for Freestyle jobs)
 
-Before using the Freestyle job support, make sure you have completed the plugin setup:
+To make JFrog CLI available to **all** build steps in your Freestyle job (including shell scripts), use the Build Environment wrapper:
 
-1. **Configure JFrog CLI as a tool** (see [Configuring JFrog CLI as a Tool](#configuring-jfrog-cli-as-a-tool))
-2. **Configure your JFrog Platform instance** (see [Installing and configuring the plugin](#installing-and-configuring-the-plugin))
+1. In your Freestyle job configuration, scroll to the **Build Environment** section
+2. Check **"Set up JFrog CLI environment"**
+3. Select your JFrog CLI installation from the dropdown
+
+This sets the `JFROG_BINARY_PATH` environment variable for the entire build, making the `jf` command available to:
+- All "Run JFrog CLI" build steps (without needing to select an installation in each step)
+- Shell/Batch build steps
+- Any other build steps that use the environment
+
+**Benefits:**
+- Configure the CLI installation once, use it everywhere
+- Shell scripts can use `$JFROG_BINARY_PATH/jf` or add it to PATH
+- Consistent environment across all build steps
+
+> **Note:** This Build Environment option is only available for Freestyle jobs, not Matrix jobs. Matrix jobs run across multiple nodes with potentially different environments. For Matrix jobs, use individual "Run JFrog CLI" build steps with an automatic installation configured (from releases.jfrog.io or Artifactory), which will download the CLI to each node as needed.
 
 ### Adding the build step
 
@@ -274,7 +287,8 @@ Before using the Freestyle job support, make sure you have completed the plugin 
 2. In the Build section, click "Add build step"
 3. Select "Run JFrog CLI" from the dropdown menu
 4. **Select JFrog CLI Installation** from the dropdown (choose the installation you configured in Global Tool Configuration)
-   - If you leave it as "(Use JFrog CLI from system PATH)", it will try to use `jf` from your system PATH
+   - **Recommended:** Select a configured installation (e.g., one set up with automatic download from releases.jfrog.io)
+   - If you select "(Use pre-installed JFrog CLI from system PATH)", the `jf` command must already be manually installed and available in the PATH on your Jenkins agent. This option will fail if JFrog CLI is not pre-installed.
 5. Enter your JFrog CLI command in the "JFrog CLI Command" field (must start with `jf` or `jfrog`)
 
 ### Example Freestyle job configuration
@@ -318,10 +332,33 @@ jfrog docker push my-image:latest
 jfrog mvn clean install
 ```
 
+### Publishing Build Info
+
+The plugin automatically collects build information when you run JFrog CLI commands like `jf rt upload`, `jf mvn`, etc. To publish this collected build info to Artifactory, you have two options:
+
+#### Option 1: Post-build Action (Recommended)
+
+Add the **"Publish JFrog Build Info"** post-build action to automatically publish build info after your build completes:
+
+1. In your Freestyle job configuration, scroll to **Post-build Actions**
+2. Click **"Add post-build action"** and select **"Publish JFrog Build Info"**
+3. Select your JFrog CLI installation (or use the one from Build Environment wrapper)
+4. Optionally check **"Publish only on success"** to skip publishing on failed builds
+
+This ensures build info is always published without needing to add an explicit `jf rt bp` command.
+
+#### Option 2: Manual Command
+
+Add a "Run JFrog CLI" build step with the command:
+```
+jf rt bp
+```
+
 ### Notes for Freestyle jobs
 
 - Commands must start with either `jf` or `jfrog` (e.g., `jf rt ping` or `jfrog rt ping`)
 - The plugin automatically sets `JFROG_CLI_BUILD_NAME` and `JFROG_CLI_BUILD_NUMBER` environment variables
+- Build info is automatically collected during `jf rt upload`, `jf mvn`, `jf gradle`, etc.
 - Make sure JFrog CLI is configured as a tool in Jenkins (Manage Jenkins → Global Tool Configuration)
 - The JFrog Platform instance must be configured in Jenkins (Manage Jenkins → Configure System)
 

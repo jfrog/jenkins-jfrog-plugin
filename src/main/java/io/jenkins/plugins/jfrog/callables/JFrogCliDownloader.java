@@ -80,7 +80,9 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
         
         // Ensure the tool location directory exists
         if (!toolLocation.exists()) {
-            toolLocation.mkdirs();
+            if (!toolLocation.mkdirs()) {
+                throw new IOException("Failed to create tool location directory: " + toolLocation.getAbsolutePath());
+            }
         }
         
         // Check if this is a fresh install or an upgrade

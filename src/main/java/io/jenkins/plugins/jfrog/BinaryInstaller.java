@@ -107,7 +107,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
             try {
                 // Check if CLI already exists and is the correct version
                 FilePath cliPath = toolLocation.child(binaryName);
-                if (isValidCliInstallation(cliPath, log) && isCorrectVersion(toolLocation, instance, repository, version, log)) {
+                if (isValidCliInstallation(cliPath, log) && isCorrectVersion(toolLocation, instance, repository, version, binaryName, log)) {
                     log.getLogger().println("[BinaryInstaller] CLI already installed and up-to-date, skipping download");
                     return toolLocation;
                 } else if (isValidCliInstallation(cliPath, log)) {
@@ -185,19 +185,21 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @param instance JFrog platform instance for version checking
      * @param repository Repository containing the CLI
      * @param version Version to check
+     * @param binaryName Name of the CLI binary (e.g., "jf" on Unix, "jf.exe" on Windows)
      * @param log Task listener for logging
      * @return true if CLI is the correct version, false otherwise
      */
     private static boolean isCorrectVersion(FilePath toolLocation, JFrogPlatformInstance instance, 
-                                          String repository, String version, TaskListener log) {
+                                          String repository, String version, String binaryName, TaskListener log) {
         try {
             // Use the same logic as shouldDownloadTool() from JFrogCliDownloader
             // but do it here to avoid unnecessary JFrogCliDownloader.invoke() calls
             
             JenkinsProxyConfiguration proxyConfiguration = new JenkinsProxyConfiguration();
-            String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/jf", repository, 
+            // Use binaryName to construct the correct URL suffix (handles Windows jf.exe vs Unix jf)
+            String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, 
                                                StringUtils.defaultIfBlank(version, "[RELEASE]"), 
-                                               OsUtils.getOsDetails());
+                                               OsUtils.getOsDetails(), binaryName);
             
             JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(log);
             String artifactoryUrl = instance.inferArtifactoryUrl();
