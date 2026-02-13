@@ -3,7 +3,7 @@ resources:
     type: GitRepo
     configuration:
       path: jfrog/jenkins-jfrog-plugin
-      gitProvider: il_automation
+      gitProvider: il_automation  # Uses il_automation for jfrog org access
       branches:
         include: main
 
@@ -11,7 +11,7 @@ resources:
     type: GitRepo
     configuration:
       path: jfrog/jenkins-jfrog-plugin
-      gitProvider: il_automation
+      gitProvider: il_automation  # Uses il_automation for jfrog org access
       buildOn:
         commit: false
       branches:
