@@ -19,7 +19,8 @@ pipelines:
           inputResources:
             - name: jenkinsJFrogReleaseGit
           integrations:
-            - name: il_automation
+            - name: jenkins_automation  # Used for git operations for jenkinsci org
+            - name: il_automation       # Available for other operations if needed
             - name: ecosys_entplus_deployer
             - name: jenkins_artifactory_jfrog_plugin
         execution:
@@ -36,7 +37,7 @@ pipelines:
             # Configure git
             - git checkout main
             - git remote set-url origin https://$int_il_automation_token@github.com/jfrog/jenkins-jfrog-plugin.git
-            - git remote add upstream https://$int_il_automation_token@github.com/jenkinsci/jfrog-plugin.git
+            - git remote add upstream https://$int_jenkins_automation_token@github.com/jenkinsci/jfrog-plugin.git
 
             # Make sure versions provided
             - echo "Checking variables"
