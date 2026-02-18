@@ -24,6 +24,8 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
+import static org.jfrog.build.client.DownloadResponse.SHA256_HEADER_NAME;
+
 /**
  * Installer for JFrog CLI binary.
  *
@@ -107,10 +109,11 @@ public abstract class BinaryInstaller extends ToolInstaller {
             try {
                 // Check if CLI already exists and is the correct version
                 FilePath cliPath = toolLocation.child(binaryName);
-                if (isValidCliInstallation(cliPath, log) && isCorrectVersion(toolLocation, instance, repository, version, binaryName, log)) {
+                boolean validCliExists = isValidCliInstallation(cliPath, log);
+                if (validCliExists && isCorrectVersion(toolLocation, instance, repository, version, binaryName, log)) {
                     log.getLogger().println("[BinaryInstaller] CLI already installed and up-to-date, skipping download");
                     return toolLocation;
-                } else if (isValidCliInstallation(cliPath, log)) {
+                } else if (validCliExists) {
                     log.getLogger().println("[BinaryInstaller] CLI exists but version mismatch detected, proceeding with upgrade");
                 } else {
                     log.getLogger().println("[BinaryInstaller] No valid CLI installation found, proceeding with fresh installation");
@@ -149,7 +152,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
             return toolLocation.getRemote() + "/" + binaryName + "/" + version;
         } catch (Exception e) {
             // Fallback to a simpler key if remote path access fails
-            return toolLocation.toString() + "/" + binaryName + "/" + version;
+            return "unknown-tool-location/" + binaryName + "/" + version;
         }
     }
     
@@ -165,7 +168,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
             if (cliPath.exists()) {
                 // Check if file is executable and has reasonable size (> 1MB)
                 long fileSize = cliPath.length();
-                if (fileSize > 1024 * 1024) { // > 1MB
+                if (fileSize > 1024 * 1024 && isExecutable(cliPath)) { // > 1MB
                     log.getLogger().println("[BinaryInstaller] Found existing CLI: " + cliPath.getRemote() + 
                                           " (size: " + (fileSize / 1024 / 1024) + "MB)");
                     return true;
@@ -175,6 +178,26 @@ public abstract class BinaryInstaller extends ToolInstaller {
             LOGGER.warning("Failed to check existing CLI installation: " + e.getMessage());
         }
         return false;
+    }
+
+    /**
+     * Verify the CLI file is executable on the target node.
+     * On Windows, treat .exe files as executable.
+     */
+    private static boolean isExecutable(FilePath cliPath) throws IOException, InterruptedException {
+        return cliPath.act(new MasterToSlaveFileCallable<Boolean>() {
+            @Override
+            public Boolean invoke(File file, VirtualChannel channel) {
+                if (!file.exists() || file.isDirectory()) {
+                    return false;
+                }
+                String name = file.getName().toLowerCase();
+                if (name.endsWith(".exe")) {
+                    return true;
+                }
+                return file.canExecute();
+            }
+        });
     }
     
     /**
@@ -216,8 +239,14 @@ public abstract class BinaryInstaller extends ToolInstaller {
                 // Get expected SHA256 from Artifactory
                 String expectedSha256 = getArtifactSha256(manager, cliUrlSuffix);
                 if (expectedSha256.isEmpty()) {
-                    log.getLogger().println("[BinaryInstaller] No SHA256 available from server, assuming version check needed");
-                    return false; // If no SHA256, let download process handle it
+                    log.getLogger().println("[BinaryInstaller] No SHA256 available from server");
+                    boolean hasLocalChecksum = hasLocalChecksumFile(toolLocation);
+                    if (hasLocalChecksum) {
+                        log.getLogger().println("[BinaryInstaller] Existing CLI and local checksum found, skipping upgrade");
+                        return true;
+                    }
+                    log.getLogger().println("[BinaryInstaller] Local checksum missing, proceeding with download check");
+                    return false;
                 }
                 
                 // Check local SHA256 file
@@ -240,6 +269,24 @@ public abstract class BinaryInstaller extends ToolInstaller {
             return false; // If version check fails, let download process handle it
         }
     }
+
+    /**
+     * Check if local checksum file exists and is non-empty.
+     */
+    private static boolean hasLocalChecksumFile(FilePath toolLocation) {
+        try {
+            return toolLocation.act(new MasterToSlaveFileCallable<Boolean>() {
+                @Override
+                public Boolean invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+                    File sha256File = new File(f, "sha256");
+                    return sha256File.exists() && sha256File.length() > 0;
+                }
+            });
+        } catch (Exception e) {
+            LOGGER.fine("Failed to verify local checksum file: " + e.getMessage());
+            return false;
+        }
+    }
     
     /**
      * Get SHA256 hash from Artifactory headers (same logic as in JFrogCliDownloader)
@@ -247,7 +294,9 @@ public abstract class BinaryInstaller extends ToolInstaller {
     private static String getArtifactSha256(ArtifactoryManager manager, String cliUrlSuffix) throws IOException {
         Header[] headers = manager.downloadHeaders(cliUrlSuffix);
         for (Header header : headers) {
-            if (header.getName().equalsIgnoreCase("X-Checksum-Sha256")) {
+            String headerName = header.getName();
+            if (headerName.equalsIgnoreCase(SHA256_HEADER_NAME) ||
+                    headerName.equalsIgnoreCase("X-Artifactory-Checksum-Sha256")) {
                 return header.getValue();
             }
         }
