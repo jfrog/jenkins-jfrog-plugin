@@ -239,14 +239,8 @@ public abstract class BinaryInstaller extends ToolInstaller {
                 // Get expected SHA256 from Artifactory
                 String expectedSha256 = getArtifactSha256(manager, cliUrlSuffix);
                 if (expectedSha256.isEmpty()) {
-                    log.getLogger().println("[BinaryInstaller] No SHA256 available from server");
-                    boolean hasLocalChecksum = hasLocalChecksumFile(toolLocation);
-                    if (hasLocalChecksum) {
-                        log.getLogger().println("[BinaryInstaller] Existing CLI and local checksum found, skipping upgrade");
-                        return true;
-                    }
-                    log.getLogger().println("[BinaryInstaller] Local checksum missing, proceeding with download check");
-                    return false;
+                    log.getLogger().println("[BinaryInstaller] No SHA256 available from server, reusing existing valid CLI");
+                    return true;
                 }
                 
                 // Check local SHA256 file
@@ -270,24 +264,6 @@ public abstract class BinaryInstaller extends ToolInstaller {
         }
     }
 
-    /**
-     * Check if local checksum file exists and is non-empty.
-     */
-    private static boolean hasLocalChecksumFile(FilePath toolLocation) {
-        try {
-            return toolLocation.act(new MasterToSlaveFileCallable<Boolean>() {
-                @Override
-                public Boolean invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-                    File sha256File = new File(f, "sha256");
-                    return sha256File.exists() && sha256File.length() > 0;
-                }
-            });
-        } catch (Exception e) {
-            LOGGER.fine("Failed to verify local checksum file: " + e.getMessage());
-            return false;
-        }
-    }
-    
     /**
      * Get SHA256 hash from Artifactory headers (same logic as in JFrogCliDownloader)
      */

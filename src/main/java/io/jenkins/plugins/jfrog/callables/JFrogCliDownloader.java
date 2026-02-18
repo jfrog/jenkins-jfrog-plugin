@@ -495,6 +495,9 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
     }
 
     private static void createSha256File(File toolLocation, String artifactorySha256) throws IOException {
+        if (StringUtils.isBlank(artifactorySha256)) {
+            return;
+        }
         File file = new File(toolLocation, SHA256_FILE_NAME);
         Files.write(file.toPath(), artifactorySha256.getBytes(StandardCharsets.UTF_8));
     }
@@ -508,14 +511,8 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
      * @param artifactorySha256 - sha256 of the expected file in artifactory.
      */
     private static boolean shouldDownloadTool(File toolLocation, String artifactorySha256) throws IOException {
-        // In case no sha256 was provided (for example when the users blocks headers),
-        // fall back to local checksum presence to avoid unnecessary repeated downloads.
+        // In case no sha256 was provided (for example when the users blocks headers) download the tool.
         if (artifactorySha256.isEmpty()) {
-            Path path = toolLocation.toPath().resolve(SHA256_FILE_NAME);
-            if (Files.exists(path)) {
-                String fileContent = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
-                return StringUtils.isBlank(fileContent);
-            }
             return true;
         }
         // Looking for the sha256 file in the tool directory.
