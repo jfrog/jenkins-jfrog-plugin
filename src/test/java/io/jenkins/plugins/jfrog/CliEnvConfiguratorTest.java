@@ -1,13 +1,18 @@
 package io.jenkins.plugins.jfrog;
 
 import hudson.EnvVars;
+import hudson.FilePath;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import jenkins.model.Jenkins;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.jvnet.hudson.test.JenkinsRule;
+
+import java.io.File;
+import java.io.IOException;
 
 import static io.jenkins.plugins.jfrog.CliEnvConfigurator.*;
 import static org.junit.Assert.*;
@@ -19,6 +24,8 @@ import static org.junit.Assert.*;
 public class CliEnvConfiguratorTest {
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder();
     JenkinsProxyConfiguration proxyConfiguration;
     EnvVars envVars;
 
@@ -31,30 +38,41 @@ public class CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvBasicTest() {
-        invokeConfigureCliEnv("a/b/c", new JFrogCliConfigEncryption(envVars));
+    public void configureCliEnvBasicTest() throws IOException, InterruptedException {
+        File jfrogHomeDir = tempFolder.newFolder("jfrog-home");
+        FilePath jfrogHomeTempDir = new FilePath(jfrogHomeDir);
+        invokeConfigureCliEnv(jfrogHomeTempDir, new JFrogCliConfigEncryption(envVars));
         assertEnv(envVars, JFROG_CLI_BUILD_NAME, "buildName");
         assertEnv(envVars, JFROG_CLI_BUILD_NUMBER, "1");
         assertEnv(envVars, JFROG_CLI_BUILD_URL, "https://acme.jenkins.io");
-        assertEnv(envVars, JFROG_CLI_HOME_DIR, "a/b/c");
+        assertEnv(envVars, JFROG_CLI_HOME_DIR, jfrogHomeDir.getAbsolutePath());
     }
 
     @Test
-    public void configEncryptionTest() {
+    public void configEncryptionTest() throws IOException, InterruptedException {
         JFrogCliConfigEncryption configEncryption = new JFrogCliConfigEncryption(envVars);
         assertTrue(configEncryption.shouldEncrypt());
         assertEquals(32, configEncryption.getKey().length());
 
-        invokeConfigureCliEnv("a/b/c", configEncryption);
-        assertEnv(envVars, JFROG_CLI_ENCRYPTION_KEY, configEncryption.getKeyOrFilePath());
+        File jfrogHomeDir = tempFolder.newFolder("jfrog-home-enc");
+        FilePath jfrogHomeTempDir = new FilePath(jfrogHomeDir);
+        invokeConfigureCliEnv(jfrogHomeTempDir, configEncryption);
+        // The encryption key file is created in jfrogHomeTempDir/encryption/ to work in Docker containers
+        String keyFilePath = envVars.get(JFROG_CLI_ENCRYPTION_KEY);
+        assertNotNull(keyFilePath);
+        assertTrue(keyFilePath.startsWith(jfrogHomeDir.getAbsolutePath()));
+        assertTrue(keyFilePath.contains("encryption"));
+        assertTrue(keyFilePath.endsWith(".key"));
+        assertEquals(keyFilePath, configEncryption.getKeyFilePath());
     }
 
     @Test
-    public void configEncryptionWithHomeDirTest() {
+    public void configEncryptionWithHomeDirTest() throws IOException, InterruptedException {
         // Config JFROG_CLI_HOME_DIR to disable key encryption
         envVars.put(JFROG_CLI_HOME_DIR, "/a/b/c");
         JFrogCliConfigEncryption configEncryption = new JFrogCliConfigEncryption(envVars);
-        invokeConfigureCliEnv("", configEncryption);
+        File emptyDir = tempFolder.newFolder("empty");
+        invokeConfigureCliEnv(new FilePath(emptyDir), configEncryption);
 
         assertFalse(configEncryption.shouldEncrypt());
         assertFalse(envVars.containsKey(JFROG_CLI_ENCRYPTION_KEY));
@@ -64,11 +82,12 @@ public class CliEnvConfiguratorTest {
         assertEquals(expectedValue, envVars.get(key));
     }
 
-    void invokeConfigureCliEnv() {
-        this.invokeConfigureCliEnv("", new JFrogCliConfigEncryption(envVars));
+    void invokeConfigureCliEnv() throws IOException, InterruptedException {
+        File emptyDir = tempFolder.newFolder("default");
+        this.invokeConfigureCliEnv(new FilePath(emptyDir), new JFrogCliConfigEncryption(envVars));
     }
 
-    void invokeConfigureCliEnv(String jfrogHomeTempDir, JFrogCliConfigEncryption configEncryption) {
+    void invokeConfigureCliEnv(FilePath jfrogHomeTempDir, JFrogCliConfigEncryption configEncryption) throws IOException, InterruptedException {
         setProxyConfiguration();
         configureCliEnv(envVars, jfrogHomeTempDir, configEncryption);
     }
