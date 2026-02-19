@@ -61,8 +61,7 @@ public class CliEnvConfigurator {
         }
 
         // Add HTTP or HTTPS protocol according to the port.
-        // nosemgrep: java-insecure-protocol
-        String proxyUrl = proxyConfiguration.port == 443 ? "https://" : "http://";
+        String proxyUrl = proxyConfiguration.port == 443 ? "https://" : "http://"; // nosemgrep: java-insecure-protocol
         if (!StringUtils.isAnyBlank(proxyConfiguration.username, proxyConfiguration.password)) {
             // Add username and password, if provided
             proxyUrl += proxyConfiguration.username + ":" + proxyConfiguration.password + "@";
