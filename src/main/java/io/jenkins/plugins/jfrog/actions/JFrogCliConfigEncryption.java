@@ -19,7 +19,10 @@ import static io.jenkins.plugins.jfrog.CliEnvConfigurator.JFROG_CLI_HOME_DIR;
  **/
 public class JFrogCliConfigEncryption implements Action {
     private boolean shouldEncrypt;
-    private String keyOrPath;
+    // The encryption key content (32 characters)
+    private String key;
+    // The path to the key file (set when writeKeyFile is called)
+    private String keyFilePath;
 
     public JFrogCliConfigEncryption(EnvVars env) {
         if (env.containsKey(JFROG_CLI_HOME_DIR)) {
@@ -29,41 +32,40 @@ public class JFrogCliConfigEncryption implements Action {
         }
         this.shouldEncrypt = true;
         // UUID is a cryptographically strong encryption key. Without the dashes, it contains exactly 32 characters.
-        String workspacePath = env.get("WORKSPACE");
-        if (workspacePath == null || workspacePath.isEmpty()) {
-            workspacePath = System.getProperty("java.io.tmpdir");
+        this.key = UUID.randomUUID().toString().replaceAll("-", "");
+    }
+
+    /**
+     * Writes the encryption key to a file in the specified directory.
+     * This should be called with the jfrogHomeTempDir path which is accessible inside Docker containers.
+     *
+     * @param jfrogHomeTempDir - The JFrog CLI home temp directory path (accessible from agent/Docker)
+     * @return The path to the key file
+     * @throws IOException if the file cannot be written
+     */
+    public String writeKeyFile(String jfrogHomeTempDir) throws IOException {
+        if (this.key == null || this.key.isEmpty()) {
+            return null;
         }
-        Path encryptionDir = Paths.get(workspacePath, ".jfrog", "encryption");
-        try {
-            Files.createDirectories(encryptionDir);
-            String fileName = UUID.randomUUID().toString() + ".key";
-            Path keyFilePath = encryptionDir.resolve(fileName);
-            String encryptionKeyContent = UUID.randomUUID().toString().replaceAll("-", "");
-            Files.write(keyFilePath, encryptionKeyContent.getBytes(StandardCharsets.UTF_8));
-            this.keyOrPath =keyFilePath.toString();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        // If key file was already written, return the existing path
+        if (this.keyFilePath != null) {
+            return this.keyFilePath;
         }
+        Path encryptionDir = Paths.get(jfrogHomeTempDir, "encryption");
+        Files.createDirectories(encryptionDir);
+        String fileName = UUID.randomUUID().toString() + ".key";
+        Path keyPath = encryptionDir.resolve(fileName);
+        Files.write(keyPath, this.key.getBytes(StandardCharsets.UTF_8));
+        this.keyFilePath = keyPath.toString();
+        return this.keyFilePath;
     }
 
     public String getKey() {
-        if (this.keyOrPath == null || this.keyOrPath.isEmpty()) {
-            return null;
-        }
-        try {
-            byte[] keyBytes = Files.readAllBytes(Paths.get(this.keyOrPath));
-            return new String(keyBytes, StandardCharsets.UTF_8).trim();
-        } catch (IOException e) {
-            System.err.println("Error reading encryption key file: " + e.getMessage());
-            return null;
-        }
+        return this.key;
     }
 
-    public String getKeyOrFilePath() {
-        if (this.keyOrPath == null || this.keyOrPath.isEmpty()) {
-            return null;
-        }
-        return this.keyOrPath;
+    public String getKeyFilePath() {
+        return this.keyFilePath;
     }
 
     public boolean shouldEncrypt() {

@@ -5,6 +5,8 @@ import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import org.apache.commons.lang3.StringUtils;
 
+import java.io.IOException;
+
 /**
  * Configures JFrog CLI environment variables for the job.
  *
@@ -26,10 +28,11 @@ public class CliEnvConfigurator {
      * Configure the JFrog CLI environment variables, according to the input job's env.
      *
      * @param env              - Job's environment variables
-     * @param jfrogHomeTempDir - Calculated JFrog CLI home dir
+     * @param jfrogHomeTempDir - Calculated JFrog CLI home dir (path accessible from agent/Docker)
      * @param encryptionKey    - Random encryption key to encrypt the CLI config
+     * @throws IOException if the encryption key file cannot be written
      */
-    static void configureCliEnv(EnvVars env, String jfrogHomeTempDir, JFrogCliConfigEncryption encryptionKey) {
+    static void configureCliEnv(EnvVars env, String jfrogHomeTempDir, JFrogCliConfigEncryption encryptionKey) throws IOException {
         // Setting Jenkins job name as the default build-info name
         env.putIfAbsent(JFROG_CLI_BUILD_NAME, env.get("JOB_NAME"));
         // Setting Jenkins build number as the default build-info number
@@ -43,8 +46,10 @@ public class CliEnvConfigurator {
             setupProxy(env);
         }
         if (encryptionKey.shouldEncrypt()) {
-            // Set up a random encryption key to make sure no raw text secrets are stored in the file system
-            env.putIfAbsent(JFROG_CLI_ENCRYPTION_KEY, encryptionKey.getKeyOrFilePath());
+            // Write the encryption key file to jfrogHomeTempDir (which is inside the workspace and
+            // accessible from Docker containers). Pass the file path to keep the key secure.
+            String keyFilePath = encryptionKey.writeKeyFile(jfrogHomeTempDir);
+            env.putIfAbsent(JFROG_CLI_ENCRYPTION_KEY, keyFilePath);
         }
     }
 

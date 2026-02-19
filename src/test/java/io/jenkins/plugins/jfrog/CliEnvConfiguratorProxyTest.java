@@ -4,6 +4,8 @@ import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
+
 import static io.jenkins.plugins.jfrog.CliEnvConfigurator.*;
 import static org.junit.Assert.assertNull;
 
@@ -22,7 +24,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvHttpProxyTest() {
+    public void configureCliEnvHttpProxyTest() throws IOException {
         proxyConfiguration.port = 80;
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "http://acme.proxy.io:80");
@@ -31,7 +33,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvHttpsProxyTest() {
+    public void configureCliEnvHttpsProxyTest() throws IOException {
         proxyConfiguration.port = 443;
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "https://acme.proxy.io:443");
@@ -40,7 +42,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvHttpProxyAuthTest() {
+    public void configureCliEnvHttpProxyAuthTest() throws IOException {
         proxyConfiguration.port = 80;
         proxyConfiguration.username = "andor";
         proxyConfiguration.password = "RogueOne";
@@ -51,7 +53,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvHttpsProxyAuthTest() {
+    public void configureCliEnvHttpsProxyAuthTest() throws IOException {
         proxyConfiguration.port = 443;
         proxyConfiguration.username = "andor";
         proxyConfiguration.password = "RogueOne";
@@ -62,14 +64,14 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvNoOverrideHttpTest() {
+    public void configureCliEnvNoOverrideHttpTest() throws IOException {
         envVars.put(HTTP_PROXY_ENV, "http://acme2.proxy.io:777");
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "http://acme2.proxy.io:777");
     }
 
     @Test
-    public void configureCliEnvNoOverrideTest() {
+    public void configureCliEnvNoOverrideTest() throws IOException {
         envVars.put(HTTP_PROXY_ENV, "http://acme2.proxy.io:80");
         envVars.put(HTTPS_PROXY_ENV, "http://acme2.proxy.io:443");
         invokeConfigureCliEnv();
