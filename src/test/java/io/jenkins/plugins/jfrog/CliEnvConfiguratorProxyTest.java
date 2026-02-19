@@ -24,7 +24,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvHttpProxyTest() throws IOException {
+    public void configureCliEnvHttpProxyTest() throws IOException, InterruptedException {
         proxyConfiguration.port = 80;
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "http://acme.proxy.io:80");
@@ -33,7 +33,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvHttpsProxyTest() throws IOException {
+    public void configureCliEnvHttpsProxyTest() throws IOException, InterruptedException {
         proxyConfiguration.port = 443;
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "https://acme.proxy.io:443");
@@ -42,7 +42,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvHttpProxyAuthTest() throws IOException {
+    public void configureCliEnvHttpProxyAuthTest() throws IOException, InterruptedException {
         proxyConfiguration.port = 80;
         proxyConfiguration.username = "andor";
         proxyConfiguration.password = "RogueOne";
@@ -53,7 +53,7 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvHttpsProxyAuthTest() throws IOException {
+    public void configureCliEnvHttpsProxyAuthTest() throws IOException, InterruptedException {
         proxyConfiguration.port = 443;
         proxyConfiguration.username = "andor";
         proxyConfiguration.password = "RogueOne";
@@ -64,14 +64,14 @@ public class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    public void configureCliEnvNoOverrideHttpTest() throws IOException {
+    public void configureCliEnvNoOverrideHttpTest() throws IOException, InterruptedException {
         envVars.put(HTTP_PROXY_ENV, "http://acme2.proxy.io:777");
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "http://acme2.proxy.io:777");
     }
 
     @Test
-    public void configureCliEnvNoOverrideTest() throws IOException {
+    public void configureCliEnvNoOverrideTest() throws IOException, InterruptedException {
         envVars.put(HTTP_PROXY_ENV, "http://acme2.proxy.io:80");
         envVars.put(HTTPS_PROXY_ENV, "http://acme2.proxy.io:443");
         invokeConfigureCliEnv();

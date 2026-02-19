@@ -1,6 +1,7 @@
 package io.jenkins.plugins.jfrog;
 
 import hudson.EnvVars;
+import hudson.FilePath;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import org.apache.commons.lang3.StringUtils;
@@ -28,26 +29,28 @@ public class CliEnvConfigurator {
      * Configure the JFrog CLI environment variables, according to the input job's env.
      *
      * @param env              - Job's environment variables
-     * @param jfrogHomeTempDir - Calculated JFrog CLI home dir (path accessible from agent/Docker)
+     * @param jfrogHomeTempDir - Calculated JFrog CLI home dir (FilePath on the agent)
      * @param encryptionKey    - Random encryption key to encrypt the CLI config
      * @throws IOException if the encryption key file cannot be written
+     * @throws InterruptedException if the operation is interrupted
      */
-    static void configureCliEnv(EnvVars env, String jfrogHomeTempDir, JFrogCliConfigEncryption encryptionKey) throws IOException {
+    static void configureCliEnv(EnvVars env, FilePath jfrogHomeTempDir, JFrogCliConfigEncryption encryptionKey) throws IOException, InterruptedException {
         // Setting Jenkins job name as the default build-info name
         env.putIfAbsent(JFROG_CLI_BUILD_NAME, env.get("JOB_NAME"));
         // Setting Jenkins build number as the default build-info number
         env.putIfAbsent(JFROG_CLI_BUILD_NUMBER, env.get("BUILD_NUMBER"));
         // Setting the specific build URL
         env.putIfAbsent(JFROG_CLI_BUILD_URL, env.get("BUILD_URL"));
-        // Set up a temporary Jfrog CLI home directory for a specific run
-        env.put(JFROG_CLI_HOME_DIR, jfrogHomeTempDir);
+        // Set up a temporary Jfrog CLI home directory for a specific run.
+        // Use getRemote() to get the path as seen by the agent.
+        env.put(JFROG_CLI_HOME_DIR, jfrogHomeTempDir.getRemote());
         if (StringUtils.isAllBlank(env.get(HTTP_PROXY_ENV), env.get(HTTPS_PROXY_ENV))) {
             // Set up HTTP/S proxy
             setupProxy(env);
         }
         if (encryptionKey.shouldEncrypt()) {
-            // Write the encryption key file to jfrogHomeTempDir (which is inside the workspace and
-            // accessible from Docker containers). Pass the file path to keep the key secure.
+            // Write the encryption key file on the agent (not controller) using FilePath.
+            // This ensures the file exists where the JFrog CLI runs (Docker/remote agent).
             String keyFilePath = encryptionKey.writeKeyFile(jfrogHomeTempDir);
             env.putIfAbsent(JFROG_CLI_ENCRYPTION_KEY, keyFilePath);
         }
