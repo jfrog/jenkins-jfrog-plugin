@@ -1,13 +1,11 @@
 package io.jenkins.plugins.jfrog.actions;
 
 import hudson.EnvVars;
+import hudson.FilePath;
 import hudson.model.Action;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.UUID;
 
 import static io.jenkins.plugins.jfrog.CliEnvConfigurator.JFROG_CLI_HOME_DIR;
@@ -19,8 +17,10 @@ import static io.jenkins.plugins.jfrog.CliEnvConfigurator.JFROG_CLI_HOME_DIR;
  **/
 public class JFrogCliConfigEncryption implements Action {
     private boolean shouldEncrypt;
-    private String keyOrPath;
-    private String keyContent;
+    // The encryption key content (32 characters)
+    private String key;
+    // The path to the key file (set when writeKeyFile is called)
+    private String keyFilePath;
 
     public JFrogCliConfigEncryption(EnvVars env) {
         if (env.containsKey(JFROG_CLI_HOME_DIR)) {

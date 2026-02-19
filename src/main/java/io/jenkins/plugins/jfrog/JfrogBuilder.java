@@ -247,7 +247,7 @@ public class JfrogBuilder extends Builder {
         }
 
         FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
-        CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir.getRemote(), jfrogCliConfigEncryption);
+        CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir, jfrogCliConfigEncryption);
         Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(cliOutputListener);
 
         // Configure all servers, skip if all server ids have already been configured.
