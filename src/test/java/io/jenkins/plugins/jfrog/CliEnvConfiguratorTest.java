@@ -46,7 +46,8 @@ public class CliEnvConfiguratorTest {
         assertEquals(32, configEncryption.getKey().length());
 
         invokeConfigureCliEnv("a/b/c", configEncryption);
-        assertEnv(envVars, JFROG_CLI_ENCRYPTION_KEY, configEncryption.getKeyOrFilePath());
+        // The environment variable should contain the actual 32-character encryption key, not the file path
+        assertEnv(envVars, JFROG_CLI_ENCRYPTION_KEY, configEncryption.getKey());
     }
 
     @Test

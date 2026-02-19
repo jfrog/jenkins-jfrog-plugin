@@ -1,0 +1,7 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:entry title="JFrog CLI Installation" field="jfrogInstallation"
+             description="Select the JFrog CLI installation to use. This will set up the JFROG_BINARY_PATH environment variable for the entire build, making the 'jf' command available to all build steps including shell scripts.">
+        <f:select />
+    </f:entry>
+</j:jelly>

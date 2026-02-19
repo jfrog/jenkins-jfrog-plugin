@@ -24,6 +24,8 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
+import static org.jfrog.build.client.DownloadResponse.SHA256_HEADER_NAME;
+
 /**
  * Installer for JFrog CLI binary.
  *
@@ -92,7 +94,8 @@ public abstract class BinaryInstaller extends ToolInstaller {
                                                       JFrogPlatformInstance instance, String repository, String binaryName) 
             throws IOException, InterruptedException {
         
-        // Create unique lock key for this node + installation path + version combination
+        // Create unique lock key for this node + installation path combination.
+        // Version is intentionally excluded to serialize all writes to the same binary path.
         String lockKey = createLockKey(toolLocation, binaryName, version);
         
         // Get or create synchronization lock for this specific installation location
@@ -107,10 +110,11 @@ public abstract class BinaryInstaller extends ToolInstaller {
             try {
                 // Check if CLI already exists and is the correct version
                 FilePath cliPath = toolLocation.child(binaryName);
-                if (isValidCliInstallation(cliPath, log) && isCorrectVersion(toolLocation, instance, repository, version, log)) {
+                boolean validCliExists = isValidCliInstallation(cliPath, log);
+                if (validCliExists && isCorrectVersion(toolLocation, instance, repository, version, binaryName, log)) {
                     log.getLogger().println("[BinaryInstaller] CLI already installed and up-to-date, skipping download");
                     return toolLocation;
-                } else if (isValidCliInstallation(cliPath, log)) {
+                } else if (validCliExists) {
                     log.getLogger().println("[BinaryInstaller] CLI exists but version mismatch detected, proceeding with upgrade");
                 } else {
                     log.getLogger().println("[BinaryInstaller] No valid CLI installation found, proceeding with fresh installation");
@@ -135,21 +139,20 @@ public abstract class BinaryInstaller extends ToolInstaller {
     }
     
     /**
-     * Creates a unique lock key for the installation location and version.
-     * Including version in the key ensures different versions can be installed concurrently
-     * and prevents race conditions during version upgrades.
-     * 
+     * Creates a unique lock key for the installation location.
+     * Version is excluded so all operations targeting the same binary path are serialized.
+     *
      * @param toolLocation Installation directory
      * @param binaryName Binary file name
-     * @param version CLI version being installed
+     * @param version CLI version being installed (unused, kept for signature compatibility)
      * @return Unique lock key string
      */
     private static String createLockKey(FilePath toolLocation, String binaryName, String version) {
         try {
-            return toolLocation.getRemote() + "/" + binaryName + "/" + version;
+            return toolLocation.getRemote() + "/" + binaryName;
         } catch (Exception e) {
             // Fallback to a simpler key if remote path access fails
-            return toolLocation.toString() + "/" + binaryName + "/" + version;
+            return "unknown-tool-location/" + binaryName;
         }
     }
     
@@ -165,7 +168,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
             if (cliPath.exists()) {
                 // Check if file is executable and has reasonable size (> 1MB)
                 long fileSize = cliPath.length();
-                if (fileSize > 1024 * 1024) { // > 1MB
+                if (fileSize > 1024 * 1024 && isExecutable(cliPath)) { // > 1MB
                     log.getLogger().println("[BinaryInstaller] Found existing CLI: " + cliPath.getRemote() + 
                                           " (size: " + (fileSize / 1024 / 1024) + "MB)");
                     return true;
@@ -176,6 +179,26 @@ public abstract class BinaryInstaller extends ToolInstaller {
         }
         return false;
     }
+
+    /**
+     * Verify the CLI file is executable on the target node.
+     * On Windows, treat .exe files as executable.
+     */
+    private static boolean isExecutable(FilePath cliPath) throws IOException, InterruptedException {
+        return cliPath.act(new MasterToSlaveFileCallable<Boolean>() {
+            @Override
+            public Boolean invoke(File file, VirtualChannel channel) {
+                if (!file.exists() || file.isDirectory()) {
+                    return false;
+                }
+                String name = file.getName().toLowerCase();
+                if (name.endsWith(".exe")) {
+                    return true;
+                }
+                return file.canExecute();
+            }
+        });
+    }
     
     /**
      * Check if the installed CLI is the correct version by comparing SHA256 hashes.
@@ -185,19 +208,21 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @param instance JFrog platform instance for version checking
      * @param repository Repository containing the CLI
      * @param version Version to check
+     * @param binaryName Name of the CLI binary (e.g., "jf" on Unix, "jf.exe" on Windows)
      * @param log Task listener for logging
      * @return true if CLI is the correct version, false otherwise
      */
     private static boolean isCorrectVersion(FilePath toolLocation, JFrogPlatformInstance instance, 
-                                          String repository, String version, TaskListener log) {
+                                          String repository, String version, String binaryName, TaskListener log) {
         try {
             // Use the same logic as shouldDownloadTool() from JFrogCliDownloader
             // but do it here to avoid unnecessary JFrogCliDownloader.invoke() calls
             
             JenkinsProxyConfiguration proxyConfiguration = new JenkinsProxyConfiguration();
-            String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/jf", repository, 
+            // Use binaryName to construct the correct URL suffix (handles Windows jf.exe vs Unix jf)
+            String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, 
                                                StringUtils.defaultIfBlank(version, "[RELEASE]"), 
-                                               OsUtils.getOsDetails());
+                                               OsUtils.getOsDetails(), binaryName);
             
             JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(log);
             String artifactoryUrl = instance.inferArtifactoryUrl();
@@ -214,8 +239,8 @@ public abstract class BinaryInstaller extends ToolInstaller {
                 // Get expected SHA256 from Artifactory
                 String expectedSha256 = getArtifactSha256(manager, cliUrlSuffix);
                 if (expectedSha256.isEmpty()) {
-                    log.getLogger().println("[BinaryInstaller] No SHA256 available from server, assuming version check needed");
-                    return false; // If no SHA256, let download process handle it
+                    log.getLogger().println("[BinaryInstaller] No SHA256 available from server, reusing existing valid CLI");
+                    return true;
                 }
                 
                 // Check local SHA256 file
@@ -238,14 +263,16 @@ public abstract class BinaryInstaller extends ToolInstaller {
             return false; // If version check fails, let download process handle it
         }
     }
-    
+
     /**
      * Get SHA256 hash from Artifactory headers (same logic as in JFrogCliDownloader)
      */
     private static String getArtifactSha256(ArtifactoryManager manager, String cliUrlSuffix) throws IOException {
         Header[] headers = manager.downloadHeaders(cliUrlSuffix);
         for (Header header : headers) {
-            if (header.getName().equalsIgnoreCase("X-Checksum-Sha256")) {
+            String headerName = header.getName();
+            if (headerName.equalsIgnoreCase(SHA256_HEADER_NAME) ||
+                    headerName.equalsIgnoreCase("X-Artifactory-Checksum-Sha256")) {
                 return header.getValue();
             }
         }

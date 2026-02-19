@@ -44,7 +44,8 @@ public class CliEnvConfigurator {
         }
         if (encryptionKey.shouldEncrypt()) {
             // Set up a random encryption key to make sure no raw text secrets are stored in the file system
-            env.putIfAbsent(JFROG_CLI_ENCRYPTION_KEY, encryptionKey.getKeyOrFilePath());
+            // getKey() returns the actual 32-character encryption key content, not the file path
+            env.putIfAbsent(JFROG_CLI_ENCRYPTION_KEY, encryptionKey.getKey());
         }
     }
 

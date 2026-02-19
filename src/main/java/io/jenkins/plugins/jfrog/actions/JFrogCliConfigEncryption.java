@@ -20,6 +20,7 @@ import static io.jenkins.plugins.jfrog.CliEnvConfigurator.JFROG_CLI_HOME_DIR;
 public class JFrogCliConfigEncryption implements Action {
     private boolean shouldEncrypt;
     private String keyOrPath;
+    private String keyContent;
 
     public JFrogCliConfigEncryption(EnvVars env) {
         if (env.containsKey(JFROG_CLI_HOME_DIR)) {
@@ -40,22 +41,30 @@ public class JFrogCliConfigEncryption implements Action {
             Path keyFilePath = encryptionDir.resolve(fileName);
             String encryptionKeyContent = UUID.randomUUID().toString().replaceAll("-", "");
             Files.write(keyFilePath, encryptionKeyContent.getBytes(StandardCharsets.UTF_8));
-            this.keyOrPath =keyFilePath.toString();
+            this.keyOrPath = keyFilePath.toString();
+            this.keyContent = encryptionKeyContent;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     public String getKey() {
+        if (this.keyContent != null && !this.keyContent.isEmpty()) {
+            return this.keyContent;
+        }
         if (this.keyOrPath == null || this.keyOrPath.isEmpty()) {
-            return null;
+            throw new IllegalStateException("Encryption key is not initialized");
         }
         try {
             byte[] keyBytes = Files.readAllBytes(Paths.get(this.keyOrPath));
-            return new String(keyBytes, StandardCharsets.UTF_8).trim();
+            String key = new String(keyBytes, StandardCharsets.UTF_8).trim();
+            if (key.isEmpty()) {
+                throw new IllegalStateException("Encryption key file is empty: " + this.keyOrPath);
+            }
+            this.keyContent = key;
+            return key;
         } catch (IOException e) {
-            System.err.println("Error reading encryption key file: " + e.getMessage());
-            return null;
+            throw new IllegalStateException("Failed reading encryption key file: " + this.keyOrPath, e);
         }
     }
 
