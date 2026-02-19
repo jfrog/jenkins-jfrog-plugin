@@ -94,7 +94,8 @@ public abstract class BinaryInstaller extends ToolInstaller {
                                                       JFrogPlatformInstance instance, String repository, String binaryName) 
             throws IOException, InterruptedException {
         
-        // Create unique lock key for this node + installation path + version combination
+        // Create unique lock key for this node + installation path combination.
+        // Version is intentionally excluded to serialize all writes to the same binary path.
         String lockKey = createLockKey(toolLocation, binaryName, version);
         
         // Get or create synchronization lock for this specific installation location
@@ -138,21 +139,20 @@ public abstract class BinaryInstaller extends ToolInstaller {
     }
     
     /**
-     * Creates a unique lock key for the installation location and version.
-     * Including version in the key ensures different versions can be installed concurrently
-     * and prevents race conditions during version upgrades.
-     * 
+     * Creates a unique lock key for the installation location.
+     * Version is excluded so all operations targeting the same binary path are serialized.
+     *
      * @param toolLocation Installation directory
      * @param binaryName Binary file name
-     * @param version CLI version being installed
+     * @param version CLI version being installed (unused, kept for signature compatibility)
      * @return Unique lock key string
      */
     private static String createLockKey(FilePath toolLocation, String binaryName, String version) {
         try {
-            return toolLocation.getRemote() + "/" + binaryName + "/" + version;
+            return toolLocation.getRemote() + "/" + binaryName;
         } catch (Exception e) {
             // Fallback to a simpler key if remote path access fails
-            return "unknown-tool-location/" + binaryName + "/" + version;
+            return "unknown-tool-location/" + binaryName;
         }
     }
     
