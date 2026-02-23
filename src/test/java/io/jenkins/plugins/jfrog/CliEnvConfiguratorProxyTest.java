@@ -21,7 +21,7 @@ class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    void configureCliEnvHttpProxyTest() {
+    void configureCliEnvHttpProxyTest() throws Exception {
         proxyConfiguration.port = 80;
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "http://acme.proxy.io:80");
@@ -30,7 +30,7 @@ class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    void configureCliEnvHttpsProxyTest() {
+    void configureCliEnvHttpsProxyTest() throws Exception {
         proxyConfiguration.port = 443;
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "https://acme.proxy.io:443");
@@ -39,7 +39,7 @@ class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    void configureCliEnvHttpProxyAuthTest() {
+    void configureCliEnvHttpProxyAuthTest() throws Exception {
         proxyConfiguration.port = 80;
         proxyConfiguration.username = "andor";
         proxyConfiguration.password = "RogueOne";
@@ -50,7 +50,7 @@ class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    void configureCliEnvHttpsProxyAuthTest() {
+    void configureCliEnvHttpsProxyAuthTest() throws Exception {
         proxyConfiguration.port = 443;
         proxyConfiguration.username = "andor";
         proxyConfiguration.password = "RogueOne";
@@ -61,14 +61,14 @@ class CliEnvConfiguratorProxyTest extends CliEnvConfiguratorTest {
     }
 
     @Test
-    void configureCliEnvNoOverrideHttpTest() {
+    void configureCliEnvNoOverrideHttpTest() throws Exception {
         envVars.put(HTTP_PROXY_ENV, "http://acme2.proxy.io:777");
         invokeConfigureCliEnv();
         assertEnv(envVars, HTTP_PROXY_ENV, "http://acme2.proxy.io:777");
     }
 
     @Test
-    void configureCliEnvNoOverrideTest() {
+    void configureCliEnvNoOverrideTest() throws Exception {
         envVars.put(HTTP_PROXY_ENV, "http://acme2.proxy.io:80");
         envVars.put(HTTPS_PROXY_ENV, "http://acme2.proxy.io:443");
         invokeConfigureCliEnv();
