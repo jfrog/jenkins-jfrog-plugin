@@ -1,13 +1,11 @@
 package io.jenkins.plugins.jfrog.actions;
 
 import hudson.EnvVars;
+import hudson.FilePath;
 import hudson.model.Action;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.UUID;
 
 import static io.jenkins.plugins.jfrog.CliEnvConfigurator.JFROG_CLI_HOME_DIR;
@@ -19,7 +17,10 @@ import static io.jenkins.plugins.jfrog.CliEnvConfigurator.JFROG_CLI_HOME_DIR;
  **/
 public class JFrogCliConfigEncryption implements Action {
     private boolean shouldEncrypt;
-    private String keyOrPath;
+    // The encryption key content (32 characters)
+    private String key;
+    // The path to the key file (set when writeKeyFile is called)
+    private String keyFilePath;
 
     public JFrogCliConfigEncryption(EnvVars env) {
         if (env.containsKey(JFROG_CLI_HOME_DIR)) {
@@ -29,41 +30,43 @@ public class JFrogCliConfigEncryption implements Action {
         }
         this.shouldEncrypt = true;
         // UUID is a cryptographically strong encryption key. Without the dashes, it contains exactly 32 characters.
-        String workspacePath = env.get("WORKSPACE");
-        if (workspacePath == null || workspacePath.isEmpty()) {
-            workspacePath = System.getProperty("java.io.tmpdir");
+        this.key = UUID.randomUUID().toString().replaceAll("-", "");
+    }
+
+    /**
+     * Writes the encryption key to a file in the specified directory on the agent.
+     * Uses FilePath to ensure the file is written on the remote agent, not the controller.
+     *
+     * @param jfrogHomeTempDir - The JFrog CLI home temp directory (FilePath on the agent)
+     * @return The path to the key file (as seen by the agent)
+     * @throws IOException if the file cannot be written
+     * @throws InterruptedException if the operation is interrupted
+     */
+    public String writeKeyFile(FilePath jfrogHomeTempDir) throws IOException, InterruptedException {
+        if (this.key == null || this.key.isEmpty()) {
+            return null;
         }
-        Path encryptionDir = Paths.get(workspacePath, ".jfrog", "encryption");
-        try {
-            Files.createDirectories(encryptionDir);
-            String fileName = UUID.randomUUID().toString() + ".key";
-            Path keyFilePath = encryptionDir.resolve(fileName);
-            String encryptionKeyContent = UUID.randomUUID().toString().replaceAll("-", "");
-            Files.write(keyFilePath, encryptionKeyContent.getBytes(StandardCharsets.UTF_8));
-            this.keyOrPath =keyFilePath.toString();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        // If key file was already written, return the existing path
+        if (this.keyFilePath != null) {
+            return this.keyFilePath;
         }
+        // Use FilePath operations to write on the agent (not controller)
+        FilePath encryptionDir = jfrogHomeTempDir.child("encryption");
+        encryptionDir.mkdirs();
+        String fileName = UUID.randomUUID().toString() + ".key";
+        FilePath keyFile = encryptionDir.child(fileName);
+        keyFile.write(this.key, StandardCharsets.UTF_8.name());
+        // getRemote() returns the path as seen by the agent
+        this.keyFilePath = keyFile.getRemote();
+        return this.keyFilePath;
     }
 
     public String getKey() {
-        if (this.keyOrPath == null || this.keyOrPath.isEmpty()) {
-            return null;
-        }
-        try {
-            byte[] keyBytes = Files.readAllBytes(Paths.get(this.keyOrPath));
-            return new String(keyBytes, StandardCharsets.UTF_8).trim();
-        } catch (IOException e) {
-            System.err.println("Error reading encryption key file: " + e.getMessage());
-            return null;
-        }
+        return this.key;
     }
 
-    public String getKeyOrFilePath() {
-        if (this.keyOrPath == null || this.keyOrPath.isEmpty()) {
-            return null;
-        }
-        return this.keyOrPath;
+    public String getKeyFilePath() {
+        return this.keyFilePath;
     }
 
     public boolean shouldEncrypt() {
