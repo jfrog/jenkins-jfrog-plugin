@@ -1,18 +1,18 @@
 package io.jenkins.plugins.jfrog.configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author yahavi
  **/
 @SuppressWarnings("HttpUrlsUsage")
-public class JFrogPlatformBuilderTest {
+class JFrogPlatformBuilderTest {
 
     @Test
-    public void testIsUnsafe() {
+    void testIsUnsafe() {
         assertFalse(JFrogPlatformBuilder.isUnsafe(false, "https://acme.jfrog.io"));
         assertFalse(JFrogPlatformBuilder.isUnsafe(false, "https://acme.jfrog.io"));
         assertFalse(JFrogPlatformBuilder.isUnsafe(true, "http://acme.jfrog.io"));
@@ -23,7 +23,7 @@ public class JFrogPlatformBuilderTest {
     }
 
     @Test
-    public void testIsInvalidProtocolOrEmptyUrl() {
+    void testIsInvalidProtocolOrEmptyUrl() {
         assertFalse(JFrogPlatformBuilder.isInvalidProtocolOrEmptyUrl(""));
         assertFalse(JFrogPlatformBuilder.isInvalidProtocolOrEmptyUrl("http://acme.jfrog.io"));
         assertFalse(JFrogPlatformBuilder.isInvalidProtocolOrEmptyUrl("https://acme.jfrog.io"));
