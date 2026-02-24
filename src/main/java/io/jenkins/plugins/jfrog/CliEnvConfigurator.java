@@ -49,10 +49,11 @@ public class CliEnvConfigurator {
             setupProxy(env);
         }
         if (encryptionKey.shouldEncrypt()) {
-            // Write the encryption key file on the agent (not controller) using FilePath.
-            // This ensures the file exists where the JFrog CLI runs (Docker/remote agent).
+            // Write the encryption key file on the current agent using FilePath.
+            // Always overwrite (not putIfAbsent) because in multi-agent pipelines the env
+            // var may still hold the previous agent's path, which doesn't exist on this agent.
             String keyFilePath = encryptionKey.writeKeyFile(jfrogHomeTempDir);
-            env.putIfAbsent(JFROG_CLI_ENCRYPTION_KEY, keyFilePath);
+            env.put(JFROG_CLI_ENCRYPTION_KEY, keyFilePath);
         }
     }
 

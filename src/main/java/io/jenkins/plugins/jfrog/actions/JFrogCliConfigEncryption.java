@@ -30,49 +30,45 @@ public class JFrogCliConfigEncryption implements Action {
         }
         this.shouldEncrypt = true;
         // UUID is a cryptographically strong encryption key. Without the dashes, it contains exactly 32 characters.
-        String workspacePath = env.get("WORKSPACE");
-        if (workspacePath == null || workspacePath.isEmpty()) {
-            workspacePath = System.getProperty("java.io.tmpdir");
+        this.key = UUID.randomUUID().toString().replaceAll("-", "");
+    }
+
+    /**
+     * Writes the encryption key to a file in the specified directory on the agent.
+     * Uses FilePath to ensure the file is written on the remote agent, not the controller.
+     * <p>
+     * The key file is always written fresh to the given jfrogHomeTempDir. In multi-agent
+     * pipelines each agent has its own filesystem, so the file must be written locally on
+     * every agent where the JFrog CLI runs. The key content stays the same across agents.
+     *
+     * @param jfrogHomeTempDir - The JFrog CLI home temp directory (FilePath on the agent)
+     * @return The path to the key file (as seen by the agent)
+     * @throws IOException if the file cannot be written
+     * @throws InterruptedException if the operation is interrupted
+     */
+    public String writeKeyFile(FilePath jfrogHomeTempDir) throws IOException, InterruptedException {
+        if (this.key == null || this.key.isEmpty()) {
+            return null;
         }
-        Path encryptionDir = Paths.get(workspacePath, ".jfrog", "encryption");
-        try {
-            Files.createDirectories(encryptionDir);
-            String fileName = UUID.randomUUID().toString() + ".key";
-            Path keyFilePath = encryptionDir.resolve(fileName);
-            String encryptionKeyContent = UUID.randomUUID().toString().replaceAll("-", "");
-            Files.write(keyFilePath, encryptionKeyContent.getBytes(StandardCharsets.UTF_8));
-            this.keyOrPath = keyFilePath.toString();
-            this.keyContent = encryptionKeyContent;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        // Always write the key file on the current agent's filesystem.
+        // Do NOT cache/reuse keyFilePath: in multi-agent pipelines each agent has its own
+        // filesystem, so returning a previously cached path would point to a different
+        // agent's file which does not exist on the current agent.
+        FilePath encryptionDir = jfrogHomeTempDir.child("encryption");
+        encryptionDir.mkdirs();
+        String fileName = UUID.randomUUID().toString() + ".key";
+        FilePath keyFile = encryptionDir.child(fileName);
+        keyFile.write(this.key, StandardCharsets.UTF_8.name());
+        this.keyFilePath = keyFile.getRemote();
+        return this.keyFilePath;
     }
 
     public String getKey() {
-        if (this.keyContent != null && !this.keyContent.isEmpty()) {
-            return this.keyContent;
-        }
-        if (this.keyOrPath == null || this.keyOrPath.isEmpty()) {
-            throw new IllegalStateException("Encryption key is not initialized");
-        }
-        try {
-            byte[] keyBytes = Files.readAllBytes(Paths.get(this.keyOrPath));
-            String key = new String(keyBytes, StandardCharsets.UTF_8).trim();
-            if (key.isEmpty()) {
-                throw new IllegalStateException("Encryption key file is empty: " + this.keyOrPath);
-            }
-            this.keyContent = key;
-            return key;
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed reading encryption key file: " + this.keyOrPath, e);
-        }
+        return this.key;
     }
 
-    public String getKeyOrFilePath() {
-        if (this.keyOrPath == null || this.keyOrPath.isEmpty()) {
-            return null;
-        }
-        return this.keyOrPath;
+    public String getKeyFilePath() {
+        return this.keyFilePath;
     }
 
     public boolean shouldEncrypt() {
