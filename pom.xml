@@ -305,6 +305,11 @@
                     <includes>
                         <include>**/*ITest.java</include>
                     </includes>
+                    <excludes>
+                        <!-- Tests requiring a live Artifactory instance — run manually -->
+                        <exclude>**/FreestyleJobITest.java</exclude>
+                        <exclude>**/ParallelInstallITest.java</exclude>
+                    </excludes>
                 </configuration>
                 <executions>
                     <execution>
