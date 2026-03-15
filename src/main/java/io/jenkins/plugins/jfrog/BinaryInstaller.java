@@ -20,8 +20,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 import static org.jfrog.build.client.DownloadResponse.SHA256_HEADER_NAME;
@@ -34,13 +35,32 @@ import static org.jfrog.build.client.DownloadResponse.SHA256_HEADER_NAME;
 public abstract class BinaryInstaller extends ToolInstaller {
     
     private static final Logger LOGGER = Logger.getLogger(BinaryInstaller.class.getName());
-    
+
+    /**
+     * Environment variable that overrides the default lock-acquisition timeout (in minutes).
+     * Set this on the Jenkins controller when operating on slow networks where CLI downloads
+     * take longer than the default.
+     *
+     * <pre>
+     *   export JFROG_CLI_INSTALL_TIMEOUT_MINUTES=15
+     * </pre>
+     */
+    static final String INSTALL_TIMEOUT_ENV_VAR = "JFROG_CLI_INSTALL_TIMEOUT_MINUTES";
+    private static final int DEFAULT_INSTALL_TIMEOUT_MINUTES = 5;
+
     /**
      * Per-node synchronization locks for installation coordination.
-     * Key: Node name + tool installation path
-     * Value: Object used as synchronization lock
+     * Key: installation path + binary name (see {@link #createLockKey})
+     * Value: ReentrantLock used to serialize installations to the same path
+     *
+     * <p>The map grows by one entry per unique (agent path, binary) combination encountered
+     * during the lifetime of the Jenkins JVM. In typical deployments the number of distinct
+     * tool installation paths is small and bounded, so the unbounded growth is acceptable.
+     * If the entry count ever becomes a concern, entries can be evicted after a successful
+     * installation without loss of correctness (a new lock will be created on the
+     * next access).</p>
      */
-    private static final ConcurrentHashMap<String, Object> NODE_INSTALLATION_LOCKS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, ReentrantLock> NODE_INSTALLATION_LOCKS = new ConcurrentHashMap<>();
     
     protected BinaryInstaller(String label) {
         super(label);
@@ -72,82 +92,127 @@ public abstract class BinaryInstaller extends ToolInstaller {
     }
 
     /**
-     * Performs JFrog CLI installation with proper synchronization to ensure reliable installation.
-     * 
+     * Performs JFrog CLI installation ensuring the pipeline always has a working binary.
+     *
      * INSTALLATION STRATEGY:
-     * 1. Create unique lock key per node + installation path
-     * 2. Use synchronized block to ensure only one installation per location at a time
-     * 3. Check if CLI already exists and is valid before downloading
-     * 4. Download using atomic file operations for reliability
-     * 
+     * 1. Fast path (no lock): binary exists and sha256 check passes — return immediately.
+     *    When the server does not return a sha256 header, the check treats "no hash" as
+     *    "up-to-date", so a missing or empty sha256 file never causes a re-download loop.
+     * 2. Slow path (lock + download): acquire a ReentrantLock (configurable timeout, default
+     *    5 min) and call the downloader.  Re-check version inside the lock in case a
+     *    concurrent stage just finished.
+     * 3. Fallbacks: if the lock times out or the download fails, use any existing valid binary
+     *    rather than failing the pipeline.  Only throw when there is truly nothing to run.
+     *
      * @param toolLocation Target directory for CLI installation
      * @param log Task listener for logging progress
-     * @param version CLI version to install
+     * @param version CLI version to install (blank = latest)
      * @param instance JFrog platform instance for download
      * @param repository Repository containing the CLI binary
      * @param binaryName Name of the CLI binary file
      * @return FilePath of the installed CLI
-     * @throws IOException If installation fails
+     * @throws IOException If installation fails and no existing binary is available
      * @throws InterruptedException If installation is interrupted
      */
-    public static FilePath performJfrogCliInstallation(FilePath toolLocation, TaskListener log, String version, 
-                                                      JFrogPlatformInstance instance, String repository, String binaryName) 
+    public static FilePath performJfrogCliInstallation(FilePath toolLocation, TaskListener log, String version,
+                                                       JFrogPlatformInstance instance, String repository, String binaryName)
             throws IOException, InterruptedException {
-        
-        // Create unique lock key for this node + installation path combination.
-        // Version is intentionally excluded to serialize all writes to the same binary path.
-        String lockKey = createLockKey(toolLocation, binaryName, version);
-        
-        // Get or create synchronization lock for this specific installation location
-        Object installationLock = NODE_INSTALLATION_LOCKS.computeIfAbsent(lockKey, k -> new Object());
-        
-        log.getLogger().println("[BinaryInstaller] Acquiring installation lock for: " + lockKey);
-        
-        // Synchronize on the specific installation location to ensure coordinated installation
-        synchronized (installationLock) {
-            log.getLogger().println("[BinaryInstaller] Lock acquired, proceeding with installation");
-            
+
+        FilePath cliPath = toolLocation.child(binaryName);
+
+        // Fast path: binary exists and is already the correct version — skip lock entirely.
+        if (isValidCliInstallation(cliPath, log) && isCorrectVersion(toolLocation, instance, repository, version, binaryName, log)) {
+            log.getLogger().println("[BinaryInstaller] CLI already installed and up-to-date, skipping download");
+            return toolLocation;
+        }
+
+        // Slow path: need to install or upgrade.
+        String lockKey = createLockKey(toolLocation, binaryName);
+        ReentrantLock installationLock = NODE_INSTALLATION_LOCKS.computeIfAbsent(lockKey, k -> new ReentrantLock());
+
+        int timeoutMinutes = getInstallTimeoutMinutes();
+        log.getLogger().println("[BinaryInstaller] Acquiring installation lock for: " + lockKey + " (timeout: " + timeoutMinutes + " min)");
+
+        if (!installationLock.tryLock(timeoutMinutes, TimeUnit.MINUTES)) {
+            log.getLogger().println("[BinaryInstaller] WARNING: Could not acquire installation lock within " + timeoutMinutes + " minutes for: " + lockKey);
+            if (isValidCliInstallation(cliPath, log)) {
+                log.getLogger().println("[BinaryInstaller] Using existing binary while installation is in progress: " + cliPath.getRemote());
+                return toolLocation;
+            }
+            throw new IOException("Timed out after " + timeoutMinutes + " minutes waiting for JFrog CLI installation and no binary exists at: " + cliPath.getRemote() +
+                    ". Set " + INSTALL_TIMEOUT_ENV_VAR + " to increase the timeout.");
+        }
+
+        log.getLogger().println("[BinaryInstaller] Lock acquired, proceeding with installation");
+        try {
+            // Re-check inside the lock — a concurrent stage may have just finished.
+            boolean validCliExists = isValidCliInstallation(cliPath, log);
+            if (validCliExists && isCorrectVersion(toolLocation, instance, repository, version, binaryName, log)) {
+                log.getLogger().println("[BinaryInstaller] CLI was installed by a concurrent stage, skipping download");
+                return toolLocation;
+            }
+
+            if (validCliExists) {
+                log.getLogger().println("[BinaryInstaller] CLI version mismatch detected, upgrading");
+            } else {
+                log.getLogger().println("[BinaryInstaller] No valid CLI installation found, downloading");
+            }
+
             try {
-                // Check if CLI already exists and is the correct version
-                FilePath cliPath = toolLocation.child(binaryName);
-                boolean validCliExists = isValidCliInstallation(cliPath, log);
-                if (validCliExists && isCorrectVersion(toolLocation, instance, repository, version, binaryName, log)) {
-                    log.getLogger().println("[BinaryInstaller] CLI already installed and up-to-date, skipping download");
-                    return toolLocation;
-                } else if (validCliExists) {
-                    log.getLogger().println("[BinaryInstaller] CLI exists but version mismatch detected, proceeding with upgrade");
-                } else {
-                    log.getLogger().println("[BinaryInstaller] No valid CLI installation found, proceeding with fresh installation");
-                }
-                
-                // Clean up any stale lock entries for this location (different versions)
-                cleanupStaleLocks(toolLocation, binaryName, version);
-                
-                log.getLogger().println("[BinaryInstaller] Starting CLI installation process");
-                
-                // Perform the actual download using the improved JFrogCliDownloader
                 JenkinsProxyConfiguration proxyConfiguration = new JenkinsProxyConfiguration();
                 toolLocation.act(new JFrogCliDownloader(proxyConfiguration, version, instance, log, repository, binaryName));
-                
                 log.getLogger().println("[BinaryInstaller] CLI installation completed successfully");
-                return toolLocation;
-                
-            } finally {
-                log.getLogger().println("[BinaryInstaller] Installation lock released for: " + lockKey);
+            } catch (Exception e) {
+                // Download failed. If an older binary is still present, keep the pipeline running.
+                // The upgrade will be retried on the next run.
+                if (isValidCliInstallation(cliPath, log)) {
+                    log.getLogger().println("[BinaryInstaller] WARNING: Download failed (" + e.getMessage() +
+                            "), falling back to existing binary at: " + cliPath.getRemote());
+                    return toolLocation;
+                }
+                // No binary to fall back to — this is a genuine unrecoverable failure.
+                throw new IOException("JFrog CLI download failed and no existing binary is available: " + e.getMessage(), e);
             }
+
+            return toolLocation;
+
+        } finally {
+            installationLock.unlock();
+            log.getLogger().println("[BinaryInstaller] Installation lock released for: " + lockKey);
         }
     }
     
+    /**
+     * Returns the lock-acquisition timeout in minutes.
+     * Reads {@value #INSTALL_TIMEOUT_ENV_VAR} from the environment; falls back to
+     * {@value #DEFAULT_INSTALL_TIMEOUT_MINUTES} minutes if the variable is absent or invalid.
+     * Values below 1 are silently clamped to the default.
+     */
+    static int getInstallTimeoutMinutes() {
+        String envValue = System.getenv(INSTALL_TIMEOUT_ENV_VAR);
+        if (StringUtils.isNotBlank(envValue)) {
+            try {
+                int parsed = Integer.parseInt(envValue.trim());
+                if (parsed >= 1) {
+                    return parsed;
+                }
+                LOGGER.warning(INSTALL_TIMEOUT_ENV_VAR + "=" + envValue + " is less than 1, using default " + DEFAULT_INSTALL_TIMEOUT_MINUTES + " minutes");
+            } catch (NumberFormatException e) {
+                LOGGER.warning(INSTALL_TIMEOUT_ENV_VAR + "=" + envValue + " is not a valid integer, using default " + DEFAULT_INSTALL_TIMEOUT_MINUTES + " minutes");
+            }
+        }
+        return DEFAULT_INSTALL_TIMEOUT_MINUTES;
+    }
+
     /**
      * Creates a unique lock key for the installation location.
      * Version is excluded so all operations targeting the same binary path are serialized.
      *
      * @param toolLocation Installation directory
      * @param binaryName Binary file name
-     * @param version CLI version being installed (unused, kept for signature compatibility)
      * @return Unique lock key string
      */
-    private static String createLockKey(FilePath toolLocation, String binaryName, String version) {
+    private static String createLockKey(FilePath toolLocation, String binaryName) {
         try {
             return toolLocation.getRemote() + "/" + binaryName;
         } catch (Exception e) {
@@ -163,41 +228,31 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @param log Task listener for logging
      * @return true if valid CLI exists, false otherwise
      */
+    /**
+     * Checks existence, size (> 1 MB), and executable permission in a single agent RPC.
+     */
     private static boolean isValidCliInstallation(FilePath cliPath, TaskListener log) {
         try {
-            if (cliPath.exists()) {
-                // Check if file is executable and has reasonable size (> 1MB)
-                long fileSize = cliPath.length();
-                if (fileSize > 1024 * 1024 && isExecutable(cliPath)) { // > 1MB
-                    log.getLogger().println("[BinaryInstaller] Found existing CLI: " + cliPath.getRemote() + 
-                                          " (size: " + (fileSize / 1024 / 1024) + "MB)");
-                    return true;
+            long[] result = cliPath.act(new MasterToSlaveFileCallable<long[]>() {
+                @Override
+                public long[] invoke(File file, VirtualChannel channel) {
+                    if (!file.exists() || file.isDirectory()) {
+                        return new long[]{0, 0};
+                    }
+                    String name = file.getName().toLowerCase();
+                    boolean executable = name.endsWith(".exe") || file.canExecute();
+                    return new long[]{file.length(), executable ? 1 : 0};
                 }
+            });
+            if (result[0] > 1024 * 1024 && result[1] == 1) {
+                log.getLogger().println("[BinaryInstaller] Found existing CLI: " + cliPath.getRemote() +
+                        " (size: " + (result[0] / 1024 / 1024) + "MB)");
+                return true;
             }
         } catch (Exception e) {
             LOGGER.warning("Failed to check existing CLI installation: " + e.getMessage());
         }
         return false;
-    }
-
-    /**
-     * Verify the CLI file is executable on the target node.
-     * On Windows, treat .exe files as executable.
-     */
-    private static boolean isExecutable(FilePath cliPath) throws IOException, InterruptedException {
-        return cliPath.act(new MasterToSlaveFileCallable<Boolean>() {
-            @Override
-            public Boolean invoke(File file, VirtualChannel channel) {
-                if (!file.exists() || file.isDirectory()) {
-                    return false;
-                }
-                String name = file.getName().toLowerCase();
-                if (name.endsWith(".exe")) {
-                    return true;
-                }
-                return file.canExecute();
-            }
-        });
     }
     
     /**
@@ -239,7 +294,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
                 // Get expected SHA256 from Artifactory
                 String expectedSha256 = getArtifactSha256(manager, cliUrlSuffix);
                 if (expectedSha256.isEmpty()) {
-                    log.getLogger().println("[BinaryInstaller] No SHA256 available from server, reusing existing valid CLI");
+                    log.getLogger().println("[BinaryInstaller] WARNING: No SHA256 available from server — cannot verify version, assuming up-to-date (upgrade may be delayed)");
                     return true;
                 }
                 
@@ -253,7 +308,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
                         }
                         
                         String localSha256 = new String(Files.readAllBytes(sha256File.toPath()), StandardCharsets.UTF_8);
-                        return constantTimeEquals(expectedSha256, localSha256);
+                        return StringUtils.equals(expectedSha256, localSha256);
                     }
                 });
             }
@@ -279,54 +334,6 @@ public abstract class BinaryInstaller extends ToolInstaller {
         return "";
     }
     
-    /**
-     * Clean up stale lock entries for different versions of the same CLI at the same location.
-     * This prevents memory leaks in the NODE_INSTALLATION_LOCKS map during version upgrades.
-     * 
-     * @param toolLocation Installation directory
-     * @param binaryName Binary file name  
-     * @param currentVersion Current version being installed
-     */
-    private static void cleanupStaleLocks(FilePath toolLocation, String binaryName, String currentVersion) {
-        try {
-            String locationPrefix = toolLocation.getRemote() + "/" + binaryName + "/";
-            String currentLockKey = locationPrefix + currentVersion;
-            
-            // Remove old version lock entries for the same location
-            NODE_INSTALLATION_LOCKS.entrySet().removeIf(entry -> {
-                String key = entry.getKey();
-                return key.startsWith(locationPrefix) && !key.equals(currentLockKey);
-            });
-            
-        } catch (Exception e) {
-            // If cleanup fails, it's not critical - just log and continue
-            LOGGER.fine("Failed to cleanup stale locks: " + e.getMessage());
-        }
-    }
-    
-    /**
-     * Constant-time comparison of two strings to prevent timing attacks.
-     * This is especially important for comparing cryptographic hashes like SHA256.
-     * 
-     * @param a First string to compare
-     * @param b Second string to compare
-     * @return true if strings are equal, false otherwise
-     */
-    private static boolean constantTimeEquals(String a, String b) {
-        if (a == null || b == null) {
-            return Objects.equals(a, b);
-        }
-        
-        if (a.length() != b.length()) {
-            return false;
-        }
-        
-        int result = 0;
-        for (int i = 0; i < a.length(); i++) {
-            result |= a.charAt(i) ^ b.charAt(i);
-        }
-        
-        return result == 0;
-    }
 }
+
 

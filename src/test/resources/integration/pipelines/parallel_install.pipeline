@@ -1,0 +1,23 @@
+// Tests that parallel stages using the same JFrog CLI tool name do not corrupt installation
+pipeline {
+    agent any
+    tools {
+        jfrog '${JFROG_CLI_TOOL_NAME_1}'
+    }
+    stages {
+        stage('Parallel Safety') {
+            parallel {
+                stage('Task A') {
+                    steps {
+                        jf '-v'
+                    }
+                }
+                stage('Task B') {
+                    steps {
+                        jf '-v'
+                    }
+                }
+            }
+        }
+    }
+}

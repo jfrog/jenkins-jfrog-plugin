@@ -116,7 +116,7 @@ public class JfrogBuildInfoPublisher extends Notifier {
         }
 
         FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(build.getNumber()));
-        CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir.getRemote(), jfrogCliConfigEncryption);
+        CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir, jfrogCliConfigEncryption);
 
         // Build the 'jf rt build-publish' command
         ArgumentListBuilder builder = new ArgumentListBuilder();
@@ -169,13 +169,7 @@ public class JfrogBuildInfoPublisher extends Notifier {
         if (jfrogHomeTempDir == null || !jfrogHomeTempDir.exists()) {
             return true;
         }
-        
-        for (FilePath file : jfrogHomeTempDir.list()) {
-            if (file != null && file.getName().contains("jfrog-cli.conf")) {
-                return false;
-            }
-        }
-        return true;
+        return !jfrogHomeTempDir.child("jfrog-cli.conf").exists();
     }
 
     /**

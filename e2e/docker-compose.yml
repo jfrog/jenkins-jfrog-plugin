@@ -1,0 +1,36 @@
+services:
+
+  postgres:
+    image: docker.jfrog.io/postgres:14.5
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: artifactory
+      POSTGRES_USER: artifactory
+      POSTGRES_PASSWORD: password
+
+  artifactory:
+    container_name: artifactory-jenkins-plugin
+    image: docker.jfrog.io/jfrog/artifactory-pro:latest
+    ports:
+      - "8046:8046"
+      - "8081:8081"
+      - "8082:8082"
+    environment:
+      JF_SHARED_NODE_ID: node-01
+      JF_SHARED_DATABASE_TYPE: postgresql
+      JF_SHARED_DATABASE_DRIVER: org.postgresql.Driver
+      JF_SHARED_DATABASE_URL: jdbc:postgresql://host.docker.internal:5432/artifactory
+      JF_SHARED_DATABASE_USERNAME: artifactory
+      JF_SHARED_DATABASE_PASSWORD: password
+      JF_SHARED_SECURITY_JOINKEY: cc949ef041b726994a225dc20e018f23
+      JF_SHARED_SECURITY_MASTERKEY: b055e9d06d17a293f1934109d4c4b560
+      JF_ROUTER_DEV_MAKE_INTERNAL_PORTS_PUBLIC: "true"
+      JF_SHARED_DATABASE_ALLOWNONPOSTGRESQL: "true"
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/artifactory/api/system/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 30

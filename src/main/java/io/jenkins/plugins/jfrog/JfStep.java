@@ -189,11 +189,18 @@ public class JfStep extends Step {
          * @throws IOException          in case of any I/O error, or we failed to run the 'jf' command
          */
         public Launcher.ProcStarter setupJFrogEnvironment(Run<?, ?> run, EnvVars env, Launcher launcher, TaskListener listener, FilePath workspace, String jfrogBinaryPath, boolean isWindows, boolean passwordStdinSupported) throws IOException, InterruptedException {
-            JFrogCliConfigEncryption jfrogCliConfigEncryption = run.getAction(JFrogCliConfigEncryption.class);
-            if (jfrogCliConfigEncryption == null) {
-                // Set up the config encryption action to allow encrypting the JFrog CLI configuration and make sure we only create one key
-                jfrogCliConfigEncryption = new JFrogCliConfigEncryption(env);
-                run.addAction(jfrogCliConfigEncryption);
+            // Synchronize on the run object to ensure only one encryption key is created
+            // even when multiple parallel stages call this method concurrently.
+            // Without synchronization, each stage would create a different random key,
+            // and the stages would encrypt/decrypt the shared config file with mismatched
+            // keys → "cipher: message authentication failed".
+            JFrogCliConfigEncryption jfrogCliConfigEncryption;
+            synchronized (run) {
+                jfrogCliConfigEncryption = run.getAction(JFrogCliConfigEncryption.class);
+                if (jfrogCliConfigEncryption == null) {
+                    jfrogCliConfigEncryption = new JFrogCliConfigEncryption(env);
+                    run.addAction(jfrogCliConfigEncryption);
+                }
             }
             FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
             CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir, jfrogCliConfigEncryption);

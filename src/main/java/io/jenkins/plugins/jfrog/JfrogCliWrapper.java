@@ -109,26 +109,17 @@ public class JfrogCliWrapper extends SimpleBuildWrapper {
     }
 
     /**
-     * Get the node from workspace.
+     * Get the node from workspace using the Computer API.
      */
     private hudson.model.Node workspaceToNode(FilePath workspace) {
-        jenkins.model.Jenkins jenkinsInstance = jenkins.model.Jenkins.getInstanceOrNull();
-        if (jenkinsInstance == null || workspace == null) {
+        if (workspace == null) {
             return null;
         }
-
-        // Check if workspace is on master
-        if (workspace.getChannel() == jenkinsInstance.getChannel()) {
-            return jenkinsInstance;
+        hudson.model.Computer computer = workspace.toComputer();
+        if (computer == null) {
+            return null;
         }
-
-        // Find the node that owns this workspace
-        for (hudson.model.Node node : jenkinsInstance.getNodes()) {
-            if (node.getChannel() == workspace.getChannel()) {
-                return node;
-            }
-        }
-        return null;
+        return computer.getNode();
     }
 
     @Extension
@@ -154,11 +145,15 @@ public class JfrogCliWrapper extends SimpleBuildWrapper {
          */
         @Override
         public boolean isApplicable(AbstractProject<?, ?> item) {
-            // Exclude Matrix projects - they run across multiple nodes
-            // Use class name check to avoid hard dependency on matrix-project plugin
-            String className = item.getClass().getName();
-            if (className.contains("MatrixProject") || className.contains("MatrixConfiguration")) {
-                return false;
+            // Exclude Matrix projects - they run across multiple nodes where CLI installations may differ.
+            // Use reflection to avoid a hard compile-time dependency on the matrix-project plugin.
+            try {
+                Class<?> matrixProjectClass = Class.forName("hudson.matrix.MatrixProject");
+                if (matrixProjectClass.isInstance(item)) {
+                    return false;
+                }
+            } catch (ClassNotFoundException e) {
+                // matrix-project plugin not installed; nothing to exclude
             }
             return true;
         }
