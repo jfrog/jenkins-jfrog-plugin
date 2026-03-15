@@ -10,3 +10,7 @@ work
 
 # Mac OS
 .DS_Store
+
+# AI
+.claude
+.cursor

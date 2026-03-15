@@ -16,8 +16,11 @@ import org.jfrog.build.extractor.clientConfiguration.client.artifactory.Artifact
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 import static org.jfrog.build.client.DownloadResponse.SHA256_HEADER_NAME;
 
@@ -38,6 +41,12 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
      * decoded "[RELEASE]" for the download url
      */
     private static final String RELEASE = "[RELEASE]";
+    
+    /**
+     * Minimum valid CLI binary size in bytes (1MB).
+     * Used to determine if an existing CLI installation is valid.
+     */
+    private static final long MIN_VALID_CLI_SIZE = 1024 * 1024;
 
     JenkinsProxyConfiguration proxyConfiguration;
     private String providedVersion;
@@ -50,6 +59,111 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
     public Void invoke(File toolLocation, VirtualChannel channel) throws IOException, InterruptedException {
         log.getLogger().println("[JFrogCliDownloader] Starting CLI download");
         
+        // Ensure the tool location directory exists
+        if (!toolLocation.exists()) {
+            if (!toolLocation.mkdirs()) {
+                throw new IOException("Failed to create tool location directory: " + toolLocation.getAbsolutePath());
+            }
+        }
+        
+        // Check if this is a fresh install or an upgrade
+        File existingCli = new File(toolLocation, binaryName);
+        boolean isFreshInstall = !isExistingCliValid(existingCli);
+        
+        if (isFreshInstall) {
+            log.getLogger().println("[JFrogCliDownloader] Fresh installation detected");
+            performDownloadWithLock(toolLocation);
+        } else {
+            log.getLogger().println("[JFrogCliDownloader] Existing CLI found - attempting upgrade");
+            performDownloadWithLockForUpgrade(toolLocation, existingCli);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Performs download for upgrade scenario with graceful fallback.
+     * If the binary is locked during replacement, we skip the upgrade and use existing.
+     * 
+     * @param toolLocation The target directory
+     * @param existingCli The existing CLI binary
+     * @throws IOException If download fails for non-recoverable reasons
+     * @throws InterruptedException If interrupted
+     */
+    private void performDownloadWithLockForUpgrade(File toolLocation, File existingCli) throws IOException, InterruptedException {
+        String version = StringUtils.defaultIfBlank(providedVersion, RELEASE);
+        String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, version, OsUtils.getOsDetails(), binaryName);
+
+        JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(log);
+        String artifactoryUrl = instance.inferArtifactoryUrl();
+        
+        try (ArtifactoryManager manager = new ArtifactoryManager(artifactoryUrl, 
+                Secret.toString(instance.getCredentialsConfig().getUsername()),
+                Secret.toString(instance.getCredentialsConfig().getPassword()), 
+                Secret.toString(instance.getCredentialsConfig().getAccessToken()), buildInfoLog)) {
+            
+            if (proxyConfiguration.isProxyConfigured(artifactoryUrl)) {
+                manager.setProxyConfiguration(proxyConfiguration);
+            }
+            
+            String artifactorySha256 = getArtifactSha256(manager, cliUrlSuffix);
+            
+            if (!shouldDownloadTool(toolLocation, artifactorySha256)) {
+                log.getLogger().println("[JFrogCliDownloader] CLI is up-to-date, skipping download");
+                return;
+            }
+            
+            if (version.equals(RELEASE)) {
+                log.getLogger().printf("[JFrogCliDownloader] Upgrading '%s' to latest version from: %s%n", 
+                                      binaryName, artifactoryUrl + cliUrlSuffix);
+            } else {
+                log.getLogger().printf("[JFrogCliDownloader] Upgrading '%s' to version %s from: %s%n", 
+                                      binaryName, version, artifactoryUrl + cliUrlSuffix);
+            }
+            
+            // Attempt upgrade with graceful fallback
+            boolean upgradeSucceeded = performAtomicDownloadForUpgrade(manager, cliUrlSuffix, toolLocation, 
+                                                                       artifactorySha256, existingCli);
+            
+            if (upgradeSucceeded) {
+                log.getLogger().println("[JFrogCliDownloader] Upgrade completed successfully");
+            } else {
+                log.getLogger().println("[JFrogCliDownloader] Upgrade skipped, using existing CLI version");
+            }
+        }
+    }
+    
+    /**
+     * Checks if an existing CLI binary is valid and usable.
+     * A valid CLI exists and has a reasonable file size (> 1MB).
+     * 
+     * @param cliFile The CLI binary file to check
+     * @return true if CLI is valid and usable, false otherwise
+     */
+    private boolean isExistingCliValid(File cliFile) {
+        if (!cliFile.exists()) {
+            return false;
+        }
+        
+        long fileSize = cliFile.length();
+        boolean isValid = fileSize >= MIN_VALID_CLI_SIZE;
+        
+        if (isValid) {
+            log.getLogger().println("[JFrogCliDownloader] Found valid existing CLI: " + cliFile.getAbsolutePath() + 
+                                  " (size: " + (fileSize / 1024 / 1024) + "MB)");
+        }
+        
+        return isValid;
+    }
+    
+    /**
+     * Performs the actual download operation for fresh installations.
+     * 
+     * @param toolLocation The target directory for CLI installation
+     * @throws IOException If download fails
+     * @throws InterruptedException If interrupted during download
+     */
+    private void performDownloadWithLock(File toolLocation) throws IOException, InterruptedException {
         // An empty string indicates the latest version.
         String version = StringUtils.defaultIfBlank(providedVersion, RELEASE);
         String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, version, OsUtils.getOsDetails(), binaryName);
@@ -63,7 +177,7 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
             if (proxyConfiguration.isProxyConfigured(artifactoryUrl)) {
                 manager.setProxyConfiguration(proxyConfiguration);
             }
-            // Getting updated cli binary's sha256 form Artifactory.
+            // Getting updated cli binary's sha256 from Artifactory.
             String artifactorySha256 = getArtifactSha256(manager, cliUrlSuffix);
             if (shouldDownloadTool(toolLocation, artifactorySha256)) {
                 if (version.equals(RELEASE)) {
@@ -81,94 +195,220 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
         }
         
         log.getLogger().println("[JFrogCliDownloader] Download completed successfully");
-        return null;
     }
     
     /**
-     * Performs atomic download operations for reliable file installation.
-     * 
-     * APPROACH:
-     * 1. Generate unique temporary file name to avoid conflicts
-     * 2. Download to temporary file
-     * 3. Verify download integrity
-     * 4. Atomic move from temp to final location
-     * 5. Set executable permissions
-     * 6. Create SHA256 verification file
-     * 7. Cleanup temporary file on any failure
-     * 
+     * Downloads the CLI binary to a unique temporary file and verifies its integrity.
+     *
+     * @param manager ArtifactoryManager for download operations
+     * @param cliUrlSuffix URL suffix for the CLI binary
+     * @param toolLocation Target directory for installation
+     * @return The downloaded temporary file (caller is responsible for cleanup)
+     * @throws IOException If download or verification fails
+     */
+    private File downloadToTemp(ArtifactoryManager manager, String cliUrlSuffix, File toolLocation) throws IOException {
+        String stageName = getStageNameFromThread();
+        String tempFileName = binaryName + ".tmp." +
+                stageName + "." +
+                System.currentTimeMillis() + "." +
+                Thread.currentThread().getId() + "." +
+                System.nanoTime();
+
+        File temporaryDownloadFile = new File(toolLocation, tempFileName);
+        log.getLogger().println("[JFrogCliDownloader] Downloading to temporary file: " + temporaryDownloadFile.getAbsolutePath());
+        manager.downloadToFile(cliUrlSuffix, temporaryDownloadFile.getPath());
+
+        if (!temporaryDownloadFile.exists()) {
+            throw new IOException("Downloaded file doesn't exist: " + temporaryDownloadFile.getAbsolutePath());
+        }
+        long fileSize = temporaryDownloadFile.length();
+        if (fileSize == 0) {
+            throw new IOException("Downloaded file is empty: " + temporaryDownloadFile.getAbsolutePath());
+        }
+        log.getLogger().println("[JFrogCliDownloader] Download verified: " + (fileSize / 1024 / 1024) + "MB");
+        return temporaryDownloadFile;
+    }
+
+    /**
+     * Sets executable permissions and creates the SHA256 verification file after a successful move.
+     */
+    private void finalizeInstall(File finalCliExecutable, File toolLocation, String artifactorySha256) throws IOException {
+        log.getLogger().println("[JFrogCliDownloader] Setting executable permissions");
+        if (!finalCliExecutable.setExecutable(true)) {
+            throw new IOException("No permission to add execution permission to binary: " + finalCliExecutable.getAbsolutePath());
+        }
+        log.getLogger().println("[JFrogCliDownloader] Creating SHA256 verification file");
+        createSha256File(toolLocation, artifactorySha256);
+    }
+
+    /**
+     * Performs atomic download for fresh installations. Always throws on failure.
+     *
      * @param manager ArtifactoryManager for download operations
      * @param cliUrlSuffix URL suffix for the CLI binary
      * @param toolLocation Target directory for installation
      * @param artifactorySha256 Expected SHA256 hash for verification
      * @throws IOException If download or file operations fail
      */
-    private void performAtomicDownload(ArtifactoryManager manager, String cliUrlSuffix, 
-                                     File toolLocation, String artifactorySha256) throws IOException {
-        
-        // Phase 1: Generate unique temporary file name to avoid conflicts during parallel downloads
-        String stageName = getStageNameFromThread();
-        String tempFileName = binaryName + ".tmp." + 
-                             stageName + "." +
-                             System.currentTimeMillis() + "." + 
-                             Thread.currentThread().getId() + "." +
-                             System.nanoTime();
-        
-        File temporaryDownloadFile = new File(toolLocation, tempFileName);  // Temp file for download
-        File finalCliExecutable = new File(toolLocation, binaryName);       // Final CLI binary location
-        
-        log.getLogger().println("[JFrogCliDownloader] Temporary download file: " + temporaryDownloadFile.getAbsolutePath());
-        log.getLogger().println("[JFrogCliDownloader] Final CLI executable: " + finalCliExecutable.getAbsolutePath());
-        
+    private void performAtomicDownload(ArtifactoryManager manager, String cliUrlSuffix,
+                                       File toolLocation, String artifactorySha256) throws IOException {
+        File finalCliExecutable = new File(toolLocation, binaryName);
+        File temporaryDownloadFile = null;
         try {
-            // Download to temporary file
-            log.getLogger().println("[JFrogCliDownloader] Downloading to temporary file");
-            File downloadResponse = manager.downloadToFile(cliUrlSuffix, temporaryDownloadFile.getPath());
-            
-            // Verify download integrity
-            log.getLogger().println("[JFrogCliDownloader] Verifying download integrity");
-            if (!temporaryDownloadFile.exists()) {
-                throw new IOException("Downloaded file doesn't exist: " + temporaryDownloadFile.getAbsolutePath());
-            }
-            
-            long fileSize = temporaryDownloadFile.length();
-            if (fileSize == 0) {
-                throw new IOException("Downloaded file is empty: " + temporaryDownloadFile.getAbsolutePath());
-            }
-            
-            log.getLogger().println("[JFrogCliDownloader] Download verified: " + (fileSize / 1024 / 1024) + "MB");
-            
-            // Atomic move to final location (only delete existing if move will succeed)
-            log.getLogger().println("[JFrogCliDownloader] Moving to final location");
-            if (finalCliExecutable.exists()) {
-                log.getLogger().println("[JFrogCliDownloader] Removing existing CLI binary to replace with new version");
-                if (!finalCliExecutable.delete()) {
-                    throw new IOException("Failed to remove existing CLI binary: " + finalCliExecutable.getAbsolutePath());
-                }
-            }
-            
-            // Atomic move from temporary file to final location
-            if (!temporaryDownloadFile.renameTo(finalCliExecutable)) {
-                throw new IOException("Failed to move temporary file to final location. Temp: " + 
-                                    temporaryDownloadFile.getAbsolutePath() + ", Final: " + finalCliExecutable.getAbsolutePath());
-            }
-            
-            // Set executable permissions on final CLI binary
-            log.getLogger().println("[JFrogCliDownloader] Setting executable permissions");
-            if (!finalCliExecutable.setExecutable(true)) {
-                throw new IOException("No permission to add execution permission to binary: " + finalCliExecutable.getAbsolutePath());
-            }
-            
-            // Create SHA256 verification file
-            log.getLogger().println("[JFrogCliDownloader] Creating SHA256 verification file");
-            createSha256File(toolLocation, artifactorySha256);
-            
+            temporaryDownloadFile = downloadToTemp(manager, cliUrlSuffix, toolLocation);
+            log.getLogger().println("[JFrogCliDownloader] Moving to final location: " + finalCliExecutable.getAbsolutePath());
+            moveFileWithRetry(temporaryDownloadFile, finalCliExecutable);
+            finalizeInstall(finalCliExecutable, toolLocation, artifactorySha256);
             log.getLogger().println("[JFrogCliDownloader] Download and installation completed successfully");
-            
         } catch (Exception e) {
-            // Cleanup temporary file on failure
             log.getLogger().println("[JFrogCliDownloader] Download failed, cleaning up temporary file");
             cleanupTempFile(temporaryDownloadFile);
             throw e;
+        }
+    }
+
+    /**
+     * Performs atomic download for upgrade scenario with graceful fallback.
+     * Returns false if the target binary is locked on Windows, allowing the caller to use the existing CLI.
+     *
+     * @param manager ArtifactoryManager for download operations
+     * @param cliUrlSuffix URL suffix for the CLI binary
+     * @param toolLocation Target directory for installation
+     * @param artifactorySha256 Expected SHA256 hash for verification
+     * @param existingCli The existing CLI binary file
+     * @return true if upgrade succeeded, false if skipped due to file locking
+     * @throws IOException If download fails for non-recoverable reasons (not file locking)
+     */
+    private boolean performAtomicDownloadForUpgrade(ArtifactoryManager manager, String cliUrlSuffix,
+                                                    File toolLocation, String artifactorySha256,
+                                                    File existingCli) throws IOException {
+        File finalCliExecutable = new File(toolLocation, binaryName);
+        File temporaryDownloadFile = null;
+        try {
+            temporaryDownloadFile = downloadToTemp(manager, cliUrlSuffix, toolLocation);
+            log.getLogger().println("[JFrogCliDownloader] Attempting to replace existing CLI: " + finalCliExecutable.getAbsolutePath());
+            boolean moveSucceeded = tryMoveFileForUpgrade(temporaryDownloadFile, finalCliExecutable);
+            if (!moveSucceeded) {
+                log.getLogger().println("[JFrogCliDownloader] WARNING: Existing CLI is in use by another process. " +
+                        "Upgrade skipped. Using existing version. Upgrade will be attempted in next build.");
+                cleanupTempFile(temporaryDownloadFile);
+                return false;
+            }
+            finalizeInstall(finalCliExecutable, toolLocation, artifactorySha256);
+            return true;
+        } catch (IOException e) {
+            if (isWindowsTarget() && isFileLockingError(e) && isExistingCliValid(existingCli)) {
+                log.getLogger().println("[JFrogCliDownloader] WARNING: Upgrade failed due to file locking. " +
+                        "Using existing CLI version. Upgrade will be attempted in next build.");
+                cleanupTempFile(temporaryDownloadFile);
+                return false;
+            }
+            cleanupTempFile(temporaryDownloadFile);
+            throw e;
+        }
+    }
+    
+    /**
+     * Attempts to move a file for upgrade scenario.
+     * Returns false if file is locked (instead of throwing), allowing graceful fallback.
+     * 
+     * @param source Source file to move
+     * @param target Target location
+     * @return true if move succeeded, false if target is locked
+     * @throws IOException If move fails for non-locking reasons
+     */
+    private boolean tryMoveFileForUpgrade(File source, File target) throws IOException {
+        try {
+            Files.move(source.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            log.getLogger().println("[JFrogCliDownloader] File moved successfully to: " + target.getAbsolutePath());
+            return true;
+        } catch (IOException e) {
+            if (isFileLockingError(e)) {
+                if (!isWindowsTarget()) {
+                    throw e;
+                }
+                log.getLogger().println("[JFrogCliDownloader] Target file is locked: " + e.getMessage());
+                return false;
+            }
+            throw e;
+        }
+    }
+    
+    /**
+     * Checks if an exception is caused by Windows file locking.
+     * 
+     * @param e The exception to check
+     * @return true if this is a file locking error
+     */
+    private boolean isFileLockingError(Exception e) {
+        Throwable current = e;
+        while (current != null) {
+            if (current instanceof AccessDeniedException) {
+                return true;
+            }
+            if (current instanceof FileSystemException) {
+                String reason = ((FileSystemException) current).getReason();
+                if (containsLockingMessage(reason)) {
+                    return true;
+                }
+            }
+            if (containsLockingMessage(current.getMessage())) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private boolean containsLockingMessage(String message) {
+        if (message == null) {
+            return false;
+        }
+        return message.contains("being used by another process") ||
+                message.contains("Access is denied") ||
+                message.contains("cannot access the file") ||
+                message.contains("The process cannot access the file");
+    }
+    
+    /**
+     * Moves a file to the target location with retry logic for Windows file locking issues.
+     * Uses Java NIO Files.move with REPLACE_EXISTING option for atomic operation.
+     * On Windows, if the target file is locked (e.g., being scanned by antivirus),
+     * this method will retry with exponential backoff.
+     * 
+     * @param source Source file to move
+     * @param target Target location
+     * @throws IOException If move fails after all retries
+     */
+    private void moveFileWithRetry(File source, File target) throws IOException {
+        int maxRetries = 5;
+        long retryDelayMs = 1000;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                // Use Files.move with REPLACE_EXISTING for atomic replacement.
+                // Note: ATOMIC_MOVE is not always supported on Windows, so we use REPLACE_EXISTING.
+                Files.move(source.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                log.getLogger().println("[JFrogCliDownloader] File moved successfully to: " + target.getAbsolutePath());
+                return;
+            } catch (IOException e) {
+                boolean isLastAttempt = (attempt == maxRetries);
+                if (isFileLockingError(e) && !isLastAttempt) {
+                    log.getLogger().println("[JFrogCliDownloader] File locked, retrying in " +
+                            retryDelayMs + "ms (attempt " + attempt + "/" + maxRetries + ")");
+                    try {
+                        Thread.sleep(retryDelayMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Interrupted while waiting to retry file move", ie);
+                    }
+                    retryDelayMs *= 2;
+                } else {
+                    throw new IOException("Failed to move file from " + source.getAbsolutePath() +
+                            " to " + target.getAbsolutePath() +
+                            " after " + attempt + " attempts: " + e.getMessage(), e);
+                }
+            }
         }
     }
     
@@ -191,9 +431,21 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
         }
     }
 
+    /**
+     * Atomically writes the sha256 verification file using a temp-then-rename approach.
+     * A plain {@code Files.write()} truncates the target file before writing content,
+     * creating a brief window where readers see a 0-byte file and treat the installation
+     * as stale (triggering a re-download loop). Writing to a temp file and renaming
+     * eliminates that window because the rename is atomic on all supported file systems.
+     */
     private static void createSha256File(File toolLocation, String artifactorySha256) throws IOException {
-        File file = new File(toolLocation, SHA256_FILE_NAME);
-        Files.write(file.toPath(), artifactorySha256.getBytes(StandardCharsets.UTF_8));
+        if (StringUtils.isBlank(artifactorySha256)) {
+            return;
+        }
+        File targetFile = new File(toolLocation, SHA256_FILE_NAME);
+        File tempFile = new File(toolLocation, SHA256_FILE_NAME + ".tmp");
+        Files.write(tempFile.toPath(), artifactorySha256.getBytes(StandardCharsets.UTF_8));
+        Files.move(tempFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
 
     /**
@@ -201,11 +453,16 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
      * A file named 'sha256' contains the specific binary sha256.
      * If the file sha256 has not changed, we will skip the download, otherwise we will download and overwrite the existing files.
      *
+     * <p>A 0-byte sha256 file (left by a previous failed write or an older plugin version)
+     * is treated the same as a missing file: the tool is re-downloaded and the file is
+     * replaced with the correct hash.  The stale 0-byte file is deleted immediately so it
+     * cannot confuse any concurrent readers.</p>
+     *
      * @param toolLocation      - expected location of the tool on the fileSystem.
      * @param artifactorySha256 - sha256 of the expected file in artifactory.
      */
     private static boolean shouldDownloadTool(File toolLocation, String artifactorySha256) throws IOException {
-        // In case no sha256 was provided (for example when the customer blocks headers) download the tool.
+        // In case no sha256 was provided (for example when the users blocks headers) download the tool.
         if (artifactorySha256.isEmpty()) {
             return true;
         }
@@ -215,6 +472,12 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
             return true;
         }
         String fileContent = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+        if (StringUtils.isBlank(fileContent)) {
+            // 0-byte or whitespace-only sha256 file — corrupted/legacy state.
+            // Delete it so a fresh, correct file is written after the download.
+            Files.deleteIfExists(path);
+            return true;
+        }
         return !StringUtils.equals(fileContent, artifactorySha256);
     }
 
@@ -229,7 +492,9 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
     private static String getArtifactSha256(ArtifactoryManager manager, String cliUrlSuffix) throws IOException {
         Header[] headers = manager.downloadHeaders(cliUrlSuffix);
         for (Header header : headers) {
-            if (header.getName().equalsIgnoreCase(SHA256_HEADER_NAME)) {
+            String headerName = header.getName();
+            if (headerName.equalsIgnoreCase(SHA256_HEADER_NAME) ||
+                    headerName.equalsIgnoreCase("X-Artifactory-Checksum-Sha256")) {
                 return header.getValue();
             }
         }
@@ -257,5 +522,12 @@ public class JFrogCliDownloader extends MasterToSlaveFileCallable<Void> {
         } catch (Exception e) {
             return "unknown";
         }
+    }
+
+    /**
+     * Determine whether the target CLI binary is Windows.
+     */
+    private boolean isWindowsTarget() {
+        return binaryName != null && binaryName.toLowerCase().endsWith(".exe");
     }
 }

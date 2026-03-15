@@ -352,7 +352,7 @@ public class JfrogBuilder extends Builder {
          */
         public ListBoxModel doFillJfrogInstallationItems() {
             ListBoxModel items = new ListBoxModel();
-            items.add("(Use JFrog CLI from system PATH)", "");
+            items.add("(Use pre-installed JFrog CLI from system PATH)", "");
             for (JfrogInstallation installation : getInstallations()) {
                 items.add(installation.getName(), installation.getName());
             }

@@ -54,8 +54,8 @@ import static org.junit.Assert.fail;
 public class PipelineTestBase {
     private static long currentTime;
     private static Artifactory artifactoryClient;
-    private JenkinsRule jenkins;
-    private Slave slave;
+    protected JenkinsRule jenkins;
+    protected Slave slave;
     private static StringSubstitutor pipelineSubstitution;
     private static final String SLAVE_LABEL = "TestSlave";
     static final String PLATFORM_URL = System.getenv("JFROG_URL");
@@ -63,7 +63,7 @@ public class PipelineTestBase {
     private static final String ARTIFACTORY_USERNAME = System.getenv("JFROG_USERNAME");
     private static final String ARTIFACTORY_PASSWORD = System.getenv("JFROG_PASSWORD");
     private static final String ACCESS_TOKEN = System.getenv("JFROG_ADMIN_TOKEN");
-    private static final Path INTEGRATION_BASE_PATH = Paths.get(".").toAbsolutePath().normalize()
+    protected static final Path INTEGRATION_BASE_PATH = Paths.get(".").toAbsolutePath().normalize()
             .resolve(Paths.get("src", "test", "resources", "integration"));
     static final String JFROG_CLI_TOOL_NAME_1 = "jfrog-cli";
     static final String JFROG_CLI_TOOL_NAME_2 = "jfrog-cli-2";
