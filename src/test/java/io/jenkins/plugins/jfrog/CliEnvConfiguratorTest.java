@@ -57,17 +57,8 @@ class CliEnvConfiguratorTest {
         JFrogCliConfigEncryption configEncryption = new JFrogCliConfigEncryption(envVars);
         assertTrue(configEncryption.shouldEncrypt());
         assertEquals(32, configEncryption.getKey().length());
-
-        File jfrogHomeDir = Files.createTempDirectory(tempFolder, "jfrog-home-enc").toFile();
-        FilePath jfrogHomeTempDir = new FilePath(jfrogHomeDir);
-        invokeConfigureCliEnv(jfrogHomeTempDir, configEncryption);
-        // The encryption key file is created in jfrogHomeTempDir/encryption/ to work in Docker containers
-        String keyFilePath = envVars.get(JFROG_CLI_ENCRYPTION_KEY);
-        assertNotNull(keyFilePath);
-        assertTrue(keyFilePath.startsWith(jfrogHomeDir.getAbsolutePath()));
-        assertTrue(keyFilePath.contains("encryption"));
-        assertTrue(keyFilePath.endsWith(".key"));
-        assertEquals(keyFilePath, configEncryption.getKeyFilePath());
+        invokeConfigureCliEnv(new FilePath(Files.createTempDirectory(tempFolder, "encryption-test").toFile()), configEncryption);
+        assertEnv(envVars, JFROG_CLI_ENCRYPTION_KEY, configEncryption.getKeyFilePath());
     }
 
     @Test

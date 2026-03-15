@@ -1,7 +1,7 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
     <f:entry title="JFrog CLI Installation" field="jfrogInstallation"
-             description="Select the JFrog CLI installation to use. Configure installations in 'Manage Jenkins' → 'Global Tool Configuration'">
+             description="Select the JFrog CLI installation to use. If you choose 'Use pre-installed JFrog CLI from system PATH', the 'jf' command must already be installed and available in the PATH on your Jenkins agent. Otherwise, configure automatic installations in 'Manage Jenkins' → 'Global Tool Configuration'.">
         <f:select />
     </f:entry>
     <f:entry title="JFrog CLI Command" field="command" 

@@ -1,0 +1,18 @@
+// Tests parallel stages where each stage uses a different JFrog CLI version
+pipeline {
+    agent any
+    stages {
+        stage('Parallel Two Tools') {
+            parallel {
+                stage('Tool 1') {
+                    tools { jfrog '${JFROG_CLI_TOOL_NAME_1}' }
+                    steps { jf '-v' }
+                }
+                stage('Tool 2') {
+                    tools { jfrog '${JFROG_CLI_TOOL_NAME_2}' }
+                    steps { jf '-v' }
+                }
+            }
+        }
+    }
+}
