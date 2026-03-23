@@ -147,14 +147,14 @@ public class JfrogBuilderTest {
     }
 
     @Test
-    void testPerformWithValidJfCommand() throws Exception {
+    void testPerformWithValidJfCommand() {
         JfrogBuilder validBuilder = new JfrogBuilder("jf rt ping");
         assertNotNull(validBuilder);
         assertEquals("jf rt ping", validBuilder.getCommand());
     }
 
     @Test
-    void testPerformWithValidJfrogCommand() throws Exception {
+    void testPerformWithValidJfrogCommand() {
         JfrogBuilder validBuilder = new JfrogBuilder("jfrog rt ping");
         assertNotNull(validBuilder);
         assertEquals("jfrog rt ping", validBuilder.getCommand());
