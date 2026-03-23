@@ -11,6 +11,12 @@ pipelines:
         readOnly:
           NEXT_VERSION: 0.0.0
           NEXT_DEVELOPMENT_VERSION: 0.0.x-SNAPSHOT
+          RUN_JF_AUDIT:
+            default: "false"
+            values:
+              - "false"
+              - "true"
+            allowCustom: false
 
     steps:
       - name: Release
@@ -51,7 +57,7 @@ pipelines:
             - jf mvnc --repo-resolve-releases ecosys-jenkins-repos --repo-resolve-snapshots ecosys-releases-snapshots --repo-deploy-snapshots ecosys-oss-snapshot-local --repo-deploy-releases ecosys-oss-release-local
 
             # Run audit
-            - jf audit --fail=false
+            - if [ "$RUN_JF_AUDIT" = "true" ]; then jf audit --fail=false; else echo "Skipping jf audit"; fi
 
             # Update version
             - env -i PATH=$PATH M2_HOME=$M2_HOME HOME=$HOME jf mvn versions:set -DnewVersion="${NEXT_VERSION}" -B
