@@ -145,10 +145,10 @@ public abstract class BinaryInstaller extends ToolInstaller {
         // Cache agent OS per node+path to handle agents with identical tool paths but different architectures.
         String toolPath = toolLocation.getRemote();
         String osCacheKey = nodeName + ":" + toolPath;
-        String agentOs = AGENT_OS_CACHE.get(osCacheKey);
-        if (agentOs == null) {
+        evictIfFull(AGENT_OS_CACHE);
+        String agentOs = AGENT_OS_CACHE.computeIfAbsent(osCacheKey, k -> {
             try {
-                agentOs = toolLocation.act(new MasterToSlaveFileCallable<String>() {
+                return toolLocation.act(new MasterToSlaveFileCallable<String>() {
                     @Override
                     public String invoke(File f, VirtualChannel channel) throws IOException {
                         return OsUtils.getOsDetails();
@@ -156,13 +156,9 @@ public abstract class BinaryInstaller extends ToolInstaller {
                 });
             } catch (Exception e) {
                 LOGGER.warning("Failed to get agent OS details: " + e.getMessage());
-                agentOs = "unknown";
+                return "unknown";
             }
-            if (AGENT_OS_CACHE.size() >= MAX_CACHE_SIZE) {
-                AGENT_OS_CACHE.clear();
-            }
-            AGENT_OS_CACHE.put(osCacheKey, agentOs);
-        }
+        });
 
         String cacheKey = nodeName + ":" + toolPath + "/" + agentOs + "/" + binaryName;
         LOGGER.fine("Agent OS detected: " + agentOs + " for node: " + nodeName + " tool: " + toolPath);
@@ -308,10 +304,19 @@ public abstract class BinaryInstaller extends ToolInstaller {
         if (currentRunId == null) {
             return;
         }
-        if (VERIFIED_IN_RUN.size() >= MAX_CACHE_SIZE) {
-            VERIFIED_IN_RUN.clear();
-        }
+        evictIfFull(VERIFIED_IN_RUN);
         VERIFIED_IN_RUN.put(cacheKey, currentRunId);
+    }
+
+    /**
+     * Clears the cache if it has reached {@link #MAX_CACHE_SIZE}.
+     * This is a simple eviction strategy — the slight race between size() and clear()
+     * is harmless (worst case: one extra entry before eviction, or an extra cache miss).
+     */
+    private static void evictIfFull(ConcurrentHashMap<String, String> cache) {
+        if (cache.size() >= MAX_CACHE_SIZE) {
+            cache.clear();
+        }
     }
 
     /**
