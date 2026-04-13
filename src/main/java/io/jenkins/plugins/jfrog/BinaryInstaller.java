@@ -20,6 +20,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -63,8 +66,8 @@ public abstract class BinaryInstaller extends ToolInstaller {
     private static final ConcurrentHashMap<String, ReentrantLock> NODE_INSTALLATION_LOCKS = new ConcurrentHashMap<>();
 
     /**
-     * Per-pipeline installation verification cache.
-     * Key: tool path + agent OS + binary name
+     * Per-pipeline installation verification cache (LRU, max 1000 entries).
+     * Key: nodeName + tool path + agent OS + binary name
      * Value: pipeline run identifier (derived from the build's log storage)
      *
      * <p>Once a tool is verified in a pipeline run, all subsequent stages in the same run
@@ -73,15 +76,29 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * The agent OS is included in the key to distinguish same-path installations on
      * agents with different architectures (e.g., linux-amd64 vs linux-arm64).</p>
      */
-    private static final ConcurrentHashMap<String, String> VERIFIED_IN_RUN = new ConcurrentHashMap<>();
-    private static final int MAX_CACHE_SIZE = 100;
+    private static final int MAX_CACHE_SIZE = 1000;
+    private static final Map<String, String> VERIFIED_IN_RUN = Collections.synchronizedMap(
+            new LinkedHashMap<String, String>(MAX_CACHE_SIZE, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+                    return size() > MAX_CACHE_SIZE;
+                }
+            });
 
     /**
-     * Cache of agent OS details to avoid repeated remote calls.
-     * Key: tool location remote path
+     * Cache of agent OS details to avoid repeated remote calls (LRU, max 100 entries).
+     * Key: nodeName + tool location remote path
      * Value: OS details string (e.g., "linux-amd64", "mac-arm64")
      */
-    private static final ConcurrentHashMap<String, String> AGENT_OS_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, String> AGENT_OS_CACHE = Collections.synchronizedMap(
+            new LinkedHashMap<String, String>(MAX_CACHE_SIZE, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+                    return size() > MAX_CACHE_SIZE;
+                }
+            });
+
+    private static final String BUILT_IN_NODE = "built-in";
 
     protected BinaryInstaller(String label) {
         super(label);
@@ -142,13 +159,16 @@ public abstract class BinaryInstaller extends ToolInstaller {
 
         FilePath cliPath = toolLocation.child(binaryName);
 
+        // Node.getNodeName() returns "" for the built-in (master) node.
+        String node = StringUtils.defaultIfBlank(nodeName, BUILT_IN_NODE);
+
         // Cache agent OS per node+path to handle agents with identical tool paths but different architectures.
         String toolPath = toolLocation.getRemote();
-        String osCacheKey = nodeName + ":" + toolPath;
-        evictIfFull(AGENT_OS_CACHE);
-        String agentOs = AGENT_OS_CACHE.computeIfAbsent(osCacheKey, k -> {
+        String osCacheKey = node + ":" + toolPath;
+        String agentOs = AGENT_OS_CACHE.get(osCacheKey);
+        if (agentOs == null) {
             try {
-                return toolLocation.act(new MasterToSlaveFileCallable<String>() {
+                agentOs = toolLocation.act(new MasterToSlaveFileCallable<String>() {
                     @Override
                     public String invoke(File f, VirtualChannel channel) throws IOException {
                         return OsUtils.getOsDetails();
@@ -156,12 +176,13 @@ public abstract class BinaryInstaller extends ToolInstaller {
                 });
             } catch (Exception e) {
                 LOGGER.warning("Failed to get agent OS details: " + e.getMessage());
-                return "unknown";
+                agentOs = "unknown";
             }
-        });
+            AGENT_OS_CACHE.put(osCacheKey, agentOs);
+        }
 
-        String cacheKey = nodeName + ":" + toolPath + "/" + agentOs + "/" + binaryName;
-        LOGGER.fine("Agent OS detected: " + agentOs + " for node: " + nodeName + " tool: " + toolPath);
+        String cacheKey = node + ":" + toolPath + "/" + agentOs + "/" + binaryName;
+        LOGGER.fine("Agent OS detected: " + agentOs + " for node: " + node + " tool: " + toolPath);
 
         // Per-pipeline cache: skip re-verification if already checked in this pipeline run.
         String currentRunId = getCurrentRunId(log);
@@ -304,19 +325,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
         if (currentRunId == null) {
             return;
         }
-        evictIfFull(VERIFIED_IN_RUN);
         VERIFIED_IN_RUN.put(cacheKey, currentRunId);
-    }
-
-    /**
-     * Clears the cache if it has reached {@link #MAX_CACHE_SIZE}.
-     * This is a simple eviction strategy — the slight race between size() and clear()
-     * is harmless (worst case: one extra entry before eviction, or an extra cache miss).
-     */
-    private static void evictIfFull(ConcurrentHashMap<String, String> cache) {
-        if (cache.size() >= MAX_CACHE_SIZE) {
-            cache.clear();
-        }
     }
 
     /**
