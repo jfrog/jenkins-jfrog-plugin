@@ -1,0 +1,24 @@
+services:
+  agent-linux-amd64:
+    image: jenkins/inbound-agent:latest
+    platform: linux/amd64
+    container_name: jenkins-agent-amd64
+    environment:
+      JENKINS_URL: http://host.docker.internal:8080
+      JENKINS_AGENT_NAME: agent-linux-amd64
+      JENKINS_SECRET: ${AGENT_AMD64_SECRET}
+      JENKINS_AGENT_WORKDIR: /home/jenkins/agent
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  agent-linux-arm64:
+    image: jenkins/inbound-agent:latest
+    platform: linux/arm64
+    container_name: jenkins-agent-arm64
+    environment:
+      JENKINS_URL: http://host.docker.internal:8080
+      JENKINS_AGENT_NAME: agent-linux-arm64
+      JENKINS_SECRET: ${AGENT_ARM64_SECRET}
+      JENKINS_AGENT_WORKDIR: /home/jenkins/agent
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
