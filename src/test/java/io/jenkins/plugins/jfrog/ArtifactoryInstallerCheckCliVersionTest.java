@@ -1,49 +1,41 @@
 package io.jenkins.plugins.jfrog;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.stream.Stream;
 
 import static io.jenkins.plugins.jfrog.ArtifactoryInstaller.*;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author yahavi
  **/
-@RunWith(Parameterized.class)
-public class ArtifactoryInstallerCheckCliVersionTest {
-    private final String inputVersion;
-    private final String expectedResult;
 
-    public ArtifactoryInstallerCheckCliVersionTest(String inputVersion, String expectedResult) {
-        this.inputVersion = inputVersion;
-        this.expectedResult = expectedResult;
-    }
+class ArtifactoryInstallerCheckCliVersionTest {
 
-    @Parameterized.Parameters
-    public static Collection<Object[]> dataProvider() {
-        return Arrays.asList(
+    static Stream<Arguments> dataProvider() {
+        return Stream.of(
                 // Positive tests
-                new Object[]{"", null},
-                new Object[]{"2.6.1", null},
-                new Object[]{"2.7.0", null},
+                Arguments.of("", null),
+                Arguments.of("2.6.1", null),
+                Arguments.of("2.7.0", null),
 
                 // Bad syntax
-                new Object[]{"bad version", BAD_VERSION_PATTERN_ERROR},
-                new Object[]{"1.2", BAD_VERSION_PATTERN_ERROR},
-                new Object[]{"1.2.a", BAD_VERSION_PATTERN_ERROR},
+                Arguments.of("bad version", BAD_VERSION_PATTERN_ERROR),
+                Arguments.of("1.2", BAD_VERSION_PATTERN_ERROR),
+                Arguments.of("1.2.a", BAD_VERSION_PATTERN_ERROR),
 
                 // Versions below minimum
-                new Object[]{"2.5.9", LOW_VERSION_PATTERN_ERROR},
-                new Object[]{"2.6.0", LOW_VERSION_PATTERN_ERROR}
+                Arguments.of("2.5.9", LOW_VERSION_PATTERN_ERROR),
+                Arguments.of("2.6.0", LOW_VERSION_PATTERN_ERROR)
         );
     }
 
-    @Test
-    public void testValidateCliVersion() {
+    @ParameterizedTest
+    @MethodSource("dataProvider")
+    void testValidateCliVersion(String inputVersion, String expectedResult) {
         assertEquals(expectedResult, validateCliVersion(inputVersion).getMessage());
     }
 }
