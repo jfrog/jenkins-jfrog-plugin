@@ -56,7 +56,7 @@ public class ArtifactoryInstaller extends BinaryInstaller {
             throw new IOException("Server id '" + getServerId() + "' doesn't exists.");
         }
         String binaryName = Utils.getJfrogCliBinaryName(!node.createLauncher(log).isUnix());
-        return performJfrogCliInstallation(getToolLocation(tool, node), log, getVersion(), server, getRepository(), binaryName);
+        return performJfrogCliInstallation(getToolLocation(tool, node), log, getVersion(), server, getRepository(), binaryName, node.getNodeName());
     }
 
     /**

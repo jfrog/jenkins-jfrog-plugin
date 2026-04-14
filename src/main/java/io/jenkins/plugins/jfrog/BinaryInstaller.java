@@ -20,6 +20,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -61,7 +64,42 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * next access).</p>
      */
     private static final ConcurrentHashMap<String, ReentrantLock> NODE_INSTALLATION_LOCKS = new ConcurrentHashMap<>();
-    
+
+    /**
+     * Per-pipeline installation verification cache (LRU, max 1000 entries).
+     * Key: nodeName + tool path + agent OS + binary name
+     * Value: pipeline run identifier (derived from the build's log storage)
+     *
+     * <p>Once a tool is verified in a pipeline run, all subsequent stages in the same run
+     * skip the version check entirely — avoiding repeated HTTP HEAD requests to Artifactory.
+     * A new pipeline run produces a different run ID, so it gets its own verification.
+     * The agent OS is included in the key to distinguish same-path installations on
+     * agents with different architectures (e.g., linux-amd64 vs linux-arm64).</p>
+     */
+    private static final int MAX_CACHE_SIZE = 1000;
+    private static final Map<String, String> VERIFIED_IN_RUN = Collections.synchronizedMap(
+            new LinkedHashMap<String, String>(MAX_CACHE_SIZE, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+                    return size() > MAX_CACHE_SIZE;
+                }
+            });
+
+    /**
+     * Cache of agent OS details to avoid repeated remote calls (LRU, max 100 entries).
+     * Key: nodeName + tool location remote path
+     * Value: OS details string (e.g., "linux-amd64", "mac-arm64")
+     */
+    private static final Map<String, String> AGENT_OS_CACHE = Collections.synchronizedMap(
+            new LinkedHashMap<String, String>(MAX_CACHE_SIZE, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+                    return size() > MAX_CACHE_SIZE;
+                }
+            });
+
+    private static final String BUILT_IN_NODE = "built-in";
+
     protected BinaryInstaller(String label) {
         super(label);
     }
@@ -115,14 +153,48 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @throws InterruptedException If installation is interrupted
      */
     public static FilePath performJfrogCliInstallation(FilePath toolLocation, TaskListener log, String version,
-                                                       JFrogPlatformInstance instance, String repository, String binaryName)
+                                                       JFrogPlatformInstance instance, String repository,
+                                                       String binaryName, String nodeName)
             throws IOException, InterruptedException {
 
         FilePath cliPath = toolLocation.child(binaryName);
 
+        // Node.getNodeName() returns "" for the built-in (master) node.
+        String node = StringUtils.defaultIfBlank(nodeName, BUILT_IN_NODE);
+
+        // Cache agent OS per node+path to handle agents with identical tool paths but different architectures.
+        String toolPath = toolLocation.getRemote();
+        String osCacheKey = node + ":" + toolPath;
+        String agentOs = AGENT_OS_CACHE.get(osCacheKey);
+        if (agentOs == null) {
+            try {
+                agentOs = toolLocation.act(new MasterToSlaveFileCallable<String>() {
+                    @Override
+                    public String invoke(File f, VirtualChannel channel) throws IOException {
+                        return OsUtils.getOsDetails();
+                    }
+                });
+            } catch (Exception e) {
+                LOGGER.warning("Failed to get agent OS details: " + e.getMessage());
+                agentOs = "unknown";
+            }
+            AGENT_OS_CACHE.put(osCacheKey, agentOs);
+        }
+
+        String cacheKey = node + ":" + toolPath + "/" + agentOs + "/" + binaryName;
+        LOGGER.fine("Agent OS detected: " + agentOs + " for node: " + node + " tool: " + toolPath);
+
+        // Per-pipeline cache: skip re-verification if already checked in this pipeline run.
+        String currentRunId = getCurrentRunId(log);
+        if (currentRunId != null && currentRunId.equals(VERIFIED_IN_RUN.get(cacheKey))) {
+            LOGGER.fine("CLI already verified in this pipeline run, skipping check for: " + cacheKey);
+            return toolLocation;
+        }
+
         // Fast path: binary exists and is already the correct version — skip lock entirely.
-        if (isValidCliInstallation(cliPath, log) && isCorrectVersion(toolLocation, instance, repository, version, binaryName, log)) {
+        if (isValidCliInstallation(cliPath, log) && isCorrectVersion(toolLocation, instance, repository, version, binaryName, agentOs, log)) {
             log.getLogger().println("[BinaryInstaller] CLI already installed and up-to-date, skipping download");
+            markVerified(cacheKey, currentRunId);
             return toolLocation;
         }
 
@@ -147,8 +219,9 @@ public abstract class BinaryInstaller extends ToolInstaller {
         try {
             // Re-check inside the lock — a concurrent stage may have just finished.
             boolean validCliExists = isValidCliInstallation(cliPath, log);
-            if (validCliExists && isCorrectVersion(toolLocation, instance, repository, version, binaryName, log)) {
+            if (validCliExists && isCorrectVersion(toolLocation, instance, repository, version, binaryName, agentOs, log)) {
                 log.getLogger().println("[BinaryInstaller] CLI was installed by a concurrent stage, skipping download");
+                markVerified(cacheKey, currentRunId);
                 return toolLocation;
             }
 
@@ -162,6 +235,7 @@ public abstract class BinaryInstaller extends ToolInstaller {
                 JenkinsProxyConfiguration proxyConfiguration = new JenkinsProxyConfiguration();
                 toolLocation.act(new JFrogCliDownloader(proxyConfiguration, version, instance, log, repository, binaryName));
                 log.getLogger().println("[BinaryInstaller] CLI installation completed successfully");
+                markVerified(cacheKey, currentRunId);
             } catch (Exception e) {
                 // Download failed. If an older binary is still present, keep the pipeline running.
                 // The upgrade will be retried on the next run.
@@ -205,12 +279,58 @@ public abstract class BinaryInstaller extends ToolInstaller {
     }
 
     /**
+     * Extracts a unique pipeline run identifier from the TaskListener.
+     * <p>
+     * In Pipeline builds, the TaskListener wraps a FileLogStorage whose log file path
+     * contains the job name and build number (e.g., "jobs/my-job/builds/42/log").
+     * This path is guaranteed unique per pipeline run.
+     * <p>
+     * Falls back to null for non-Pipeline builds (Freestyle, etc.) where the listener
+     * structure is different — the caller treats null as "don't cache".
+     * <p>
+     * <b>Fragile:</b> This relies on internal field names in workflow-api and workflow-support.
+     * Tested with Jenkins {@literal >=} 2.462.3 and workflow-cps. If a future Jenkins update
+     * renames these fields, the catch block returns null and caching degrades gracefully
+     * (repeated version checks, no failure). Re-verify after major Jenkins core upgrades.
+     */
+    private static String getCurrentRunId(TaskListener log) {
+        try {
+            // Reflection chain (workflow-api / workflow-support internals):
+            // CloseableTaskListener → mainDelegate (BufferedBuildListener) → out (IndexOutputStream) → this$0 (FileLogStorage) → log (File)
+            java.lang.reflect.Field mainField = log.getClass().getDeclaredField("mainDelegate");
+            mainField.setAccessible(true);
+            Object buildListener = mainField.get(log);
+
+            java.lang.reflect.Field outField = buildListener.getClass().getDeclaredField("out");
+            outField.setAccessible(true);
+            Object indexOut = outField.get(buildListener);
+
+            java.lang.reflect.Field storageField = indexOut.getClass().getDeclaredField("this$0");
+            storageField.setAccessible(true);
+            Object fileLogStorage = storageField.get(indexOut);
+
+            java.lang.reflect.Field logField = fileLogStorage.getClass().getDeclaredField("log");
+            logField.setAccessible(true);
+            File logFile = (File) logField.get(fileLogStorage);
+
+            return logFile.getPath();
+        } catch (Exception e) {
+            // Non-Pipeline build or different Jenkins version — fall back gracefully
+            LOGGER.fine("Could not determine pipeline run ID: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private static void markVerified(String cacheKey, String currentRunId) {
+        if (currentRunId == null) {
+            return;
+        }
+        VERIFIED_IN_RUN.put(cacheKey, currentRunId);
+    }
+
+    /**
      * Creates a unique lock key for the installation location.
      * Version is excluded so all operations targeting the same binary path are serialized.
-     *
-     * @param toolLocation Installation directory
-     * @param binaryName Binary file name
-     * @return Unique lock key string
      */
     private static String createLockKey(FilePath toolLocation, String binaryName) {
         try {
@@ -267,17 +387,14 @@ public abstract class BinaryInstaller extends ToolInstaller {
      * @param log Task listener for logging
      * @return true if CLI is the correct version, false otherwise
      */
-    private static boolean isCorrectVersion(FilePath toolLocation, JFrogPlatformInstance instance, 
-                                          String repository, String version, String binaryName, TaskListener log) {
+    private static boolean isCorrectVersion(FilePath toolLocation, JFrogPlatformInstance instance,
+                                          String repository, String version, String binaryName,
+                                          String agentOsDetails, TaskListener log) {
         try {
-            // Use the same logic as shouldDownloadTool() from JFrogCliDownloader
-            // but do it here to avoid unnecessary JFrogCliDownloader.invoke() calls
-            
             JenkinsProxyConfiguration proxyConfiguration = new JenkinsProxyConfiguration();
-            // Use binaryName to construct the correct URL suffix (handles Windows jf.exe vs Unix jf)
-            String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository, 
-                                               StringUtils.defaultIfBlank(version, "[RELEASE]"), 
-                                               OsUtils.getOsDetails(), binaryName);
+            String cliUrlSuffix = String.format("/%s/v2-jf/%s/jfrog-cli-%s/%s", repository,
+                                               StringUtils.defaultIfBlank(version, "[RELEASE]"),
+                                               agentOsDetails, binaryName);
             
             JenkinsBuildInfoLog buildInfoLog = new JenkinsBuildInfoLog(log);
             String artifactoryUrl = instance.inferArtifactoryUrl();
@@ -295,6 +412,8 @@ public abstract class BinaryInstaller extends ToolInstaller {
                 String expectedSha256 = getArtifactSha256(manager, cliUrlSuffix);
                 if (expectedSha256.isEmpty()) {
                     log.getLogger().println("[BinaryInstaller] WARNING: No SHA256 available from server — cannot verify version, assuming up-to-date (upgrade may be delayed)");
+                    // Clean up stale 0-byte sha256 file left by older plugin versions
+                    cleanupStaleSha256File(toolLocation, log);
                     return true;
                 }
                 
@@ -316,6 +435,31 @@ public abstract class BinaryInstaller extends ToolInstaller {
         } catch (Exception e) {
             log.getLogger().println("[BinaryInstaller] Version check failed: " + e.getMessage() + ", proceeding with download check");
             return false; // If version check fails, let download process handle it
+        }
+    }
+
+    /**
+     * Removes a stale 0-byte sha256 file left behind by older plugin versions.
+     * The file has no effect on current behaviour but can confuse operators inspecting
+     * the tool directory.
+     */
+    private static void cleanupStaleSha256File(FilePath toolLocation, TaskListener log) {
+        try {
+            toolLocation.act(new MasterToSlaveFileCallable<Void>() {
+                @Override
+                public Void invoke(File f, VirtualChannel channel) throws IOException {
+                    File sha256File = new File(f, "sha256");
+                    if (sha256File.exists() && sha256File.length() == 0) {
+                        if (sha256File.delete()) {
+                            log.getLogger().println("[BinaryInstaller] Cleaned up stale 0-byte sha256 file");
+                        }
+                    }
+                    return null;
+                }
+            });
+        } catch (Exception e) {
+            // Best-effort cleanup — not worth failing the build
+            LOGGER.warning("Failed to clean up stale sha256 file: " + e.getMessage());
         }
     }
 
