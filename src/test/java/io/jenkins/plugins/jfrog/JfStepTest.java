@@ -8,7 +8,6 @@ import hudson.util.ArgumentListBuilder;
 import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import org.jfrog.build.client.Version;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -21,21 +20,22 @@ import java.util.stream.Stream;
 import static io.jenkins.plugins.jfrog.JfStep.Execution.getJFrogCLIPath;
 import static io.jenkins.plugins.jfrog.JfStep.MIN_CLI_VERSION_PASSWORD_STDIN;
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
+
 /**
  * @author yahavi
  **/
-public class JfStepTest {
+class JfStepTest {
 
     @ParameterizedTest
     @MethodSource("jfrogCLIPathProvider")
     void getJFrogCLIPathTest(EnvVars inputEnvVars, boolean isWindows, String expectedOutput) {
-        Assertions.assertEquals(expectedOutput, getJFrogCLIPath(inputEnvVars, isWindows));
+        assertEquals(expectedOutput, getJFrogCLIPath(inputEnvVars, isWindows));
     }
 
-    private static Stream<Arguments> jfrogCLIPathProvider() {
+    static Stream<Arguments> jfrogCLIPathProvider() {
         return Stream.of(
                 // Unix agent
                 Arguments.of(new EnvVars(JFROG_BINARY_PATH, "a/b/c"), false, "a/b/c/jf"),
@@ -86,7 +86,7 @@ public class JfStepTest {
      * Plugin launchers do not support password-stdin, as they do not have access to the standard input by default.
      *
      * @param cliVersion       The CLI version
-     * @param isPluginLauncher Whether the launcher is a plugin launcher
+     * @param envVars          The env vars
      * @param expectedOutput   The expected output
      */
     @ParameterizedTest
@@ -115,7 +115,7 @@ public class JfStepTest {
         assertTrue(builder.toList().contains(expectedOutput));
     }
 
-    private static Stream<Arguments> provideTestArguments() {
+    static Stream<Arguments> provideTestArguments() {
         String passwordFlag = "--password=";
         String passwordStdinFlag = "--password-stdin";
         EnvVars envVarsTrue = mock(EnvVars.class);

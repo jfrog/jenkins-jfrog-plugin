@@ -8,7 +8,7 @@ import io.jenkins.plugins.jfrog.JfrogBuildInfoPublisher;
 import io.jenkins.plugins.jfrog.JfrogCliWrapper;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
-import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,16 +18,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * - JfrogCliWrapper (Build Environment wrapper)
  * - JfrogBuildInfoPublisher (Post-build action)
  */
+@WithJenkins
 class FreestyleJobITest extends PipelineTestBase {
 
     /**
      * JfrogCliWrapper should add JFROG_BINARY_PATH to the build environment.
-     *
-     * @param jenkins Jenkins instance injected automatically.
      */
     @Test
-    public void testWrapperSetsBinaryPath(JenkinsRule jenkins) throws Exception {
-        setupJenkins(jenkins);
+    void testWrapperSetsBinaryPath() throws Exception {
+        setupJenkins();
         configureJfrogCliFromReleases(StringUtils.EMPTY, true);
 
         FreeStyleProject project = jenkins.createFreeStyleProject("test-wrapper-path");
@@ -47,12 +46,10 @@ class FreestyleJobITest extends PipelineTestBase {
     /**
      * Without any installation selected, JfrogCliWrapper should still allow the build
      * to proceed (uses system PATH).
-     *
-     * @param jenkins Jenkins instance injected automatically.
      */
     @Test
-    public void testWrapperNoInstallationUsesSysPath(JenkinsRule jenkins) throws Exception {
-        setupJenkins(jenkins);
+    void testWrapperNoInstallationUsesSysPath() throws Exception {
+        setupJenkins();
 
         FreeStyleProject project = jenkins.createFreeStyleProject("test-wrapper-no-install");
         JfrogCliWrapper wrapper = new JfrogCliWrapper();
@@ -67,12 +64,10 @@ class FreestyleJobITest extends PipelineTestBase {
     /**
      * JfrogBuildInfoPublisher with publishOnlyOnSuccess=true must skip publish
      * when the build has failed.
-     *
-     * @param jenkins Jenkins instance injected automatically.
      */
     @Test
-    public void testPublisherSkipsOnFailedBuild(JenkinsRule jenkins) throws Exception {
-        setupJenkins(jenkins);
+    void testPublisherSkipsOnFailedBuild() throws Exception {
+        setupJenkins();
 
         FreeStyleProject project = jenkins.createFreeStyleProject("test-publisher-skip");
         // Deliberately fail the build
@@ -90,12 +85,10 @@ class FreestyleJobITest extends PipelineTestBase {
     /**
      * Freestyle flow: wrapper sets environment and build step successfully invokes the JFrog CLI.
      * Verifies that JFROG_BINARY_PATH points to the installation directory and 'jf -v' succeeds.
-     *
-     * @param jenkins Jenkins instance injected automatically.
      */
     @Test
-    public void testFullFreestyleFlow(JenkinsRule jenkins) throws Exception {
-        setupJenkins(jenkins);
+    void testFullFreestyleFlow() throws Exception {
+        setupJenkins();
         configureJfrogCliFromReleases(StringUtils.EMPTY, true);
 
         FreeStyleProject project = jenkins.createFreeStyleProject("test-freestyle-full");
@@ -115,12 +108,10 @@ class FreestyleJobITest extends PipelineTestBase {
     /**
      * JfrogCliWrapper.DescriptorImpl.isApplicable must return true for a regular
      * FreeStyle project and false for a Matrix project (validated via reflection guard).
-     *
-     * @param jenkins Jenkins instance injected automatically.
      */
     @Test
-    public void testWrapperNotApplicableForMatrixProject(JenkinsRule jenkins) throws Exception {
-        setupJenkins(jenkins);
+    void testWrapperNotApplicableForMatrixProject() throws Exception {
+        setupJenkins();
 
         JfrogCliWrapper.DescriptorImpl descriptor =
                 jenkins.jenkins.getDescriptorByType(JfrogCliWrapper.DescriptorImpl.class);
