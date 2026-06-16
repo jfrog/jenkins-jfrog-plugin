@@ -23,6 +23,7 @@ import static io.jenkins.plugins.jfrog.JfStep.MIN_CLI_VERSION_PASSWORD_STDIN;
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.*;
 /**
  * @author yahavi
@@ -69,6 +70,7 @@ public class JfStepTest {
             out.write(outputStream.toByteArray());
             return procStarter;
         });
+        when(procStarter.quiet(anyBoolean())).thenReturn(procStarter);
         when(procStarter.join()).thenReturn(0);
 
         // Create an instance of JfStep and call the method
