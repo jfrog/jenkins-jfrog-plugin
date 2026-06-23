@@ -70,10 +70,16 @@ public class JfStep extends Step {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             ArgumentListBuilder builder = new ArgumentListBuilder();
             builder.add(jfrogBinaryPath).add("-v");
+            // quiet(true) keeps this internal version-detection command off the build console.
+            // Its output is captured into outputStream for parsing only. Without quiet, the
+            // Kubernetes plugin's ContainerExecDecorator mirrors process output to
+            // launcher.getListener().getLogger() (the console) in addition to our capture stream,
+            // leaking "jf version X.Y.Z" to the log and appearing as duplicated output on K8s agents.
             int exitCode = launcher
                     .cmds(builder)
                     .pwd(launcher.pwd())
                     .stdout(outputStream)
+                    .quiet(true)
                     .join();
             if (exitCode != 0) {
                 throw new IOException("Failed to get JFrog CLI version: " + outputStream.toString(StandardCharsets.UTF_8));
@@ -204,7 +210,13 @@ public class JfStep extends Step {
             }
             FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
             CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir, jfrogCliConfigEncryption);
-            Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener);
+            // quiet(true) makes our JfTaskListener the sole writer of the command's output to the console.
+            // Some launchers (notably the Kubernetes plugin's ContainerExecDecorator) additionally mirror
+            // process output to launcher.getListener().getLogger() when not quiet. Since our stdout listener
+            // already tees to the same console, that would print every line twice. quiet(true) suppresses
+            // that extra sink (it also suppresses the masked command-line echo) so output is printed once
+            // on every agent type. See https://github.com/jenkinsci/kubernetes-plugin ContainerExecDecorator.
+            Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(listener).quiet(true);
             // Configure all servers, skip if all server ids have already been configured.
             if (shouldConfig(jfrogHomeTempDir)) {
                 logIfNoToolProvided(env, listener);

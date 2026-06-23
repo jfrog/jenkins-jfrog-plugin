@@ -248,7 +248,13 @@ public class JfrogBuilder extends Builder {
 
         FilePath jfrogHomeTempDir = Utils.createAndGetJfrogCliHomeTempDir(workspace, String.valueOf(run.getNumber()));
         CliEnvConfigurator.configureCliEnv(env, jfrogHomeTempDir, jfrogCliConfigEncryption);
-        Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(cliOutputListener);
+        // quiet(true) makes our JfTaskListener the sole writer of the command's output to the console.
+        // Some launchers (notably the Kubernetes plugin's ContainerExecDecorator) additionally mirror
+        // process output to launcher.getListener().getLogger() when not quiet. Since our stdout listener
+        // already tees to the same console, that would print every line twice. quiet(true) suppresses
+        // that extra sink (it also suppresses the masked command-line echo) so output is printed once
+        // on every agent type. See https://github.com/jenkinsci/kubernetes-plugin ContainerExecDecorator.
+        Launcher.ProcStarter jfLauncher = launcher.launch().envs(env).pwd(workspace).stdout(cliOutputListener).quiet(true);
 
         // Configure all servers, skip if all server ids have already been configured.
         if (shouldConfig(jfrogHomeTempDir)) {
