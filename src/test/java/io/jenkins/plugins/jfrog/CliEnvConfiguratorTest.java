@@ -49,6 +49,32 @@ public class CliEnvConfiguratorTest {
     }
 
     @Test
+    public void configureCliEnvNestedJobNameTest() throws IOException, InterruptedException {
+        // Nested folder jobs expose a JOB_NAME containing folder separators ('/'),
+        // which must be sanitized to ' :: ' to produce valid Build Info URLs.
+        envVars.put("JOB_NAME", "folder/subfolder/buildName");
+        invokeConfigureCliEnv();
+        assertEnv(envVars, JFROG_CLI_BUILD_NAME, "folder :: subfolder :: buildName");
+    }
+
+    @Test
+    public void configureCliEnvEncodedNestedJobNameTest() throws IOException, InterruptedException {
+        // URL-encoded folder separators ('%2F') must also be sanitized to ' :: '.
+        envVars.put("JOB_NAME", "folder%2FbuildName");
+        invokeConfigureCliEnv();
+        assertEnv(envVars, JFROG_CLI_BUILD_NAME, "folder :: buildName");
+    }
+
+    @Test
+    public void configureCliEnvExplicitBuildNameNotSanitizedTest() throws IOException, InterruptedException {
+        // An explicitly provided build name must be preserved as-is (putIfAbsent semantics).
+        envVars.put("JOB_NAME", "folder/buildName");
+        envVars.put(JFROG_CLI_BUILD_NAME, "custom/build/name");
+        invokeConfigureCliEnv();
+        assertEnv(envVars, JFROG_CLI_BUILD_NAME, "custom/build/name");
+    }
+
+    @Test
     public void configEncryptionTest() throws IOException, InterruptedException {
         JFrogCliConfigEncryption configEncryption = new JFrogCliConfigEncryption(envVars);
         assertTrue(configEncryption.shouldEncrypt());

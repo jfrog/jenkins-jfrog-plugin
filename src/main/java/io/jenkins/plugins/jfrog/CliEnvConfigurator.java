@@ -35,8 +35,11 @@ public class CliEnvConfigurator {
      * @throws InterruptedException if the operation is interrupted
      */
     static void configureCliEnv(EnvVars env, FilePath jfrogHomeTempDir, JFrogCliConfigEncryption encryptionKey) throws IOException, InterruptedException {
-        // Setting Jenkins job name as the default build-info name
-        env.putIfAbsent(JFROG_CLI_BUILD_NAME, env.get("JOB_NAME"));
+        // Setting Jenkins job name as the default build-info name.
+        // For nested folder jobs, JOB_NAME contains folder separators ('/'), which produce invalid
+        // Build Info URLs after publication. Sanitize the name to restore the backward-compatible
+        // behavior of the legacy Artifactory plugin, which replaced '/' (and '%2F') with ' :: '.
+        env.putIfAbsent(JFROG_CLI_BUILD_NAME, sanitizeBuildName(env.get("JOB_NAME")));
         // Setting Jenkins build number as the default build-info number
         env.putIfAbsent(JFROG_CLI_BUILD_NUMBER, env.get("BUILD_NUMBER"));
         // Setting the specific build URL
@@ -55,6 +58,26 @@ public class CliEnvConfigurator {
             String keyFilePath = encryptionKey.writeKeyFile(jfrogHomeTempDir);
             env.put(JFROG_CLI_ENCRYPTION_KEY, keyFilePath);
         }
+    }
+
+    /**
+     * Replaces occurrences of '/' and '%2F' with ' :: ' if they exist.
+     * <p>
+     * Nested Jenkins folder jobs expose a JOB_NAME that contains folder separators (e.g.
+     * "folder/subfolder/job"). Using these separators verbatim as the build-info name results in
+     * invalid Build Info URLs (404) after publication. This mirrors the legacy Artifactory plugin's
+     * {@code ExtractorUtils.sanitizeBuildName} behavior to keep build names backward-compatible.
+     *
+     * @param buildName - The raw build name (typically derived from JOB_NAME)
+     * @return The sanitized build name, or the original value if it is null
+     */
+    static String sanitizeBuildName(String buildName) {
+        if (buildName == null) {
+            return null;
+        }
+        return StringUtils.replace(
+                StringUtils.replace(buildName, "/", " :: "),
+                "%2F", " :: ");
     }
 
     @SuppressWarnings("HttpUrlsUsage")
