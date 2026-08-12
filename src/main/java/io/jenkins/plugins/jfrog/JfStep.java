@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import org.jfrog.build.client.Version;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hudson.*;
+import hudson.model.Item;
 import hudson.model.Job;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -11,6 +12,7 @@ import hudson.util.ArgumentListBuilder;
 import io.jenkins.plugins.jfrog.actions.BuildInfoBuildBadgeAction;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
+import io.jenkins.plugins.jfrog.configuration.FolderCredentialsResolver;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import io.jenkins.plugins.jfrog.models.BuildInfoOutputModel;
@@ -318,12 +320,23 @@ public class JfStep extends Step {
 
     static void addCredentialsArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher, boolean passwordStdinSupported) {
         String credentialsId = jfrogPlatformInstance.getCredentialsConfig().getCredentialsId();
-        StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, job);
+        Item lookupContext = job;
+
+        // Prefer a folder-scoped override for this server ID when the job lives under a folder
+        // that maps the server to different credentials.
+        FolderCredentialsResolver.Resolution folderOverride =
+                FolderCredentialsResolver.resolve(job, jfrogPlatformInstance.getId());
+        if (folderOverride != null) {
+            credentialsId = folderOverride.getCredentialsId();
+            lookupContext = folderOverride.getContext();
+        }
+
+        StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, lookupContext);
 
         if (accessTokenCredentials != null) {
             builder.addMasked("--access-token=" + accessTokenCredentials.getSecret().getPlainText());
         } else {
-            Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, job);
+            Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, lookupContext);
             builder.add("--user=" + credentials.getUsername());
             addPasswordArgument(builder, credentials, launcher, passwordStdinSupported);
         }
