@@ -28,8 +28,10 @@ import javax.annotation.Nonnull;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -119,7 +121,8 @@ public class JfStep extends Step {
             String jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
             boolean passwordStdinSupported = isPasswordStdinEnabled(workspace, env, launcher, jfrogBinaryPath);
 
-            builder.add(jfrogBinaryPath).add(args);
+            String[] processedArgs = "true".equals(env.get("JFROG_CLI_DECODE_PROPS")) ? decodeDPropertyValues(args) : args;
+            builder.add(jfrogBinaryPath).add(processedArgs);
             if (isWindows) {
                 builder = builder.toWindowsCommand();
             }
@@ -140,6 +143,35 @@ public class JfStep extends Step {
                 throw new RuntimeException(errorMessage, e);
             }
             return output;
+        }
+
+        /**
+         * URL-decodes values of -D Maven system property arguments.
+         * Prevents double-encoding when user passes URL-encoded values (e.g. https%3A%2F%2F...)
+         * to jf mvn, which would otherwise encode them again before sending to Artifactory.
+         * Invalid percent sequences (e.g. "100%") are left unchanged.
+         * Enabled via JFROG_CLI_DECODE_PROPS=true env var (opt-in).
+         */
+        static String[] decodeDPropertyValues(String[] args) {
+            return Arrays.stream(args).map(arg -> {
+                if (!arg.startsWith("-D")) {
+                    return arg;
+                }
+                int eqIndex = arg.indexOf('=');
+                if (eqIndex < 0) {
+                    return arg;
+                }
+                String key = arg.substring(0, eqIndex);
+                String value = arg.substring(eqIndex + 1);
+                try {
+                    // Replace + with %2B before decoding so + is not decoded as space
+                    String toDecide = value.indexOf('+') >= 0 ? value.replace("+", "%2B") : value;
+                    String decoded = URLDecoder.decode(toDecide, StandardCharsets.UTF_8);
+                    return key + "=" + decoded;
+                } catch (IllegalArgumentException e) {
+                    return arg;
+                }
+            }).toArray(String[]::new);
         }
 
         /**

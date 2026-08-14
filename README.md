@@ -203,6 +203,25 @@ environment {
 }
 ```
 
+### Decoding URL-encoded Maven property values
+
+If your pipeline passes URL-encoded values as `-D` Maven system properties (e.g., migrating from the Jenkins Artifactory Plugin where values were URL-encoded), you can enable automatic URL-decoding before the values are passed to JFrog CLI:
+
+```groovy
+environment {
+    JFROG_CLI_DECODE_PROPS = "true"
+}
+```
+
+With this enabled, URL-encoded property values are decoded before being sent to Artifactory:
+
+| Input to pipeline | Stored in Artifactory |
+|---|---|
+| `-Ddeploy.scm.location=https%3A%2F%2F...` | `https://...` |
+| `-Ddeploy.scm.branch=feature%2F26.08` | `feature/26.08` |
+
+Without this variable, values are passed to JFrog CLI as-is (default behavior).
+
 ### Using multiple JFrog Platform instances
 
 If you have multiple JFrog Platform instances configured, you can use the `–-server-id` command option with
