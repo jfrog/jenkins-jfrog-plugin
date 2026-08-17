@@ -48,6 +48,11 @@ public class JfStep extends Step {
     private static final ObjectMapper mapper = createMapper();
     protected String[] args;
     static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.3");
+    /**
+     * When set to "true" (case-insensitive), URL-encoded values of -D arguments of the 'jf mvn' command are decoded
+     * before being passed to the JFrog CLI. See {@link Execution#decodeDPropertyValues}.
+     */
+    static final String JFROG_CLI_DECODE_PROPS = "JFROG_CLI_DECODE_PROPS";
 
     @DataBoundConstructor
     public JfStep(Object args) {
@@ -121,8 +126,7 @@ public class JfStep extends Step {
             String jfrogBinaryPath = getJFrogCLIPath(env, isWindows);
             boolean passwordStdinSupported = isPasswordStdinEnabled(workspace, env, launcher, jfrogBinaryPath);
 
-            String[] processedArgs = "true".equals(env.get("JFROG_CLI_DECODE_PROPS")) ? decodeDPropertyValues(args) : args;
-            builder.add(jfrogBinaryPath).add(processedArgs);
+            builder.add(jfrogBinaryPath).add(shouldDecodeProps(env, args) ? decodeDPropertyValues(args) : args);
             if (isWindows) {
                 builder = builder.toWindowsCommand();
             }
@@ -146,11 +150,27 @@ public class JfStep extends Step {
         }
 
         /**
+         * Whether the -D property values of this command should be URL-decoded.
+         * Requires the {@link JfStep#JFROG_CLI_DECODE_PROPS} environment variable to be set to "true", and applies
+         * only to the 'jf mvn' command - the Maven extractor is the one attaching these values as artifact properties.
+         *
+         * @param env  - Job's environment variables
+         * @param args - The 'jf' command arguments
+         * @return true if the -D property values should be decoded.
+         */
+        static boolean shouldDecodeProps(EnvVars env, String[] args) {
+            return Boolean.parseBoolean(env.get(JFROG_CLI_DECODE_PROPS))
+                    && args.length > 0 && "mvn".equals(args[0]);
+        }
+
+        /**
          * URL-decodes values of -D Maven system property arguments.
          * Prevents double-encoding when user passes URL-encoded values (e.g. https%3A%2F%2F...)
          * to jf mvn, which would otherwise encode them again before sending to Artifactory.
          * Invalid percent sequences (e.g. "100%") are left unchanged.
-         * Enabled via JFROG_CLI_DECODE_PROPS=true env var (opt-in).
+         *
+         * @param args - The 'jf' command arguments
+         * @return the arguments, with the values of the -D arguments decoded.
          */
         static String[] decodeDPropertyValues(String[] args) {
             return Arrays.stream(args).map(arg -> {
@@ -162,13 +182,12 @@ public class JfStep extends Step {
                     return arg;
                 }
                 String key = arg.substring(0, eqIndex);
-                String value = arg.substring(eqIndex + 1);
+                // Escape '+' before decoding, so that it is not decoded into a space
+                String value = arg.substring(eqIndex + 1).replace("+", "%2B");
                 try {
-                    // Replace + with %2B before decoding so + is not decoded as space
-                    String toDecide = value.indexOf('+') >= 0 ? value.replace("+", "%2B") : value;
-                    String decoded = URLDecoder.decode(toDecide, StandardCharsets.UTF_8);
-                    return key + "=" + decoded;
+                    return key + "=" + URLDecoder.decode(value, StandardCharsets.UTF_8);
                 } catch (IllegalArgumentException e) {
+                    // Not a valid percent-encoded value (e.g. "100%") - keep it as is
                     return arg;
                 }
             }).toArray(String[]::new);

@@ -220,7 +220,12 @@ With this enabled, URL-encoded property values are decoded before being sent to 
 | `-Ddeploy.scm.location=https%3A%2F%2F...` | `https://...` |
 | `-Ddeploy.scm.branch=feature%2F26.08` | `feature/26.08` |
 
-Without this variable, values are passed to JFrog CLI as-is (default behavior).
+Notes:
+
+- Decoding applies only to the `jf mvn` command, and only to arguments in the `-D<key>=<value>` form. All other
+  commands and arguments are always passed to JFrog CLI unchanged.
+- Values that are not valid percent-encoded strings (for example `-Dkey=100%`) are left as they are.
+- Without this variable, values are passed to JFrog CLI as-is (default behavior).
 
 ### Using multiple JFrog Platform instances
 

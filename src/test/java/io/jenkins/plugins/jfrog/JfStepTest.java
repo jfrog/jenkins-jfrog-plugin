@@ -20,6 +20,7 @@ import java.util.stream.Stream;
 
 import static io.jenkins.plugins.jfrog.JfStep.Execution.decodeDPropertyValues;
 import static io.jenkins.plugins.jfrog.JfStep.Execution.getJFrogCLIPath;
+import static io.jenkins.plugins.jfrog.JfStep.Execution.shouldDecodeProps;
 import static io.jenkins.plugins.jfrog.JfStep.MIN_CLI_VERSION_PASSWORD_STDIN;
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 import static org.junit.jupiter.api.Assertions.*;
@@ -173,6 +174,34 @@ public class JfStepTest {
         assertArrayEquals(
                 new String[]{"-Ddeploy.committer=Sara++Ngo"},
                 decodeDPropertyValues(new String[]{"-Ddeploy.committer=Sara++Ngo"})
+        );
+    }
+
+    private static final String[] ENCODED_MVN_ARGS = new String[]{"mvn", "deploy", "-Ddeploy.scm.branch=feature%2F26.08"};
+
+    @ParameterizedTest
+    @MethodSource("decodePropsProvider")
+    void shouldDecodePropsTest(String envValue, String[] args, boolean expected) {
+        EnvVars env = new EnvVars();
+        if (envValue != null) {
+            env.put(JfStep.JFROG_CLI_DECODE_PROPS, envValue);
+        }
+        assertEquals(expected, shouldDecodeProps(env, args));
+    }
+
+    private static Stream<Arguments> decodePropsProvider() {
+        return Stream.of(
+                // Environment variable unset or disabled - arguments are passed to the CLI unchanged.
+                Arguments.of(null, ENCODED_MVN_ARGS, false),
+                Arguments.of("false", ENCODED_MVN_ARGS, false),
+                Arguments.of("", ENCODED_MVN_ARGS, false),
+                // Environment variable enabled - the check is case-insensitive.
+                Arguments.of("true", ENCODED_MVN_ARGS, true),
+                Arguments.of("TRUE", ENCODED_MVN_ARGS, true),
+                Arguments.of("True", ENCODED_MVN_ARGS, true),
+                // Enabled, but the command isn't 'jf mvn' - decoding does not apply.
+                Arguments.of("true", new String[]{"rt", "upload", "-Dkey=a%2Fb"}, false),
+                Arguments.of("true", new String[]{}, false)
         );
     }
 }
