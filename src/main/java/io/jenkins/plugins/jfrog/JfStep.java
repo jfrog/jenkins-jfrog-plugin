@@ -8,7 +8,6 @@ import hudson.model.Job;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.ArgumentListBuilder;
-import hudson.util.QuotedStringTokenizer;
 import io.jenkins.plugins.jfrog.actions.BuildInfoBuildBadgeAction;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
@@ -55,7 +54,7 @@ public class JfStep extends Step {
             this.args = ((List<String>) args).toArray(String[]::new);
             return;
         }
-        this.args = QuotedStringTokenizer.tokenize(args.toString());
+        this.args = Utils.splitCliArgs(args.toString());
     }
 
     /**

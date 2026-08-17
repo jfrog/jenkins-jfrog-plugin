@@ -13,7 +13,6 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
 import hudson.util.ListBoxModel;
-import hudson.util.QuotedStringTokenizer;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import lombok.Getter;
 import org.apache.commons.io.FilenameUtils;
@@ -115,7 +114,7 @@ public class JfrogBuilder extends Builder {
         }
         
         // Parse the command and remove the 'jf' or 'jfrog' prefix
-        String[] fullArgs = QuotedStringTokenizer.tokenize(trimmedCommand);
+        String[] fullArgs = Utils.splitCliArgs(trimmedCommand);
         String[] args;
         if (fullArgs.length > 0 && (fullArgs[0].equals("jf") || fullArgs[0].equals("jfrog"))) {
             // Remove the 'jf' or 'jfrog' prefix since we add it back when building the command

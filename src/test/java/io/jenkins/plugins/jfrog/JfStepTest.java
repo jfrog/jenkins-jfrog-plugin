@@ -42,8 +42,8 @@ public class JfStepTest {
         return Stream.of(
                 // Double-quoted value containing a space must stay as a single argument.
                 Arguments.of("rt mvn -Dsonar.projectName=\"C7 CMS\"", new String[]{"rt", "mvn", "-Dsonar.projectName=C7 CMS"}),
-                // Single-quoted value containing a space must stay as a single argument.
-                Arguments.of("rt mvn -Dsonar.projectName='C7 CMS'", new String[]{"rt", "mvn", "-Dsonar.projectName=C7 CMS"}),
+                // Single quotes are literal and do not group, so an apostrophe is never swallowed.
+                Arguments.of("rt mvn -Dmsg=don't", new String[]{"rt", "mvn", "-Dmsg=don't"}),
                 // Unquoted args are split on whitespace as before.
                 Arguments.of("rt ping", new String[]{"rt", "ping"})
         );
