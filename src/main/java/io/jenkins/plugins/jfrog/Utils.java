@@ -91,7 +91,7 @@ public class Utils {
     }
 
     /**
-     * Split a user-provided JFrog CLI command string into arguments.
+     * Tokenize a user-provided JFrog CLI command string into arguments.
      * <p>
      * Double quotes group a value that contains whitespace, and the grouping quotes themselves are
      * removed, so {@code -Dsonar.projectName="C7 CMS"} becomes the single argument
@@ -111,12 +111,12 @@ public class Utils {
      * @param command The raw command string as entered by the user
      * @return The parsed arguments, never null
      */
-    public static String[] splitCliArgs(String command) {
-        List<String> args = new ArrayList<>();
-        StringBuilder currentArg = new StringBuilder();
-        // Tracked separately from currentArg's length so that an explicitly empty quoted value,
+    public static String[] tokenizeArgs(String command) {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder token = new StringBuilder();
+        // Tracked separately from token's length so that an explicitly empty quoted value,
         // such as --foo="", is preserved as an argument instead of being dropped.
-        boolean inArg = false;
+        boolean tokenStarted = false;
         boolean inQuotes = false;
 
         for (int i = 0; i < command.length(); i++) {
@@ -125,25 +125,25 @@ public class Utils {
                 if (c == '"') {
                     inQuotes = false;
                 } else {
-                    currentArg.append(c);
+                    token.append(c);
                 }
             } else if (c == '"') {
                 inQuotes = true;
-                inArg = true;
+                tokenStarted = true;
             } else if (Character.isWhitespace(c)) {
-                if (inArg) {
-                    args.add(currentArg.toString());
-                    currentArg.setLength(0);
-                    inArg = false;
+                if (tokenStarted) {
+                    tokens.add(token.toString());
+                    token.setLength(0);
+                    tokenStarted = false;
                 }
             } else {
-                currentArg.append(c);
-                inArg = true;
+                token.append(c);
+                tokenStarted = true;
             }
         }
-        if (inArg) {
-            args.add(currentArg.toString());
+        if (tokenStarted) {
+            tokens.add(token.toString());
         }
-        return args.toArray(new String[0]);
+        return tokens.toArray(new String[0]);
     }
 }

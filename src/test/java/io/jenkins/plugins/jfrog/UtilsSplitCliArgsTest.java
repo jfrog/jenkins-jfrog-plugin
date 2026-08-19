@@ -9,11 +9,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.stream.Stream;
 
-import static io.jenkins.plugins.jfrog.Utils.splitCliArgs;
+import static io.jenkins.plugins.jfrog.Utils.tokenizeArgs;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 /**
- * Tests for {@link Utils#splitCliArgs(String)}.
+ * Tests for {@link Utils#tokenizeArgs(String)}.
  * <p>
  * Double quotes group values containing whitespace and are stripped; nothing else is interpreted.
  * The cases below pin down the two characters that a shell-style tokenizer would otherwise consume:
@@ -25,7 +25,7 @@ public class UtilsSplitCliArgsTest {
     @ParameterizedTest
     @MethodSource("quotingProvider")
     void groupsQuotedValuesAndStripsGroupingQuotes(String command, String[] expected) {
-        assertArrayEquals(expected, splitCliArgs(command));
+        assertArrayEquals(expected, tokenizeArgs(command));
     }
 
     private static Stream<Arguments> quotingProvider() {
@@ -50,7 +50,7 @@ public class UtilsSplitCliArgsTest {
     @ParameterizedTest
     @MethodSource("literalCharactersProvider")
     void keepsBackslashesAndApostrophesLiteral(String command, String[] expected) {
-        assertArrayEquals(expected, splitCliArgs(command));
+        assertArrayEquals(expected, tokenizeArgs(command));
     }
 
     private static Stream<Arguments> literalCharactersProvider() {
@@ -82,7 +82,7 @@ public class UtilsSplitCliArgsTest {
     @ParameterizedTest
     @MethodSource("whitespaceProvider")
     void treatsAllWhitespaceAsASeparator(String command, String[] expected) {
-        assertArrayEquals(expected, splitCliArgs(command));
+        assertArrayEquals(expected, tokenizeArgs(command));
     }
 
     private static Stream<Arguments> whitespaceProvider() {
@@ -107,7 +107,7 @@ public class UtilsSplitCliArgsTest {
     @ParameterizedTest
     @MethodSource("unquotedCommandsProvider")
     void unquotedCommandsTokenizeExactlyAsPlainWhitespaceSplitting(String command) {
-        assertArrayEquals(StringUtils.split(command), splitCliArgs(command),
+        assertArrayEquals(StringUtils.split(command), tokenizeArgs(command),
                 "tokenizing changed for an unquoted command: " + command);
     }
 
@@ -156,7 +156,7 @@ public class UtilsSplitCliArgsTest {
     @Test
     void quotedValueIsReQuotedForWindows() {
         ArgumentListBuilder builder = new ArgumentListBuilder();
-        builder.add("jf.exe").add(splitCliArgs("rt mvn -Dsonar.projectName=\"C7 CMS\""));
+        builder.add("jf.exe").add(tokenizeArgs("rt mvn -Dsonar.projectName=\"C7 CMS\""));
 
         assertArrayEquals(
                 new String[]{"cmd.exe", "/C", "\"jf.exe", "rt", "mvn", "\"-Dsonar.projectName=C7 CMS\"",

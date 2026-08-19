@@ -54,7 +54,7 @@ public class JfStep extends Step {
             this.args = ((List<String>) args).toArray(String[]::new);
             return;
         }
-        this.args = Utils.splitCliArgs(args.toString());
+        this.args = Utils.tokenizeArgs(args.toString());
     }
 
     /**

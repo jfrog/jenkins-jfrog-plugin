@@ -114,7 +114,7 @@ public class JfrogBuilder extends Builder {
         }
         
         // Parse the command and remove the 'jf' or 'jfrog' prefix
-        String[] fullArgs = Utils.splitCliArgs(trimmedCommand);
+        String[] fullArgs = Utils.tokenizeArgs(trimmedCommand);
         String[] args;
         if (fullArgs.length > 0 && (fullArgs[0].equals("jf") || fullArgs[0].equals("jfrog"))) {
             // Remove the 'jf' or 'jfrog' prefix since we add it back when building the command
