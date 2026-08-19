@@ -34,6 +34,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 import static org.apache.commons.lang3.StringUtils.*;
@@ -45,6 +47,7 @@ import static org.jfrog.build.extractor.BuildInfoExtractorUtils.createMapper;
 @Getter
 @SuppressWarnings("unused")
 public class JfStep extends Step {
+    private static final Logger logger = Logger.getLogger(JfStep.class.getName());
     private static final ObjectMapper mapper = createMapper();
     protected String[] args;
     static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.3");
@@ -337,6 +340,13 @@ public class JfStep extends Step {
             builder.addMasked("--access-token=" + accessTokenCredentials.getSecret().getPlainText());
         } else {
             Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, lookupContext);
+            // A folder override that points at a deleted/renamed credential resolves to empty here,
+            // which later surfaces as a confusing "unauthorized" failure. Make the cause visible.
+            if (folderOverride != null && credentials == Credentials.EMPTY_CREDENTIALS) {
+                logger.log(Level.WARNING, "Folder-level JFrog credentials override for server '" + jfrogPlatformInstance.getId()
+                        + "' in folder '" + folderOverride.getContext().getFullName() + "' resolved to no credentials (id '"
+                        + credentialsId + "'). The credential may have been deleted or renamed. Check the folder configuration.");
+            }
             builder.add("--user=" + credentials.getUsername());
             addPasswordArgument(builder, credentials, launcher, passwordStdinSupported);
         }

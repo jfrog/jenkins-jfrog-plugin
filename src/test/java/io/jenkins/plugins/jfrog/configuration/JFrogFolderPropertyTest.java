@@ -80,6 +80,23 @@ class JFrogFolderPropertyTest {
     }
 
     @Test
+    void resolveFallsBackToGrandparentFolder(JenkinsRule r) throws Exception {
+        Folder grandparent = r.jenkins.createProject(Folder.class, "grandparent-with-override");
+        grandparent.addProperty(new JFrogFolderProperty(Collections.singletonList(
+                new FolderServerCredentialsMapping("serverA", "grandparent-cred"))));
+        // Neither the parent nor the child override serverA.
+        Folder parent = grandparent.createProject(Folder.class, "parent-without-override");
+        Folder child = parent.createProject(Folder.class, "child-without-override");
+        FreeStyleProject job = child.createProject(FreeStyleProject.class, "job");
+
+        FolderCredentialsResolver.Resolution resolution = FolderCredentialsResolver.resolve(job, "serverA");
+
+        assertNotNull(resolution);
+        assertEquals("grandparent-cred", resolution.getCredentialsId());
+        assertSame(grandparent, resolution.getContext());
+    }
+
+    @Test
     void resolveReturnsNullForUnmappedServer(JenkinsRule r) throws Exception {
         Folder folder = r.jenkins.createProject(Folder.class, "folder-with-other-server");
         folder.addProperty(new JFrogFolderProperty(Collections.singletonList(

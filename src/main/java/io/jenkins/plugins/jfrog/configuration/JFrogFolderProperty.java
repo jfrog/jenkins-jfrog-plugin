@@ -27,7 +27,7 @@ import java.util.List;
  */
 public class JFrogFolderProperty extends AbstractFolderProperty<AbstractFolder<?>> {
 
-    private List<FolderServerCredentialsMapping> serverCredentialsMappings;
+    private final List<FolderServerCredentialsMapping> serverCredentialsMappings;
 
     @DataBoundConstructor
     public JFrogFolderProperty(List<FolderServerCredentialsMapping> serverCredentialsMappings) {

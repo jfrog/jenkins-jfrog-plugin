@@ -6,6 +6,7 @@ import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.model.Item;
+import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
 import jenkins.model.Jenkins;
@@ -15,9 +16,9 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import javax.annotation.Nonnull;
-import java.io.Serializable;
 import java.util.List;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
 /**
@@ -28,8 +29,7 @@ import static org.apache.commons.lang3.StringUtils.trimToEmpty;
  * override the credentials that were configured globally for a given JFrog server ID,
  * without having to reconfigure the server through the CLI.
  */
-public class FolderServerCredentialsMapping extends AbstractDescribableImpl<FolderServerCredentialsMapping> implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class FolderServerCredentialsMapping extends AbstractDescribableImpl<FolderServerCredentialsMapping> {
 
     private final String serverId;
     private final String credentialsId;
@@ -63,7 +63,7 @@ public class FolderServerCredentialsMapping extends AbstractDescribableImpl<Fold
         @SuppressWarnings("unused")
         public ListBoxModel doFillServerIdItems() {
             ListBoxModel items = new ListBoxModel();
-            items.add("", "");
+            items.add("-- Select a server --", "");
             List<JFrogPlatformInstance> instances = JFrogPlatformBuilder.getJFrogPlatformInstances();
             if (instances != null) {
                 for (JFrogPlatformInstance instance : instances) {
@@ -73,6 +73,28 @@ public class FolderServerCredentialsMapping extends AbstractDescribableImpl<Fold
                 }
             }
             return items;
+        }
+
+        /**
+         * Flag a mapping saved without a server ID, so it is caught in the UI rather than
+         * silently ignored when credentials are resolved at build time.
+         */
+        @SuppressWarnings("unused")
+        public FormValidation doCheckServerId(@QueryParameter String value) {
+            return isBlank(value)
+                    ? FormValidation.error("Select a JFrog server ID for this mapping.")
+                    : FormValidation.ok();
+        }
+
+        /**
+         * Flag a mapping saved without a credential, so it is caught in the UI rather than
+         * silently ignored when credentials are resolved at build time.
+         */
+        @SuppressWarnings("unused")
+        public FormValidation doCheckCredentialsId(@QueryParameter String value) {
+            return isBlank(value)
+                    ? FormValidation.error("Select the credentials to use for this JFrog server ID.")
+                    : FormValidation.ok();
         }
 
         /**

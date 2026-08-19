@@ -21,8 +21,30 @@ import java.util.logging.Logger;
 public final class FolderCredentialsResolver {
     private static final Logger logger = Logger.getLogger(FolderCredentialsResolver.class.getName());
 
+    /**
+     * Defensive upper bound on how many levels we walk up the item hierarchy. The folder plugin
+     * should never produce a cycle, but a bound guarantees this can never hang.
+     */
+    private static final int MAX_HOPS = 100;
+
+    /**
+     * Whether the cloudbees-folder plugin is available in this Jenkins. Resolved once at class
+     * load time so we never touch {@link AbstractFolder} bytecode when the plugin is missing.
+     */
+    private static final boolean FOLDER_PLUGIN_PRESENT = isFolderPluginPresent();
+
     private FolderCredentialsResolver() {
         // Utility class
+    }
+
+    private static boolean isFolderPluginPresent() {
+        try {
+            Class.forName("com.cloudbees.hudson.plugins.folder.AbstractFolder");
+            return true;
+        } catch (ClassNotFoundException | LinkageError e) {
+            logger.log(Level.FINE, "cloudbees-folder plugin not available; folder-level JFrog credentials disabled", e);
+            return false;
+        }
     }
 
     /**
@@ -33,12 +55,13 @@ public final class FolderCredentialsResolver {
      * @return the resolved override, or {@code null} if no enclosing folder overrides this server
      */
     public static Resolution resolve(Job<?, ?> job, String serverId) {
-        if (job == null || StringUtils.isBlank(serverId)) {
+        if (!FOLDER_PLUGIN_PRESENT || job == null || StringUtils.isBlank(serverId)) {
             return null;
         }
         try {
             ItemGroup<?> parent = job.getParent();
-            while (parent != null) {
+            int hops = 0;
+            while (parent != null && hops++ < MAX_HOPS) {
                 if (parent instanceof AbstractFolder) {
                     AbstractFolder<?> folder = (AbstractFolder<?>) parent;
                     JFrogFolderProperty property = folder.getProperties().get(JFrogFolderProperty.class);
@@ -57,10 +80,13 @@ public final class FolderCredentialsResolver {
                     break;
                 }
             }
-        } catch (Throwable t) {
-            // The cloudbees-folder plugin might be unavailable at runtime, or the lookup could fail.
-            // In either case we fall back to the globally configured credentials.
-            logger.log(Level.FINE, "Failed to resolve folder-level JFrog credentials for server '" + serverId + "'", t);
+        } catch (LinkageError e) {
+            // The cloudbees-folder plugin became unavailable at runtime; fall back to global creds.
+            logger.log(Level.FINE, "cloudbees-folder plugin unavailable while resolving folder-level JFrog credentials for server '" + serverId + "'", e);
+        } catch (RuntimeException e) {
+            // Anything unexpected (misconfiguration, lookup failure) must be visible to operators,
+            // otherwise the silent fall back to global credentials is hard to diagnose.
+            logger.log(Level.WARNING, "Failed to resolve folder-level JFrog credentials for server '" + serverId + "'; falling back to global credentials", e);
         }
         return null;
     }
