@@ -16,6 +16,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.stream.Stream;
 
 import static io.jenkins.plugins.jfrog.JfStep.Execution.decodeDPropertyValues;
@@ -31,6 +32,30 @@ import static org.mockito.Mockito.*;
  * @author yahavi
  **/
 public class JfStepTest {
+
+    @ParameterizedTest
+    @MethodSource("quotedArgsProvider")
+    void quotedArgsAreNotSplitOnInternalSpaces(String rawArgs, String[] expectedArgs) {
+        JfStep step = new JfStep(rawArgs);
+        assertArrayEquals(expectedArgs, step.getArgs());
+    }
+
+    private static Stream<Arguments> quotedArgsProvider() {
+        return Stream.of(
+                // Double-quoted value containing a space must stay as a single argument.
+                Arguments.of("rt mvn -Dsonar.projectName=\"C7 CMS\"", new String[]{"rt", "mvn", "-Dsonar.projectName=C7 CMS"}),
+                // Single quotes are literal and do not group, so an apostrophe is never swallowed.
+                Arguments.of("rt mvn -Dmsg=don't", new String[]{"rt", "mvn", "-Dmsg=don't"}),
+                // Unquoted args are split on whitespace as before.
+                Arguments.of("rt ping", new String[]{"rt", "ping"})
+        );
+    }
+
+    @Test
+    void listArgsArePassedThroughVerbatim() {
+        JfStep step = new JfStep(Arrays.asList("rt", "mvn", "-Dsonar.projectName=C7 CMS"));
+        assertArrayEquals(new String[]{"rt", "mvn", "-Dsonar.projectName=C7 CMS"}, step.getArgs());
+    }
 
     @ParameterizedTest
     @MethodSource("jfrogCLIPathProvider")
