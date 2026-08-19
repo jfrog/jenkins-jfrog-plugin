@@ -12,10 +12,11 @@
         <jenkins.version>2.462.3</jenkins.version>
         <skipITs>true</skipITs>
         <buildinfo.version>2.41.23</buildinfo.version>
+        <hpi-plugin.version>3.66</hpi-plugin.version>
     </properties>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>jfrog</artifactId>
-    <version>1.8.x-SNAPSHOT</version>
+    <version>1.9.0</version>
     <packaging>hpi</packaging>
     <name>JFrog Plugin</name>
 
