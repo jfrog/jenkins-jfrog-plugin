@@ -16,9 +16,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.stream.Stream;
 
+import static io.jenkins.plugins.jfrog.JfStep.Execution.decodeDPropertyValues;
 import static io.jenkins.plugins.jfrog.JfStep.Execution.getJFrogCLIPath;
+import static io.jenkins.plugins.jfrog.JfStep.Execution.shouldDecodeProps;
 import static io.jenkins.plugins.jfrog.JfStep.MIN_CLI_VERSION_PASSWORD_STDIN;
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,6 +32,30 @@ import static org.mockito.Mockito.*;
  * @author yahavi
  **/
 public class JfStepTest {
+
+    @ParameterizedTest
+    @MethodSource("quotedArgsProvider")
+    void quotedArgsAreNotSplitOnInternalSpaces(String rawArgs, String[] expectedArgs) {
+        JfStep step = new JfStep(rawArgs);
+        assertArrayEquals(expectedArgs, step.getArgs());
+    }
+
+    private static Stream<Arguments> quotedArgsProvider() {
+        return Stream.of(
+                // Double-quoted value containing a space must stay as a single argument.
+                Arguments.of("rt mvn -Dsonar.projectName=\"C7 CMS\"", new String[]{"rt", "mvn", "-Dsonar.projectName=C7 CMS"}),
+                // Single quotes are literal and do not group, so an apostrophe is never swallowed.
+                Arguments.of("rt mvn -Dmsg=don't", new String[]{"rt", "mvn", "-Dmsg=don't"}),
+                // Unquoted args are split on whitespace as before.
+                Arguments.of("rt ping", new String[]{"rt", "ping"})
+        );
+    }
+
+    @Test
+    void listArgsArePassedThroughVerbatim() {
+        JfStep step = new JfStep(Arrays.asList("rt", "mvn", "-Dsonar.projectName=C7 CMS"));
+        assertArrayEquals(new String[]{"rt", "mvn", "-Dsonar.projectName=C7 CMS"}, step.getArgs());
+    }
 
     @ParameterizedTest
     @MethodSource("jfrogCLIPathProvider")
@@ -138,6 +165,68 @@ public class JfStepTest {
                 Arguments.of("2.31.3", envVarsFalse, passwordFlag),
                 // Minimum supported CLI version for password stdin
                 Arguments.of("2.31.3", envVarsTrue, passwordStdinFlag)
+        );
+    }
+
+    @Test
+    void testDecodeDPropertyValues() {
+        // URL-encoded values decoded
+        assertArrayEquals(
+                new String[]{"-Ddeploy.scm.location=https://checkout@scm.example.com/scm/repo.git"},
+                decodeDPropertyValues(new String[]{"-Ddeploy.scm.location=https%3A%2F%2Fcheckout%40scm.example.com%2Fscm%2Frepo.git"})
+        );
+        // URL-encoded branch decoded
+        assertArrayEquals(
+                new String[]{"-Ddeploy.scm.branch=feature/26.08"},
+                decodeDPropertyValues(new String[]{"-Ddeploy.scm.branch=feature%2F26.08"})
+        );
+        // Decoded value passes through unchanged
+        assertArrayEquals(
+                new String[]{"-Ddeploy.scm.location=https://checkout@scm.example.com/scm/repo.git"},
+                decodeDPropertyValues(new String[]{"-Ddeploy.scm.location=https://checkout@scm.example.com/scm/repo.git"})
+        );
+        // Non -D arg left unchanged
+        assertArrayEquals(
+                new String[]{"mvn", "deploy", "-DskipTests"},
+                decodeDPropertyValues(new String[]{"mvn", "deploy", "-DskipTests"})
+        );
+        // Invalid percent sequence kept as-is
+        assertArrayEquals(
+                new String[]{"-Dkey=100%"},
+                decodeDPropertyValues(new String[]{"-Dkey=100%"})
+        );
+        // + not decoded as space
+        assertArrayEquals(
+                new String[]{"-Ddeploy.committer=Sara++Ngo"},
+                decodeDPropertyValues(new String[]{"-Ddeploy.committer=Sara++Ngo"})
+        );
+    }
+
+    private static final String[] ENCODED_MVN_ARGS = new String[]{"mvn", "deploy", "-Ddeploy.scm.branch=feature%2F26.08"};
+
+    @ParameterizedTest
+    @MethodSource("decodePropsProvider")
+    void shouldDecodePropsTest(String envValue, String[] args, boolean expected) {
+        EnvVars env = new EnvVars();
+        if (envValue != null) {
+            env.put(JfStep.JFROG_CLI_DECODE_PROPS, envValue);
+        }
+        assertEquals(expected, shouldDecodeProps(env, args));
+    }
+
+    private static Stream<Arguments> decodePropsProvider() {
+        return Stream.of(
+                // Environment variable unset or disabled - arguments are passed to the CLI unchanged.
+                Arguments.of(null, ENCODED_MVN_ARGS, false),
+                Arguments.of("false", ENCODED_MVN_ARGS, false),
+                Arguments.of("", ENCODED_MVN_ARGS, false),
+                // Environment variable enabled - the check is case-insensitive.
+                Arguments.of("true", ENCODED_MVN_ARGS, true),
+                Arguments.of("TRUE", ENCODED_MVN_ARGS, true),
+                Arguments.of("True", ENCODED_MVN_ARGS, true),
+                // Enabled, but the command isn't 'jf mvn' - decoding does not apply.
+                Arguments.of("true", new String[]{"rt", "upload", "-Dkey=a%2Fb"}, false),
+                Arguments.of("true", new String[]{}, false)
         );
     }
 }

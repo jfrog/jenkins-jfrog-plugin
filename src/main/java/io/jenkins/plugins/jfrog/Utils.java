@@ -10,6 +10,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 
@@ -86,5 +88,62 @@ public class Utils {
 
     public static FilePath createAndGetJfrogCliHomeTempDir(final FilePath ws, String buildNumber) throws IOException, InterruptedException {
         return createAndGetTempDir(ws).child(buildNumber).child(".jfrog");
+    }
+
+    /**
+     * Tokenize a user-provided JFrog CLI command string into arguments.
+     * <p>
+     * Double quotes group a value that contains whitespace, and the grouping quotes themselves are
+     * removed, so {@code -Dsonar.projectName="C7 CMS"} becomes the single argument
+     * {@code -Dsonar.projectName=C7 CMS}. Every other character is kept verbatim.
+     * <p>
+     * Notably, no escape processing is performed:
+     * <ul>
+     *     <li>Backslashes are literal, so Windows paths such as {@code C:\Users\foo\} and
+     *     {@code \\server\share} reach the CLI unchanged. Arguments are handed to the process
+     *     directly rather than through a shell, so nothing downstream would re-interpret them.</li>
+     *     <li>Single quotes are literal, so values containing apostrophes such as
+     *     {@code -Dmsg=don't} are not mangled. Consequently single quotes do not group.</li>
+     * </ul>
+     * The trade-off is that a literal double quote cannot be embedded in a value; that was equally
+     * true before this method existed.
+     *
+     * @param command The raw command string as entered by the user
+     * @return The parsed arguments, never null
+     */
+    public static String[] tokenizeArgs(String command) {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder token = new StringBuilder();
+        // Tracked separately from token's length so that an explicitly empty quoted value,
+        // such as --foo="", is preserved as an argument instead of being dropped.
+        boolean tokenStarted = false;
+        boolean inQuotes = false;
+
+        for (int i = 0; i < command.length(); i++) {
+            char c = command.charAt(i);
+            if (inQuotes) {
+                if (c == '"') {
+                    inQuotes = false;
+                } else {
+                    token.append(c);
+                }
+            } else if (c == '"') {
+                inQuotes = true;
+                tokenStarted = true;
+            } else if (Character.isWhitespace(c)) {
+                if (tokenStarted) {
+                    tokens.add(token.toString());
+                    token.setLength(0);
+                    tokenStarted = false;
+                }
+            } else {
+                token.append(c);
+                tokenStarted = true;
+            }
+        }
+        if (tokenStarted) {
+            tokens.add(token.toString());
+        }
+        return tokens.toArray(new String[0]);
     }
 }
