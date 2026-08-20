@@ -6,6 +6,7 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import hudson.FilePath;
+import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.ModelObject;
 import hudson.model.Saveable;
@@ -94,7 +95,7 @@ public class PipelineTestBase {
         artifactoryClient.close();
     }
 
-    public void setupJenkins(JenkinsRule jenkins) throws IOException {
+    public void setupJenkins(JenkinsRule jenkins) throws IOException, Descriptor.FormException {
         this.jenkins = jenkins;
         createSlave();
         setGlobalConfiguration();
@@ -157,7 +158,7 @@ public class PipelineTestBase {
     /**
      * Configure a new JFrog server in the Global configuration.
      */
-    private void setGlobalConfiguration() throws IOException {
+    private void setGlobalConfiguration() throws IOException, Descriptor.FormException {
         JFrogPlatformBuilder.DescriptorImpl jfrogBuilder = (JFrogPlatformBuilder.DescriptorImpl) jenkins.getInstance().getDescriptor(JFrogPlatformBuilder.class);
         Assert.assertNotNull(jfrogBuilder);
         CredentialsConfig platformCred = new CredentialsConfig(Secret.fromString(ARTIFACTORY_USERNAME), Secret.fromString(ARTIFACTORY_PASSWORD), Secret.fromString(ACCESS_TOKEN), "credentials");
@@ -174,7 +175,7 @@ public class PipelineTestBase {
         addCredentials(store);
     }
 
-    private static void addCredentials(CredentialsStore store) throws IOException {
+    private static void addCredentials(CredentialsStore store) throws IOException, Descriptor.FormException {
         // For purposes of this test we do not care about domains.
         store.addCredentials(Domain.global(), new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, "credentials", null, ARTIFACTORY_USERNAME, ARTIFACTORY_PASSWORD));
     }
