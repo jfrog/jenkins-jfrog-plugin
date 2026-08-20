@@ -272,11 +272,11 @@
                 <extensions>true</extensions>
                 <dependencies>
                     <!-- Override the plexus-archiver version pulled in transitively via maven-archiver:
-                         the default (4.4.0) is blocked by curation for CVE-2023-37460, fixed in 4.8.0+. -->
+                         the default (4.4.0) is blocked by curation for CVE-2023-37460, which is fixed in 4.8.0. -->
                     <dependency>
                         <groupId>org.codehaus.plexus</groupId>
                         <artifactId>plexus-archiver</artifactId>
-                        <version>4.10.0</version>
+                        <version>4.8.0</version>
                     </dependency>
                 </dependencies>
             </plugin>
@@ -284,8 +284,8 @@
                 <groupId>org.jvnet.localizer</groupId>
                 <artifactId>localizer-maven-plugin</artifactId>
                 <dependencies>
-                    <!-- Same curation issue as above (default is 4.2.0). CVE-2023-37460 is only fixed in 4.8.0+,
-                         so an intermediate version would just get blocked once curation evaluates it. -->
+                    <!-- Same curation issue as above, where the default is 4.2.0. An intermediate version
+                         would only get blocked again once curation evaluates it, since the fix landed in 4.8.0. -->
                     <dependency>
                         <groupId>org.codehaus.plexus</groupId>
                         <artifactId>plexus-archiver</artifactId>
