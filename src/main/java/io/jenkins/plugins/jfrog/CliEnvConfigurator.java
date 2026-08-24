@@ -7,6 +7,9 @@ import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Configures JFrog CLI environment variables for the job.
@@ -24,6 +27,8 @@ public class CliEnvConfigurator {
     static final String HTTPS_PROXY_ENV = "HTTPS_PROXY";
     static final String HTTP_PROXY_ENV = "HTTP_PROXY";
     static final String NO_PROXY = "NO_PROXY";
+    // Jenkins expects the 'No Proxy Host' list to be newline separated, but also tolerates spaces, '|', ';' and ','
+    private static final Pattern NO_PROXY_SEPARATORS = Pattern.compile("[\\s|;,]+");
 
     /**
      * Configure the JFrog CLI environment variables, according to the input job's env.
@@ -91,14 +96,52 @@ public class CliEnvConfigurator {
 
     /**
      * Converts a list of No Proxy Hosts received by Jenkins into a comma-separated string format expected by JFrog CLI.
+     * Jenkins holds the hosts as Java-style wildcard patterns, such as '*.jfrog.io'. Every entry is normalized into a
+     * plain host or a host suffix, so that the tools invoked by JFrog CLI - curl, npm and others - which match
+     * NO_PROXY entries as suffixes rather than as wildcard patterns, honor the exclusions as well.
      *
      * @param noProxy - A string representing the list of No Proxy Hosts.
      * @return A comma-separated string of No Proxy Hosts.
      */
     static String createNoProxyValue(String noProxy) {
-        // Trim leading and trailing spaces, Replace '|' and ';' with spaces and normalize whitespace
-        String noProxyListRemoveSpaceAndPipe = noProxy.trim().replaceAll("[\\s|;]+", ",");
-        // Replace multiple commas with a single comma, and remove the last one if present
-        return noProxyListRemoveSpaceAndPipe.replaceAll(",+", ",").replaceAll("^,|,$", "");
+        if (StringUtils.isBlank(noProxy)) {
+            return "";
+        }
+        // Stripping the wildcards may produce duplicates, for example out of both '*.jfrog.io' and '.jfrog.io'
+        Set<String> hosts = new LinkedHashSet<>();
+        for (String entry : NO_PROXY_SEPARATORS.split(noProxy.trim())) {
+            String host = normalizeNoProxyHost(entry);
+            if (!host.isEmpty()) {
+                hosts.add(host);
+            }
+        }
+        return String.join(",", hosts);
+    }
+
+    /**
+     * Convert a single Jenkins 'No Proxy Host' entry into a format understood by CLI tools.
+     * Such tools match a NO_PROXY entry against the target host as an exact name or as a suffix, and treat a '*' as a
+     * literal character. Therefore, the only translatable part of a wildcard pattern is the literal text that follows
+     * its last '*': '*.jfrog.io' becomes the suffix '.jfrog.io', which matches every subdomain of jfrog.io.
+     *
+     * @param entry - A single No Proxy Host entry, may contain wildcards.
+     * @return The normalized host, or an empty string if the entry contains no host to match on.
+     */
+    private static String normalizeNoProxyHost(String entry) {
+        String host = entry.trim();
+        if (host.indexOf('*') < 0) {
+            // A plain host, an IP or a CIDR block - already in the expected format
+            return host;
+        }
+        if (host.equals("*")) {
+            // A lone '*' means "bypass the proxy for all hosts" and is supported as is
+            return host;
+        }
+        String suffix = StringUtils.strip(host.substring(host.lastIndexOf('*') + 1), ".");
+        if (suffix.isEmpty()) {
+            // Patterns such as 'jfrog.*' have no suffix to match on - fall back to their literal part
+            return StringUtils.strip(host.replace("*", ""), ".");
+        }
+        return "." + suffix;
     }
 }

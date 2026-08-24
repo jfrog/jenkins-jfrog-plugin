@@ -39,7 +39,30 @@ public class CreateNoProxyValueTest {
                 new Object[]{"artifactory.jfrog.io\nartifactory1.jfrog.io", "artifactory.jfrog.io,artifactory1.jfrog.io"},
                 new Object[]{"artifactory.jfrog.io \nartifactory1.jfrog.io\nartifactory2.jfrog.io  \n  artifactory3.jfrog.io", "artifactory.jfrog.io,artifactory1.jfrog.io,artifactory2.jfrog.io,artifactory3.jfrog.io"},
                 new Object[]{";artifactory.jfrog.io;", "artifactory.jfrog.io"},
-                new Object[]{",artifactory.jfrog.io,", "artifactory.jfrog.io"}
+                new Object[]{",artifactory.jfrog.io,", "artifactory.jfrog.io"},
+
+                // Jenkins wildcard patterns are normalized into the host suffixes expected by CLI tools
+                new Object[]{"*.jfrog.io", ".jfrog.io"},
+                new Object[]{"*jfrog.io", ".jfrog.io"},
+                new Object[]{"artifactory*.jfrog.io", ".jfrog.io"},
+                new Object[]{"*.*.jfrog.io", ".jfrog.io"},
+                new Object[]{"*.jfrog.io\n*.acme.io", ".jfrog.io,.acme.io"},
+                new Object[]{"*.jfrog.io;artifactory.acme.io", ".jfrog.io,artifactory.acme.io"},
+                new Object[]{"*.jfrog.io | *.acme.io", ".jfrog.io,.acme.io"},
+                // A lone '*' bypasses the proxy for all hosts and is understood as is
+                new Object[]{"*", "*"},
+                // Duplicates created by stripping the wildcards are removed
+                new Object[]{"*.jfrog.io,.jfrog.io", ".jfrog.io"},
+                new Object[]{"*.jfrog.io\nartifactory*.jfrog.io", ".jfrog.io"},
+                // Patterns with nothing to match on after the wildcard fall back to their literal part
+                new Object[]{"jfrog.*", "jfrog"},
+                new Object[]{"10.0.*", "10.0"},
+                new Object[]{"*.*", ""},
+                // Entries that need no translation are left untouched
+                new Object[]{".jfrog.io", ".jfrog.io"},
+                new Object[]{"10.0.0.0/16", "10.0.0.0/16"},
+                new Object[]{"artifactory.jfrog.io:8081", "artifactory.jfrog.io:8081"},
+                new Object[]{"localhost", "localhost"}
         );
     }
 
