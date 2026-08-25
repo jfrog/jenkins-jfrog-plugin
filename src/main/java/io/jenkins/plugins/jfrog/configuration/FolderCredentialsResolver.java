@@ -17,6 +17,11 @@ import java.util.logging.Logger;
  * JFrog server ID. The nearest enclosing folder that defines an override wins; if no folder
  * overrides the server, {@code null} is returned and the caller falls back to the globally
  * configured credentials.
+ * <p>
+ * This is a stateless utility class, not an instantiable service: every input needed to resolve
+ * an override ({@code job}, {@code serverId}) is passed into {@link #resolve}, so there is no
+ * per-instance state to hold. Static members and a private constructor keep that explicit and
+ * prevent callers from instantiating an object that would carry no state.
  */
 public final class FolderCredentialsResolver {
     private static final Logger logger = Logger.getLogger(FolderCredentialsResolver.class.getName());
@@ -37,12 +42,22 @@ public final class FolderCredentialsResolver {
         // Utility class
     }
 
+    /**
+     * cloudbees-folder is an optional dependency: it may not be installed in a given Jenkins
+     * instance. {@code resolve} below uses {@code instanceof AbstractFolder} and casts to it, and
+     * the JVM resolves those references (triggering class loading) the first time this class's
+     * bytecode runs, not just when the branch is taken. Probing for the class explicitly here,
+     * inside a try/catch, lets us detect a missing plugin gracefully instead of failing with a
+     * {@link LinkageError} the first time {@code resolve} executes.
+     */
     private static boolean isFolderPluginPresent() {
         try {
             Class.forName("com.cloudbees.hudson.plugins.folder.AbstractFolder");
             return true;
         } catch (ClassNotFoundException | LinkageError e) {
-            logger.log(Level.FINE, "cloudbees-folder plugin not available; folder-level JFrog credentials disabled", e);
+            // Expected when cloudbees-folder isn't installed — not an error, so FINE rather than
+            // WARNING; folder-level overrides are simply unavailable and global credentials apply.
+            logger.log(Level.FINE, "cloudbees-folder plugin not available; folder-level JFrog credential overrides are disabled", e);
             return false;
         }
     }
@@ -81,11 +96,16 @@ public final class FolderCredentialsResolver {
                 }
             }
         } catch (LinkageError e) {
-            // The cloudbees-folder plugin became unavailable at runtime; fall back to global creds.
+            // Same "plugin isn't really there" case as isFolderPluginPresent() above (e.g. the
+            // plugin was uninstalled between the class-load check and this call) — expected in a
+            // dynamic Jenkins install, not a bug, so FINE rather than WARNING.
             logger.log(Level.FINE, "cloudbees-folder plugin unavailable while resolving folder-level JFrog credentials for server '" + serverId + "'", e);
         } catch (RuntimeException e) {
-            // Anything unexpected (misconfiguration, lookup failure) must be visible to operators,
-            // otherwise the silent fall back to global credentials is hard to diagnose.
+            // Unlike the case above, this means the plugin IS present but something about the
+            // folder configuration or credential lookup itself failed unexpectedly. That must stay
+            // visible to operators — WARNING, not INFO/FINE — otherwise the silent fall back to
+            // global credentials is hard to diagnose (e.g. builds failing "unauthorized" against
+            // the wrong server with no clue why).
             logger.log(Level.WARNING, "Failed to resolve folder-level JFrog credentials for server '" + serverId + "'; falling back to global credentials", e);
         }
         return null;
