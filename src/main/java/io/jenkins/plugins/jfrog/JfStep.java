@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import org.jfrog.build.client.Version;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hudson.*;
+import hudson.model.Item;
 import hudson.model.Job;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -11,6 +12,7 @@ import hudson.util.ArgumentListBuilder;
 import io.jenkins.plugins.jfrog.actions.BuildInfoBuildBadgeAction;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
+import io.jenkins.plugins.jfrog.configuration.FolderCredentialsResolver;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformBuilder;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import io.jenkins.plugins.jfrog.models.BuildInfoOutputModel;
@@ -34,6 +36,8 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static io.jenkins.plugins.jfrog.JfrogInstallation.JFROG_BINARY_PATH;
 import static org.apache.commons.lang3.StringUtils.*;
@@ -45,6 +49,7 @@ import static org.jfrog.build.extractor.BuildInfoExtractorUtils.createMapper;
 @Getter
 @SuppressWarnings("unused")
 public class JfStep extends Step {
+    private static final Logger logger = Logger.getLogger(JfStep.class.getName());
     private static final ObjectMapper mapper = createMapper();
     protected String[] args;
     static final Version MIN_CLI_VERSION_PASSWORD_STDIN = new Version("2.31.3");
@@ -369,12 +374,30 @@ public class JfStep extends Step {
 
     static void addCredentialsArguments(ArgumentListBuilder builder, JFrogPlatformInstance jfrogPlatformInstance, Job<?, ?> job, Launcher.ProcStarter launcher, boolean passwordStdinSupported) {
         String credentialsId = jfrogPlatformInstance.getCredentialsConfig().getCredentialsId();
-        StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, job);
+        Item lookupContext = job;
+
+        // Prefer a folder-scoped override for this server ID when the job lives under a folder
+        // that maps the server to different credentials.
+        FolderCredentialsResolver.Resolution folderOverride =
+                FolderCredentialsResolver.resolve(job, jfrogPlatformInstance.getId());
+        if (folderOverride != null) {
+            credentialsId = folderOverride.getCredentialsId();
+            lookupContext = folderOverride.getContext();
+        }
+
+        StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, lookupContext);
 
         if (accessTokenCredentials != null) {
             builder.addMasked("--access-token=" + accessTokenCredentials.getSecret().getPlainText());
         } else {
-            Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, job);
+            Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, lookupContext);
+            // A folder override that points at a deleted/renamed credential resolves to empty here,
+            // which later surfaces as a confusing "unauthorized" failure. Make the cause visible.
+            if (folderOverride != null && credentials == Credentials.EMPTY_CREDENTIALS) {
+                logger.log(Level.WARNING, "Folder-level JFrog credentials override for server '" + jfrogPlatformInstance.getId()
+                        + "' in folder '" + folderOverride.getContext().getFullName() + "' resolved to no credentials (id '"
+                        + credentialsId + "'). The credential may have been deleted or renamed. Check the folder configuration.");
+            }
             builder.add("--user=" + credentials.getUsername());
             addPasswordArgument(builder, credentials, launcher, passwordStdinSupported);
         }
