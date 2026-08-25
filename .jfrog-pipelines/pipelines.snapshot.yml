@@ -6,7 +6,7 @@ pipelines:
         image:
           custom:
             name: releases-docker.jfrog.io/jfrog-ecosystem-integration-env
-            tag: 1.9.0
+            tag: 1.11.8
       environmentVariables:
         readOnly:
           RUN_JF_AUDIT:
