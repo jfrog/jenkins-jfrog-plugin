@@ -9,6 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
@@ -17,6 +18,7 @@ import java.util.regex.Pattern;
  * @author yahavi
  **/
 public class CliEnvConfigurator {
+    private static final Logger logger = Logger.getLogger(CliEnvConfigurator.class.getName());
     static final String JFROG_CLI_DEFAULT_EXCLUSIONS = "*password*;*psw*;*secret*;*key*;*token*;*auth*";
     static final String JFROG_CLI_ENCRYPTION_KEY = "JFROG_CLI_ENCRYPTION_KEY";
     static final String JFROG_CLI_BUILD_NUMBER = "JFROG_CLI_BUILD_NUMBER";
@@ -140,7 +142,13 @@ public class CliEnvConfigurator {
         String suffix = StringUtils.strip(host.substring(host.lastIndexOf('*') + 1), ".");
         if (suffix.isEmpty()) {
             // Patterns such as 'jfrog.*' have no suffix to match on - fall back to their literal part
-            return StringUtils.strip(host.replace("*", ""), ".");
+            String literal = StringUtils.strip(host.replace("*", ""), ".");
+            if (literal.isEmpty()) {
+                logger.warning("NO_PROXY entry '" + entry + "' has no translatable suffix and will be dropped.");
+                return "";
+            }
+            logger.warning("NO_PROXY entry '" + entry + "' cannot be expressed as a suffix; using literal '" + literal + "' instead.");
+            return literal;
         }
         return "." + suffix;
     }
