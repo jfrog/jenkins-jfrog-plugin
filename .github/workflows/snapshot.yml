@@ -1,0 +1,62 @@
+# Ported from .jfrog-pipelines/pipelines.snapshot.yml (JFrog Pipelines is EOL)
+name: Snapshot
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    env:
+      JFROG_CLI_BUILD_NAME: ecosystem-jfrog-jenkins-plugin-dev
+      JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
+      JFROG_CLI_BUILD_PROJECT: ecosys
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "11"
+          distribution: "temurin"
+
+      - name: Cache Maven local repo
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+
+      - name: Configure JFrog CLI
+        run: |
+          jf c rm --quiet
+          jf c add internal --url=${{ secrets.ARTIFACTORY_URL }} --user=${{ secrets.ARTIFACTORY_USER }} --password=${{ secrets.ARTIFACTORY_APIKEY }}
+          jf mvnc --repo-resolve-releases ecosys-jenkins-repos --repo-resolve-snapshots ecosys-releases-snapshots --repo-deploy-snapshots ecosys-oss-snapshot-local --repo-deploy-releases ecosys-oss-release-local
+
+      - name: Audit
+        run: jf audit --fail=false
+
+      - name: Delete former snapshots
+        run: jf rt del "ecosys-oss-snapshot-local/org/jenkins-ci/plugins/jfrog/*" --quiet
+
+      - name: Build and publish
+        run: |
+          jf mvn clean install -U -B javadoc:jar source:jar -Denforcer.skip -DskipTests
+          jf rt bag && jf rt bce
+          jf rt bp
+
+      - name: Distribute release bundle
+        run: |
+          jf ds rbc ecosystem-jfrog-jenkins-plugin-snapshot ${{ github.run_number }} --spec=./.jfrog-pipelines/specs/dev-rbc-filespec.json --sign
+          jf ds rbd ecosystem-jfrog-jenkins-plugin-snapshot ${{ github.run_number }} --site="releases.jfrog.io" --sync
+
+      - name: Cleanup JFrog CLI config
+        if: always()
+        run: jf c rm --quiet
