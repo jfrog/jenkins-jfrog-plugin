@@ -19,6 +19,13 @@ jobs:
       JFROG_CLI_BUILD_NAME: ecosystem-jfrog-jenkins-plugin-release
       JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
       JFROG_CLI_BUILD_PROJECT: ecosys
+      IL_AUTOMATION_TOKEN: ${{ secrets.IL_AUTOMATION_TOKEN }}
+      ARTIFACTORY_URL: ${{ secrets.ARTIFACTORY_URL }}
+      ARTIFACTORY_USER: ${{ secrets.ARTIFACTORY_USER }}
+      ARTIFACTORY_APIKEY: ${{ secrets.ARTIFACTORY_APIKEY }}
+      JENKINS_ARTIFACTORY_URL: ${{ secrets.JENKINS_ARTIFACTORY_URL }}
+      JENKINS_ARTIFACTORY_USER: ${{ secrets.JENKINS_ARTIFACTORY_USER }}
+      JENKINS_ARTIFACTORY_PASSWORD: ${{ secrets.JENKINS_ARTIFACTORY_PASSWORD }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,56 +42,8 @@ jobs:
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
 
-      - name: Configure git
-        run: |
-          git config user.name "jfrog-ecosystem-integration"
-          git config user.email "eco-system@jfrog.com"
-          git remote set-url origin https://${{ secrets.IL_AUTOMATION_TOKEN }}@github.com/jfrog/jenkins-jfrog-plugin.git
-          git remote add upstream https://${{ secrets.IL_AUTOMATION_TOKEN }}@github.com/jenkinsci/jfrog-plugin.git
-
-      - name: Configure JFrog CLI
-        run: |
-          jf c rm --quiet
-          jf c add internal --url=${{ secrets.ARTIFACTORY_URL }} --user=${{ secrets.ARTIFACTORY_USER }} --password=${{ secrets.ARTIFACTORY_APIKEY }}
-          jf mvnc --repo-resolve-releases ecosys-jenkins-repos --repo-resolve-snapshots ecosys-releases-snapshots --repo-deploy-snapshots ecosys-oss-snapshot-local --repo-deploy-releases ecosys-oss-release-local
-
-      - name: Audit
-        run: jf audit --fail=false
-
-      - name: Set release version
-        run: |
-          jf mvn versions:set -DnewVersion="${NEXT_VERSION}" -B
-          git commit -am "[jfrog-release] Release version ${NEXT_VERSION} [skipRun]" --allow-empty
-          git tag jfrog-${NEXT_VERSION}
-
-      - name: Build and publish
-        run: |
-          jf mvn clean install -U -B -Denforcer.skip -DskipTests
-          jf rt bag && jf rt bce
-          jf rt bp
-
-      - name: Distribute release bundle
-        run: |
-          jf ds rbc ecosystem-jfrog-jenkins-plugin ${NEXT_VERSION} --spec=./.jfrog-pipelines/specs/prod-rbc-filespec.json --spec-vars="version=${NEXT_VERSION}" --sign
-          jf ds rbd ecosystem-jfrog-jenkins-plugin ${NEXT_VERSION} --site="releases.jfrog.io" --sync
-
-      - name: Publish to Jenkins Update Center
-        run: |
-          jf c add jenkins --url=${{ secrets.JENKINS_ARTIFACTORY_URL }} --user=${{ secrets.JENKINS_ARTIFACTORY_USER }} --password=${{ secrets.JENKINS_ARTIFACTORY_PASSWORD }} --enc-password=false
-          jf mvnc --server-id-resolve internal --repo-resolve-releases ecosys-jenkins-repos --repo-resolve-snapshots ecosys-releases-snapshots --server-id-deploy jenkins --repo-deploy-releases releases --repo-deploy-snapshots snapshots
-          jf mvn clean install -U -B
-
-      - name: Set next development version
-        run: |
-          jf mvn versions:set -DnewVersion="${NEXT_DEVELOPMENT_VERSION}" -B
-          git commit -am "[jfrog-release] Next development version [skipRun]"
-
-      - name: Push changes
-        run: |
-          git push origin main
-          git push origin --tags
-          git push upstream main
-          git push upstream main --tags
+      - name: Run release
+        run: .github/scripts/release.sh
 
       - name: Cleanup JFrog CLI config
         if: always()
