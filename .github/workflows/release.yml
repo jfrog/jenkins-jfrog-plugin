@@ -40,8 +40,7 @@ jobs:
         uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ secrets.ARTIFACTORY_URL }}
-          JF_USER: ${{ secrets.ARTIFACTORY_USER }}
-          JF_PASSWORD: ${{ secrets.ARTIFACTORY_APIKEY }}
+          JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_APIKEY }}
         with:
           custom-server-id: internal
 
