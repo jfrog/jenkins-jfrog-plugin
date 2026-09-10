@@ -14,7 +14,7 @@ set -euo pipefail
 
 # Configure JFrog CLI
 jf c rm --quiet
-jf c add internal --url=${ARTIFACTORY_URL} --user=${ARTIFACTORY_USER} --password=${ARTIFACTORY_APIKEY}
+jf c add internal --url=${ARTIFACTORY_URL} --access-token=${ARTIFACTORY_APIKEY}
 jf mvnc --repo-resolve-releases ecosys-jenkins-repos --repo-resolve-snapshots ecosys-releases-snapshots --repo-deploy-snapshots ecosys-oss-snapshot-local --repo-deploy-releases ecosys-oss-release-local
 
 # Audit
