@@ -1,0 +1,52 @@
+# Ported from .jfrog-pipelines/pipelines.release.yml (JFrog Pipelines is EOL)
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      next_version:
+        description: "Version to release (e.g. 1.9.0)"
+        required: true
+      next_development_version:
+        description: "Next development version (e.g. 1.9.x-SNAPSHOT)"
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_VERSION: ${{ github.event.inputs.next_version }}
+      NEXT_DEVELOPMENT_VERSION: ${{ github.event.inputs.next_development_version }}
+      JFROG_CLI_BUILD_NAME: ecosystem-jfrog-jenkins-plugin-release
+      JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
+      JFROG_CLI_BUILD_PROJECT: ecosys
+      IL_AUTOMATION_TOKEN: ${{ secrets.IL_AUTOMATION_TOKEN }}
+      JENKINS_ARTIFACTORY_URL: ${{ secrets.JENKINS_ARTIFACTORY_URL }}
+      JENKINS_ARTIFACTORY_USER: ${{ secrets.JENKINS_ARTIFACTORY_USER }}
+      JENKINS_ARTIFACTORY_PASSWORD: ${{ secrets.JENKINS_ARTIFACTORY_PASSWORD }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "11"
+          distribution: "temurin"
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ secrets.ARTIFACTORY_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_APIKEY }}
+        with:
+          custom-server-id: internal
+
+      - name: Run release
+        run: .github/scripts/release.sh
+
+      - name: Cleanup JFrog CLI config
+        if: always()
+        run: jf c rm --quiet
