@@ -55,6 +55,10 @@ import static org.junit.Assert.fail;
 public class PipelineTestBase {
     private static long currentTime;
     private static Artifactory artifactoryClient;
+
+    protected static Artifactory getArtifactoryClient() {
+        return artifactoryClient;
+    }
     protected JenkinsRule jenkins;
     protected Slave slave;
     private static StringSubstitutor pipelineSubstitution;

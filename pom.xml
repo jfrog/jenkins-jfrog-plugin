@@ -12,6 +12,7 @@
         <jenkins.version>2.479.3</jenkins.version>
         <skipITs>true</skipITs>
         <buildinfo.version>2.41.23</buildinfo.version>
+        <hpi.bundledArtifacts>build-info-api,build-info-client,build-info-extractor,build-info-extractor-maven3,file-specs-java</hpi.bundledArtifacts>
     </properties>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>jfrog</artifactId>
@@ -185,6 +186,25 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- Official Maven3 extractor (RTECO-1662). Jenkins-side code only needs BuildInfoRecorder
+             for Which.jarFile(). The Maven 3.9-incompatible resolver classes are stripped from a
+             copy written to maven-extractor-lib/ during generate-resources; that copy is what the
+             forked Maven process loads. Optional Maven Integration plugin is required only at
+             runtime on controllers that actually have Maven Project jobs. -->
+        <dependency>
+            <groupId>org.jfrog.buildinfo</groupId>
+            <artifactId>build-info-extractor-maven3</artifactId>
+            <version>${buildinfo.version}</version>
+            <exclusions>
+                <!-- Jenkins-side code only needs BuildInfoRecorder. Transitives collide with
+                     jackson2-api / Jenkins core and fail RequireUpperBoundDeps. The forked Maven
+                     JVM gets jackson/commons from maven-extractor-lib instead. -->
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <dependency>
             <groupId>org.jfrog.filespecs</groupId>
             <artifactId>file-specs-java</artifactId>
@@ -212,6 +232,14 @@
             <artifactId>mockito-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Optional: Maven Project job type. Pipeline/Freestyle-only Jenkins must keep loading
+             this plugin when Maven Integration is not installed. -->
+        <dependency>
+            <groupId>org.jenkins-ci.main</groupId>
+            <artifactId>maven-plugin</artifactId>
+            <version>3.17</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -233,6 +261,13 @@
                 <artifactId>jenkins-test-harness-htmlunit</artifactId>
                 <version>226.v08d56c2329f7</version>
                 <scope>test</scope>
+            </dependency>
+            <!-- Pinned to satisfy RequireUpperBoundDeps: org.jenkins-ci.main:maven-plugin (RTECO-1662)
+                 pulls javax.annotation-api transitively at both 1.2 and 1.3.2. -->
+            <dependency>
+                <groupId>javax.annotation</groupId>
+                <artifactId>javax.annotation-api</artifactId>
+                <version>1.3.2</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -258,6 +293,111 @@
     </pluginRepositories>
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-maven-extractor-lib</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/maven-extractor-lib</outputDirectory>
+                            <overWriteReleases>true</overWriteReleases>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.jfrog.buildinfo</groupId>
+                                    <artifactId>build-info-extractor-maven3</artifactId>
+                                    <version>${buildinfo.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.jfrog.buildinfo</groupId>
+                                    <artifactId>build-info-extractor</artifactId>
+                                    <version>${buildinfo.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.jfrog.buildinfo</groupId>
+                                    <artifactId>build-info-client</artifactId>
+                                    <version>${buildinfo.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.jfrog.buildinfo</groupId>
+                                    <artifactId>build-info-api</artifactId>
+                                    <version>${buildinfo.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.jfrog.filespecs</groupId>
+                                    <artifactId>file-specs-java</artifactId>
+                                    <version>1.1.2</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>com.fasterxml.jackson.core</groupId>
+                                    <artifactId>jackson-databind</artifactId>
+                                    <version>2.18.3</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>com.fasterxml.jackson.core</groupId>
+                                    <artifactId>jackson-core</artifactId>
+                                    <version>2.18.3</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>com.fasterxml.jackson.core</groupId>
+                                    <artifactId>jackson-annotations</artifactId>
+                                    <version>2.18.3</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.commons</groupId>
+                                    <artifactId>commons-lang3</artifactId>
+                                    <version>3.18.0</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>commons-io</groupId>
+                                    <artifactId>commons-io</artifactId>
+                                    <version>2.17.0</version>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <id>filter-maven-extractor</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <arguments>
+                                <argument>${project.basedir}/vendor-tools/vendor-build-info-extractor-maven3.sh</argument>
+                                <argument>${buildinfo.version}</argument>
+                                <argument>${project.build.outputDirectory}/maven-extractor-lib/build-info-extractor-maven3-${buildinfo.version}.jar</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>write-maven-extractor-jar-list</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>cd "${project.build.outputDirectory}/maven-extractor-lib" &amp;&amp; ls *.jar &gt; jars.list</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.jvnet.localizer</groupId>
                 <artifactId>localizer-maven-plugin</artifactId>
@@ -322,6 +462,7 @@
                     <systemPropertyVariables>
                         <!--This will disable JenkinsRule timeout-->
                         <maven.surefire.debug>true</maven.surefire.debug>
+                        <maven.home>${maven.home}</maven.home>
                     </systemPropertyVariables>
                     <includes>
                         <include>**/*ITest.java</include>

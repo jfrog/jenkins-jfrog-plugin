@@ -67,7 +67,12 @@ public class JfrogBuildInfoPublisher extends Notifier {
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
             throws InterruptedException, IOException {
-        
+        if (isMavenProjectJob(build.getProject().getClass())) {
+            listener.getLogger().println("[JFrog Build Info] Skipping CLI publish for Maven Project jobs. " +
+                    "Native Build Settings already publishes build info.");
+            return true;
+        }
+
         // Check if we should skip based on build result
         Result buildResult = build.getResult();
         if (publishOnlyOnSuccess && buildResult != null && buildResult.isWorseThan(Result.SUCCESS)) {
@@ -205,7 +210,7 @@ public class JfrogBuildInfoPublisher extends Notifier {
 
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> jobType) {
-            return true;
+            return !isMavenProjectJob(jobType);
         }
 
         /**
@@ -227,5 +232,19 @@ public class JfrogBuildInfoPublisher extends Notifier {
             }
             return items;
         }
+    }
+
+    /**
+     * Maven Project jobs publish via {@code MavenArtifactoryReporter}, not {@code jf rt bp}.
+     * Walks class names so this always-loaded publisher does not initialize Maven Integration.
+     */
+    static boolean isMavenProjectJob(Class<?> jobType) {
+        for (Class<?> type = jobType; type != null; type = type.getSuperclass()) {
+            String name = type.getName();
+            if ("hudson.maven.MavenModuleSet".equals(name) || "hudson.maven.MavenModule".equals(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

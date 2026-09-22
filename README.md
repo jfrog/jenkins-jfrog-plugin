@@ -24,6 +24,7 @@
     - [Publishing and accessing the build-info](#publishing-and-accessing-the-build-info)
     - [Capturing the output of JFrog CLI commands](#capturing-the-output-of-jfrog-cli-commands)
 - [Using JFrog CLI in Freestyle jobs](#using-jfrog-cli-in-freestyle-jobs)
+- [Using JFrog in Maven Project jobs](#using-jfrog-in-maven-project-jobs)
 - [Using HTTP/s proxy](#using-https-proxy)
 - [Jenkins Configuration as Code](#jenkins-configuration-as-code)
 - [Examples](#examples)
@@ -385,6 +386,38 @@ jf rt bp
 - Build info is automatically collected during `jf rt upload`, `jf mvn`, `jf gradle`, etc.
 - Make sure JFrog CLI is configured as a tool in Jenkins (Manage Jenkins → Global Tool Configuration)
 - The JFrog Platform instance must be configured in Jenkins (Manage Jenkins → Configure System)
+
+## Using JFrog in Maven Project jobs
+
+Native Maven Project job support is an add-on. Pipeline and Freestyle jobs are unchanged.
+
+Requires the Jenkins **Maven Integration** plugin (the Maven Project job type). If that plugin is
+not installed, the JFrog plugin still loads and Pipeline/Freestyle keep working; the Maven action
+is simply not registered.
+
+1. Configure a JFrog Platform instance under **Manage Jenkins → System** (same servers as Pipeline/Freestyle).
+2. Open a **Maven Project** job.
+3. Scroll to **Build Settings** (between Post Steps and Post-build Actions).
+4. Enable **JFrog Artifactory (Maven Project)**.
+5. Select the JFrog Platform server and the Artifactory repository.
+
+**Deploy artifacts** controls whether binaries are deployed. Build info is published whenever the
+Build Settings action is enabled **and** the job's Maven Goals include `install` or `deploy`.
+Goals such as `clean package` or `clean verify` skip both deploy and build-info (the extractor
+does this; the job fails fast with a JFrog error instead of succeeding silently).
+
+**Build Name** / **Build Number** are optional. Empty fields use `JFROG_CLI_BUILD_NAME` /
+`JFROG_CLI_BUILD_NUMBER` when set, otherwise the Jenkins job name and build number. `$VAR` /
+`${VAR}` expansion is supported.
+
+This version uses one repository for both release and snapshot artifacts. Use a Maven repository
+that accepts both layouts.
+
+Dependency resolution from Artifactory is not supported in this version. Maven still resolves
+from `settings.xml` / Central.
+
+Do not add the Freestyle **Publish JFrog Build Info** post-build action on Maven Project jobs.
+That action is hidden for this job type; native Build Settings already publishes build info.
 
 ## Using HTTP/S proxy
 
