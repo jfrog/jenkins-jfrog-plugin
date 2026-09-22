@@ -1,0 +1,13 @@
+<div>
+    Optional. Artifactory repository (typically a virtual repository, for example maven-virtual) to
+    <strong>resolve release dependencies</strong> from during this Maven Project build. Used for snapshot
+    dependencies too, unless a separate <strong>Resolve Snapshot Repository</strong> is set below.
+    Uses the same JFrog Platform Server and credentials configured above, unless a different
+    <strong>Resolver Server</strong> is set below. Otherwise completely independent of the
+    <strong>Artifactory Repository</strong> / <strong>Snapshot Repository</strong> fields, which only
+    control where artifacts are deployed.
+    <br/><br/>
+    Leave this empty to make no change to dependency resolution — Maven will resolve dependencies the
+    way it always does, based on its own settings.xml (mirrors, profiles, Central, etc.), regardless of
+    whether this reporter is enabled.
+</div>

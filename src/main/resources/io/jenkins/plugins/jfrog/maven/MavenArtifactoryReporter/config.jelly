@@ -2,25 +2,77 @@
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
     <f:entry>
         <div>
-            Requires Maven Goals to include <strong>install</strong> or <strong>deploy</strong>.
-            This version uses one repository for release and snapshot artifacts and does not resolve
-            dependencies from Artifactory.
+            <ul style="margin: 0; padding-left: 20px;">
+                <li>
+                    Requires the project's Maven Goals to include <strong>install</strong> or
+                    <strong>deploy</strong>; build info is only captured and published when one of
+                    those runs.
+                </li>
+                <li>
+                    Leaving <strong>Goals and options</strong> blank does <strong>not</strong> skip
+                    deployment — Jenkins' Maven Integration defaults an empty Goals field to
+                    <strong>install</strong>, so build info is still published in that case.
+                </li>
+                <li>
+                    To avoid deploying, use an explicit goal that excludes both, for example
+                    <strong>clean package</strong>.
+                </li>
+                <li>
+                    <strong>Artifactory Repository</strong> / <strong>Snapshot Repository</strong>
+                    (deploy) and <strong>Resolve Repository</strong> /
+                    <strong>Resolve Snapshot Repository</strong> below are all independent of each
+                    other — set any combination, or none for resolution.
+                </li>
+            </ul>
         </div>
     </f:entry>
     <f:entry title="JFrog Platform Server" field="serverId"
-             description="JFrog Platform instance from Manage Jenkins → System."
+             description="JFrog Platform instance from Manage Jenkins → System. Used for deployment, and for resolution too unless Resolver Server below overrides it."
              help="/plugin/jfrog/help/maven/help-serverId.html">
         <f:select />
     </f:entry>
     <f:entry title="Artifactory Repository" field="artifactoryRepo"
-             description="Target repository for release and snapshot artifacts (e.g. libs-release-local)."
+             description="Target repository to deploy release artifacts to (e.g. libs-release-local). Does not affect dependency resolution."
              help="/plugin/jfrog/help/maven/help-artifactoryRepo.html">
         <f:textbox />
     </f:entry>
+    <f:entry title="Snapshot Repository" field="snapshotRepo"
+             description="Optional. Target repository to deploy snapshot artifacts to (e.g. libs-snapshot-local). Leave empty to reuse Artifactory Repository for snapshots too."
+             help="/plugin/jfrog/help/maven/help-snapshotRepo.html">
+        <f:textbox />
+    </f:entry>
     <f:entry title="Deploy artifacts" field="deployArtifacts"
-             description="Deploy artifacts to Artifactory. Build info is published when Goals include install or deploy."
+             description="Deploy artifacts to Artifactory. Build info is published whenever the effective Maven goals include install or deploy — including when Goals and options is left blank, since Jenkins then defaults to install."
              help="/plugin/jfrog/help/maven/help-deployArtifacts.html">
         <f:checkbox default="true" />
+    </f:entry>
+    <f:entry title="Resolve Repository" field="resolveRepo"
+             description="Optional. Repository to resolve release dependencies from (e.g. a virtual repo like maven-virtual). Leave empty to keep using Maven's own settings.xml for resolution."
+             help="/plugin/jfrog/help/maven/help-resolveRepo.html">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="Resolve Snapshot Repository" field="resolveSnapshotRepo"
+             description="Optional. Repository to resolve snapshot dependencies from. Leave empty to reuse Resolve Repository for snapshots too."
+             help="/plugin/jfrog/help/maven/help-resolveSnapshotRepo.html">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="Resolver Server" field="resolverServerId"
+             description="Optional. Use a different JFrog Platform Server (and its credentials) for dependency resolution than for deployment. Leave empty to reuse JFrog Platform Server above."
+             help="/plugin/jfrog/help/maven/help-resolverServerId.html">
+        <f:select />
+    </f:entry>
+    <f:entry title="Capture environment variables" field="captureEnvVars"
+             description="Include selected environment variables in the published build info."
+             help="/plugin/jfrog/help/maven/help-captureEnvVars.html">
+        <f:checkbox />
+    </f:entry>
+    <f:entry title="Include patterns" field="envVarsIncludePatterns"
+             description="Optional. Semicolon-separated wildcard patterns of env var names to include (e.g. BUILD_*;JOB_*). Defaults to * (all) when Capture environment variables is checked.">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="Exclude patterns" field="envVarsExcludePatterns"
+             description="Optional. Semicolon-separated wildcard patterns of env var names to always exclude, applied after Include patterns. Defaults to a built-in list covering *password*, *secret*, *key*, *token*, *auth*, etc.">
+        <f:textbox />
     </f:entry>
     <f:entry title="Build Name" field="buildName"
              description="Optional. Empty uses JFROG_CLI_BUILD_NAME or the Jenkins job name."

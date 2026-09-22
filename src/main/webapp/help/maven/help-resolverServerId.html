@@ -1,0 +1,12 @@
+<div>
+    Optional. Pick a different JFrog Platform Server (configured under Manage Jenkins → System) to
+    resolve dependencies from than the one used to deploy artifacts and publish build info.
+    <br/><br/>
+    Because credentials in this plugin are tied to the server they're configured on, selecting a
+    different server here also means dependency resolution authenticates with that server's own
+    credentials — completely independent from the deployer's credentials.
+    <br/><br/>
+    Leave empty to resolve dependencies using the same server and credentials as
+    <strong>JFrog Platform Server</strong> above. Only takes effect when
+    <strong>Resolve Repository</strong> is also set.
+</div>

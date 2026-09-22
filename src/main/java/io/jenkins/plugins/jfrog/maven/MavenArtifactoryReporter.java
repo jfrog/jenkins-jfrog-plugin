@@ -31,7 +31,14 @@ public class MavenArtifactoryReporter extends MavenReporter {
 
     private String serverId;
     private String artifactoryRepo;
+    private String snapshotRepo;
+    private String resolveRepo;
+    private String resolveSnapshotRepo;
+    private String resolverServerId;
     private boolean deployArtifacts = true;
+    private boolean captureEnvVars;
+    private String envVarsIncludePatterns;
+    private String envVarsExcludePatterns;
     private String buildName;
     private String buildNumber;
 
@@ -57,6 +64,42 @@ public class MavenArtifactoryReporter extends MavenReporter {
         this.artifactoryRepo = artifactoryRepo;
     }
 
+    public String getSnapshotRepo() {
+        return snapshotRepo;
+    }
+
+    @DataBoundSetter
+    public void setSnapshotRepo(String snapshotRepo) {
+        this.snapshotRepo = snapshotRepo;
+    }
+
+    public String getResolveRepo() {
+        return resolveRepo;
+    }
+
+    @DataBoundSetter
+    public void setResolveRepo(String resolveRepo) {
+        this.resolveRepo = resolveRepo;
+    }
+
+    public String getResolveSnapshotRepo() {
+        return resolveSnapshotRepo;
+    }
+
+    @DataBoundSetter
+    public void setResolveSnapshotRepo(String resolveSnapshotRepo) {
+        this.resolveSnapshotRepo = resolveSnapshotRepo;
+    }
+
+    public String getResolverServerId() {
+        return resolverServerId;
+    }
+
+    @DataBoundSetter
+    public void setResolverServerId(String resolverServerId) {
+        this.resolverServerId = resolverServerId;
+    }
+
     public boolean isDeployArtifacts() {
         return deployArtifacts;
     }
@@ -64,6 +107,33 @@ public class MavenArtifactoryReporter extends MavenReporter {
     @DataBoundSetter
     public void setDeployArtifacts(boolean deployArtifacts) {
         this.deployArtifacts = deployArtifacts;
+    }
+
+    public boolean isCaptureEnvVars() {
+        return captureEnvVars;
+    }
+
+    @DataBoundSetter
+    public void setCaptureEnvVars(boolean captureEnvVars) {
+        this.captureEnvVars = captureEnvVars;
+    }
+
+    public String getEnvVarsIncludePatterns() {
+        return envVarsIncludePatterns;
+    }
+
+    @DataBoundSetter
+    public void setEnvVarsIncludePatterns(String envVarsIncludePatterns) {
+        this.envVarsIncludePatterns = envVarsIncludePatterns;
+    }
+
+    public String getEnvVarsExcludePatterns() {
+        return envVarsExcludePatterns;
+    }
+
+    @DataBoundSetter
+    public void setEnvVarsExcludePatterns(String envVarsExcludePatterns) {
+        this.envVarsExcludePatterns = envVarsExcludePatterns;
     }
 
     public String getBuildName() {
@@ -88,6 +158,16 @@ public class MavenArtifactoryReporter extends MavenReporter {
         return findServer(serverId);
     }
 
+    /**
+     * The server to resolve dependencies from. Falls back to the deploy server (serverId) when
+     * Resolver Server is left empty, so resolver and deployer share one server and its credentials
+     * unless explicitly split.
+     */
+    public JFrogPlatformInstance resolveResolverServer() {
+        String id = StringUtils.isNotBlank(resolverServerId) ? resolverServerId : serverId;
+        return findServer(id);
+    }
+
     static JFrogPlatformInstance findServer(String id) {
         List<JFrogPlatformInstance> instances = JFrogPlatformBuilder.getJFrogPlatformInstances();
         if (instances == null || StringUtils.isBlank(id)) {
@@ -106,7 +186,7 @@ public class MavenArtifactoryReporter extends MavenReporter {
         @Nonnull
         @Override
         public String getDisplayName() {
-            return "JFrog Artifactory (Maven Project)";
+            return "JFrog Artifactory (Maven Native Reporter)";
         }
 
         @POST
@@ -155,6 +235,82 @@ public class MavenArtifactoryReporter extends MavenReporter {
                 return FormValidation.error("Repository may contain letters, digits, '.', '_', '-', '/', and ${ENV} only");
             }
             return FormValidation.ok();
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckResolveRepo(@AncestorInPath Item item, @QueryParameter String value) {
+            checkConfigurePermission(item);
+            return checkOptionalRepo(value);
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckSnapshotRepo(@AncestorInPath Item item, @QueryParameter String value) {
+            checkConfigurePermission(item);
+            return checkOptionalRepo(value);
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckResolveSnapshotRepo(@AncestorInPath Item item, @QueryParameter String value) {
+            checkConfigurePermission(item);
+            return checkOptionalRepo(value);
+        }
+
+        private static FormValidation checkOptionalRepo(String value) {
+            if (StringUtils.isBlank(value)) {
+                // Optional: leaving it empty falls back to the corresponding release repo field
+                // (or, for resolve fields left entirely empty, to Maven's own settings.xml).
+                return FormValidation.ok();
+            }
+            if (value.length() > MAX_FIELD_LENGTH) {
+                return FormValidation.error("Repository path too long");
+            }
+            if (value.contains("..") || value.contains("\\") || !value.matches(REPO_PATTERN)) {
+                return FormValidation.error("Repository may contain letters, digits, '.', '_', '-', '/', and ${ENV} only");
+            }
+            return FormValidation.ok();
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public ListBoxModel doFillResolverServerIdItems(@AncestorInPath Item item) {
+            checkConfigurePermission(item);
+            ListBoxModel items = new ListBoxModel();
+            items.add("— Same as JFrog Platform Server above —", "");
+            List<JFrogPlatformInstance> instances = JFrogPlatformBuilder.getJFrogPlatformInstances();
+            if (instances != null) {
+                for (JFrogPlatformInstance instance : instances) {
+                    items.add(instance.getId(), instance.getId());
+                }
+            }
+            return items;
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckResolverServerId(@AncestorInPath Item item, @QueryParameter String value) {
+            checkConfigurePermission(item);
+            if (StringUtils.isBlank(value)) {
+                return FormValidation.ok();
+            }
+            if (findServer(value) == null) {
+                return FormValidation.error("Unknown JFrog Platform server: " + value);
+            }
+            return FormValidation.ok();
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckEnvVarsIncludePatterns(@AncestorInPath Item item, @QueryParameter String value) {
+            return checkOptionalIdentifier(item, value, "Include patterns");
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckEnvVarsExcludePatterns(@AncestorInPath Item item, @QueryParameter String value) {
+            return checkOptionalIdentifier(item, value, "Exclude patterns");
         }
 
         @POST

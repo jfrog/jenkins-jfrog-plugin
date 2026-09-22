@@ -136,29 +136,59 @@ public class MavenNativeExtractorEnvironment extends Environment {
             throws IOException {
         ArtifactoryClientConfiguration configuration = new ArtifactoryClientConfiguration(new NullLog());
 
-        CredentialsConfig credentialsConfig = server.getCredentialsConfig();
-        if (credentialsConfig == null || StringUtils.isBlank(credentialsConfig.getCredentialsId())) {
-            throw new IllegalStateException("[JFrog] Maven native capture: server '" + server.getId() +
-                    "' has no credentials configured.");
-        }
-        Credentials credentials = PluginsUtils.credentialsLookup(credentialsConfig.getCredentialsId(), build.getParent());
-        if (credentials == null || credentials == Credentials.EMPTY_CREDENTIALS) {
-            throw new IllegalStateException("[JFrog] Maven native capture: credentials id '" +
-                    credentialsConfig.getCredentialsId() + "' could not be resolved.");
-        }
-
+        Credentials credentials = resolveCredentials(server, "Maven native capture");
         configuration.publisher.setContextUrl(server.inferArtifactoryUrl());
-        String repo = env.expand(StringUtils.defaultString(reporter.getArtifactoryRepo()));
-        if (StringUtils.isBlank(repo)) {
+        String releaseRepo = env.expand(StringUtils.defaultString(reporter.getArtifactoryRepo()));
+        if (StringUtils.isBlank(releaseRepo)) {
             throw new IllegalStateException("[JFrog] Maven native capture: Artifactory repository is empty.");
         }
-        configuration.publisher.setRepoKey(repo);
-        configuration.publisher.setSnapshotRepoKey(repo);
+        String snapshotRepo = env.expand(StringUtils.defaultString(reporter.getSnapshotRepo()));
+        if (StringUtils.isBlank(snapshotRepo)) {
+            snapshotRepo = releaseRepo;
+        }
+        configuration.publisher.setRepoKey(releaseRepo);
+        configuration.publisher.setSnapshotRepoKey(snapshotRepo);
         configuration.publisher.setMaven(true);
         configuration.publisher.setPublishArtifacts(reporter.isDeployArtifacts());
         configuration.publisher.setPublishBuildInfo(Boolean.TRUE);
-        applyCredentials(configuration, credentials);
+        applyCredentials(configuration.publisher, credentials);
         applyProxy(configuration, server.inferArtifactoryUrl());
+
+        // Resolver is entirely independent of the publisher above: it is only activated when a
+        // Resolve Repository is explicitly configured, and never falls back to the deploy repo.
+        // It may also use a different JFrog Platform Server (and therefore different credentials)
+        // than the deployer, via Resolver Server; when left blank, it shares the deploy server.
+        String resolveRepo = env.expand(StringUtils.defaultString(reporter.getResolveRepo()));
+        if (StringUtils.isNotBlank(resolveRepo)) {
+            JFrogPlatformInstance resolverServer = reporter.resolveResolverServer();
+            if (resolverServer == null) {
+                throw new IllegalStateException("[JFrog] Maven native capture: resolver server ID '" +
+                        StringUtils.defaultIfBlank(reporter.getResolverServerId(), reporter.getServerId()) +
+                        "' is not configured under Manage Jenkins -> System -> JFrog Platform.");
+            }
+            Credentials resolverCredentials = resolveCredentials(resolverServer, "Maven native capture (resolver)");
+            String resolveSnapshotRepo = env.expand(StringUtils.defaultString(reporter.getResolveSnapshotRepo()));
+            if (StringUtils.isBlank(resolveSnapshotRepo)) {
+                resolveSnapshotRepo = resolveRepo;
+            }
+            configuration.resolver.setContextUrl(resolverServer.inferArtifactoryUrl());
+            configuration.resolver.setRepoKey(resolveRepo);
+            configuration.resolver.setDownloadSnapshotRepoKey(resolveSnapshotRepo);
+            configuration.resolver.setMaven(true);
+            applyCredentials(configuration.resolver, resolverCredentials);
+            listener.getLogger().println("[JFrog] Maven native capture: resolving dependencies from '" +
+                    resolveRepo + "' (snapshots: '" + resolveSnapshotRepo + "') on server '" +
+                    resolverServer.getId() + "'.");
+        }
+
+        if (reporter.isCaptureEnvVars()) {
+            configuration.setIncludeEnvVars(Boolean.TRUE);
+            String includePatterns = env.expand(StringUtils.defaultString(reporter.getEnvVarsIncludePatterns()));
+            configuration.setEnvVarsIncludePatterns(StringUtils.isNotBlank(includePatterns) ? includePatterns : "*");
+            String excludePatterns = env.expand(StringUtils.defaultString(reporter.getEnvVarsExcludePatterns()));
+            configuration.setEnvVarsExcludePatterns(StringUtils.isNotBlank(excludePatterns) ? excludePatterns :
+                    "*password*;*psw*;*secret*;*key*;*token*;*auth*");
+        }
 
         configuration.info.setBuildName(MavenBuildIdentifiers.resolveBuildName(
                 reporter.getBuildName(), env, build.getParent().getFullName()));
@@ -172,19 +202,34 @@ public class MavenNativeExtractorEnvironment extends Environment {
         return configuration;
     }
 
-    private static void applyCredentials(ArtifactoryClientConfiguration configuration, Credentials credentials) {
+    private Credentials resolveCredentials(JFrogPlatformInstance server, String context) {
+        CredentialsConfig credentialsConfig = server.getCredentialsConfig();
+        if (credentialsConfig == null || StringUtils.isBlank(credentialsConfig.getCredentialsId())) {
+            throw new IllegalStateException("[JFrog] " + context + ": server '" + server.getId() +
+                    "' has no credentials configured.");
+        }
+        Credentials credentials = PluginsUtils.credentialsLookup(credentialsConfig.getCredentialsId(), build.getParent());
+        if (credentials == null || credentials == Credentials.EMPTY_CREDENTIALS) {
+            throw new IllegalStateException("[JFrog] " + context + ": credentials id '" +
+                    credentialsConfig.getCredentialsId() + "' could not be resolved.");
+        }
+        return credentials;
+    }
+
+    private static void applyCredentials(ArtifactoryClientConfiguration.RepositoryConfiguration handler,
+                                          Credentials credentials) {
         if (StringUtils.isNotBlank(credentials.getPlainTextAccessToken())) {
             String token = credentials.getPlainTextAccessToken();
-            configuration.publisher.setUsername(MavenAccessTokens.usernameOrEmpty(token));
-            configuration.publisher.setPassword(token);
+            handler.setUsername(MavenAccessTokens.usernameOrEmpty(token));
+            handler.setPassword(token);
             return;
         }
         if (StringUtils.isBlank(credentials.getPlainTextUsername())
                 && StringUtils.isBlank(credentials.getPlainTextPassword())) {
             throw new IllegalStateException("[JFrog] Maven native capture: resolved credentials are empty.");
         }
-        configuration.publisher.setUsername(credentials.getPlainTextUsername());
-        configuration.publisher.setPassword(credentials.getPlainTextPassword());
+        handler.setUsername(credentials.getPlainTextUsername());
+        handler.setPassword(credentials.getPlainTextPassword());
     }
 
     private static void applyProxy(ArtifactoryClientConfiguration configuration, String artifactoryUrl) {

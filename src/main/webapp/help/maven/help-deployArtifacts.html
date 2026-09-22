@@ -1,6 +1,11 @@
 <div>
     When checked, artifacts produced by the Maven build are deployed to Artifactory.
     Build info is published whenever this Build Settings action is enabled, even if deploy is unchecked,
-    but only when Maven Goals include <strong>install</strong> or <strong>deploy</strong>.
-    Other goals (for example <code>clean package</code>) skip both deploy and build-info.
+    but only when the project's <strong>effective</strong> Maven Goals include <strong>install</strong> or
+    <strong>deploy</strong>. Other goals (for example <code>clean package</code>) skip both deploy and
+    build-info.
+    <br/><br/>
+    <strong>Note:</strong> leaving <strong>Goals and options</strong> blank does not skip deploy/build-info —
+    Jenkins' Maven Integration defaults an empty Goals field to <strong>install</strong>, which counts as
+    an included goal.
 </div>
