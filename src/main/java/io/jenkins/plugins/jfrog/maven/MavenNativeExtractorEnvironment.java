@@ -2,6 +2,7 @@ package io.jenkins.plugins.jfrog.maven;
 
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.maven.MavenModuleSet;
 import hudson.maven.MavenModuleSetBuild;
 import hudson.maven.PlexusModuleContributor;
 import hudson.maven.PlexusModuleContributorFactory;
@@ -10,12 +11,14 @@ import hudson.model.BuildListener;
 import hudson.model.Environment;
 import hudson.model.Node;
 import hudson.remoting.Which;
+import hudson.tasks.Maven;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.jfrog.build.api.BuildInfoConfigProperties;
 import org.jfrog.build.api.util.NullLog;
 import org.jfrog.build.extractor.clientConfiguration.ArtifactoryClientConfiguration;
@@ -25,7 +28,10 @@ import org.jfrog.build.extractor.maven.BuildInfoRecorder;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.jfrog.build.api.BuildInfoConfigProperties.ENV_PROPERTIES_FILE_KEY;
 import static org.jfrog.build.api.BuildInfoConfigProperties.ENV_PROPERTIES_FILE_KEY_IV;
@@ -154,12 +160,28 @@ public class MavenNativeExtractorEnvironment extends Environment {
         applyCredentials(configuration.publisher, credentials);
         applyProxy(configuration, server.inferArtifactoryUrl());
 
+        String artifactIncludePatterns = env.expand(StringUtils.defaultString(reporter.getArtifactIncludePatterns()));
+        if (StringUtils.isNotBlank(artifactIncludePatterns)) {
+            configuration.publisher.setIncludePatterns(artifactIncludePatterns);
+        }
+        String artifactExcludePatterns = env.expand(StringUtils.defaultString(reporter.getArtifactExcludePatterns()));
+        if (StringUtils.isNotBlank(artifactExcludePatterns)) {
+            configuration.publisher.setExcludePatterns(artifactExcludePatterns);
+        }
+        configuration.publisher.setFilterExcludedArtifactsFromBuild(reporter.isFilterExcludedArtifactsFromBuild());
+
+        String deploymentProperties = env.expand(StringUtils.defaultString(reporter.getDeploymentProperties()));
+        if (StringUtils.isNotBlank(deploymentProperties)) {
+            configuration.publisher.addMatrixParams(parseDeploymentProperties(deploymentProperties));
+        }
+
         // Resolver is entirely independent of the publisher above: it is only activated when a
         // Resolve Repository is explicitly configured, and never falls back to the deploy repo.
         // It may also use a different JFrog Platform Server (and therefore different credentials)
         // than the deployer, via Resolver Server; when left blank, it shares the deploy server.
         String resolveRepo = env.expand(StringUtils.defaultString(reporter.getResolveRepo()));
         if (StringUtils.isNotBlank(resolveRepo)) {
+            checkMavenVersionSupportsResolution();
             JFrogPlatformInstance resolverServer = reporter.resolveResolverServer();
             if (resolverServer == null) {
                 throw new IllegalStateException("[JFrog] Maven native capture: resolver server ID '" +
@@ -198,8 +220,81 @@ public class MavenNativeExtractorEnvironment extends Environment {
         if (StringUtils.isNotBlank(buildUrl)) {
             configuration.info.setBuildUrl(buildUrl);
         }
+        String project = env.expand(StringUtils.defaultString(reporter.getProject()));
+        if (StringUtils.isNotBlank(project)) {
+            configuration.info.setProject(project);
+        }
         configuration.setActivateRecorder(Boolean.TRUE);
         return configuration;
+    }
+
+    /**
+     * Parses a semicolon-separated {@code key=value} deployment properties string into a map,
+     * e.g. {@code status=staging;region=us}. Blank entries are skipped.
+     */
+    private static Map<String, String> parseDeploymentProperties(String deploymentProperties) {
+        Map<String, String> params = new LinkedHashMap<>();
+        for (String pair : deploymentProperties.split(";")) {
+            if (StringUtils.isBlank(pair)) {
+                continue;
+            }
+            int idx = pair.indexOf('=');
+            if (idx <= 0) {
+                continue;
+            }
+            params.put(pair.substring(0, idx).trim(), pair.substring(idx + 1).trim());
+        }
+        return params;
+    }
+
+    /**
+     * Dependency resolution from Artifactory (via {@code ArtifactoryEclipseArtifactResolver} et al.
+     * in build-info-extractor-maven3) requires Maven 3.0.2+. Older versions silently ignore the
+     * resolver override, which would otherwise look like resolution "worked" but used Central instead.
+     * Best-effort: if the Maven installation's version cannot be determined, the build is allowed to
+     * proceed rather than fail on an unrelated detection problem.
+     */
+    private void checkMavenVersionSupportsResolution() {
+        if (!(build instanceof MavenModuleSetBuild)) {
+            return;
+        }
+        try {
+            MavenModuleSet project = ((MavenModuleSetBuild) build).getProject();
+            Maven.MavenInstallation installation = project.getMaven();
+            if (installation == null) {
+                return;
+            }
+            Node node = build.getBuiltOn();
+            if (node != null) {
+                installation = installation.forNode(node, listener);
+            }
+            installation = installation.forEnvironment(build.getEnvironment(listener));
+            String home = installation.getHome();
+            if (StringUtils.isBlank(home)) {
+                return;
+            }
+            FilePath homePath = new FilePath(build.getWorkspace().getChannel(), home);
+            FilePath[] coreJars = homePath.child("lib").list("maven-core-*.jar");
+            if (coreJars == null || coreJars.length == 0) {
+                return;
+            }
+            Matcher matcher = Pattern.compile("maven-core-(.+)\\.jar").matcher(coreJars[0].getName());
+            if (!matcher.matches()) {
+                return;
+            }
+            ComparableVersion found = new ComparableVersion(matcher.group(1));
+            ComparableVersion minimum = new ComparableVersion("3.0.2");
+            if (found.compareTo(minimum) < 0) {
+                throw new IllegalStateException("[JFrog] Maven native capture: resolving dependencies from " +
+                        "Artifactory requires Maven 3.0.2 or higher. Detected: " + matcher.group(1) + ".");
+            }
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            // Best-effort detection only; do not fail the build over an unrelated I/O problem.
+            listener.getLogger().println("[JFrog] Maven native capture: could not determine Maven version (" +
+                    e.getMessage() + "); skipping the minimum-version check for resolution.");
+        }
     }
 
     private Credentials resolveCredentials(JFrogPlatformInstance server, String context) {

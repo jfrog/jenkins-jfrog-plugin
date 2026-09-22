@@ -39,6 +39,11 @@ public class MavenArtifactoryReporter extends MavenReporter {
     private boolean captureEnvVars;
     private String envVarsIncludePatterns;
     private String envVarsExcludePatterns;
+    private String artifactIncludePatterns;
+    private String artifactExcludePatterns;
+    private boolean filterExcludedArtifactsFromBuild;
+    private String deploymentProperties;
+    private String project;
     private String buildName;
     private String buildNumber;
 
@@ -134,6 +139,51 @@ public class MavenArtifactoryReporter extends MavenReporter {
     @DataBoundSetter
     public void setEnvVarsExcludePatterns(String envVarsExcludePatterns) {
         this.envVarsExcludePatterns = envVarsExcludePatterns;
+    }
+
+    public String getArtifactIncludePatterns() {
+        return artifactIncludePatterns;
+    }
+
+    @DataBoundSetter
+    public void setArtifactIncludePatterns(String artifactIncludePatterns) {
+        this.artifactIncludePatterns = artifactIncludePatterns;
+    }
+
+    public String getArtifactExcludePatterns() {
+        return artifactExcludePatterns;
+    }
+
+    @DataBoundSetter
+    public void setArtifactExcludePatterns(String artifactExcludePatterns) {
+        this.artifactExcludePatterns = artifactExcludePatterns;
+    }
+
+    public boolean isFilterExcludedArtifactsFromBuild() {
+        return filterExcludedArtifactsFromBuild;
+    }
+
+    @DataBoundSetter
+    public void setFilterExcludedArtifactsFromBuild(boolean filterExcludedArtifactsFromBuild) {
+        this.filterExcludedArtifactsFromBuild = filterExcludedArtifactsFromBuild;
+    }
+
+    public String getDeploymentProperties() {
+        return deploymentProperties;
+    }
+
+    @DataBoundSetter
+    public void setDeploymentProperties(String deploymentProperties) {
+        this.deploymentProperties = deploymentProperties;
+    }
+
+    public String getProject() {
+        return project;
+    }
+
+    @DataBoundSetter
+    public void setProject(String project) {
+        this.project = project;
     }
 
     public String getBuildName() {
@@ -311,6 +361,45 @@ public class MavenArtifactoryReporter extends MavenReporter {
         @SuppressWarnings("unused")
         public FormValidation doCheckEnvVarsExcludePatterns(@AncestorInPath Item item, @QueryParameter String value) {
             return checkOptionalIdentifier(item, value, "Exclude patterns");
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckArtifactIncludePatterns(@AncestorInPath Item item, @QueryParameter String value) {
+            return checkOptionalIdentifier(item, value, "Artifact include patterns");
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckArtifactExcludePatterns(@AncestorInPath Item item, @QueryParameter String value) {
+            return checkOptionalIdentifier(item, value, "Artifact exclude patterns");
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckDeploymentProperties(@AncestorInPath Item item, @QueryParameter String value) {
+            checkConfigurePermission(item);
+            if (StringUtils.isBlank(value)) {
+                return FormValidation.ok();
+            }
+            if (value.length() > MAX_FIELD_LENGTH) {
+                return FormValidation.error("Deployment properties is too long");
+            }
+            for (String pair : value.split(";")) {
+                if (StringUtils.isBlank(pair)) {
+                    continue;
+                }
+                if (!pair.contains("=") || StringUtils.isBlank(pair.substring(0, pair.indexOf('=')))) {
+                    return FormValidation.error("Each entry must be key=value, separated by ';' (e.g. status=staging;region=us)");
+                }
+            }
+            return FormValidation.ok();
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckProject(@AncestorInPath Item item, @QueryParameter String value) {
+            return checkOptionalIdentifier(item, value, "JFrog Project");
         }
 
         @POST
