@@ -187,10 +187,10 @@
             </exclusions>
         </dependency>
         <!-- Official Maven3 extractor (RTECO-1662). Jenkins-side code only needs BuildInfoRecorder
-             for Which.jarFile(). The Maven 3.9-incompatible resolver classes are stripped from a
-             copy written to maven-extractor-lib/ during generate-resources; that copy is what the
-             forked Maven process loads. Optional Maven Integration plugin is required only at
-             runtime on controllers that actually have Maven Project jobs. -->
+             for Which.jarFile(). generate-resources copies the full jar (including Artifactory
+             resolver classes) into maven-extractor-lib/ for the forked Maven JVM so Resolve
+             Repository works. Optional Maven Integration plugin is required only at runtime on
+             controllers that actually have Maven Project jobs. -->
         <dependency>
             <groupId>org.jfrog.buildinfo</groupId>
             <artifactId>build-info-extractor-maven3</artifactId>
@@ -368,7 +368,7 @@
                 <version>3.5.1</version>
                 <executions>
                     <execution>
-                        <id>filter-maven-extractor</id>
+                        <id>stage-maven-extractor</id>
                         <phase>generate-resources</phase>
                         <goals>
                             <goal>exec</goal>
@@ -391,8 +391,16 @@
                         <configuration>
                             <executable>bash</executable>
                             <arguments>
+                                <!-- The target directory is passed as $1, a separate argv element, rather than
+                                     interpolated into the -c script text: on Windows runners, embedding a
+                                     backslash-separated ${project.build.outputDirectory} directly into the script
+                                     string gets its backslashes silently dropped by bash's command-line parsing,
+                                     breaking `cd`. A distinct <argument> (as stage-maven-extractor above already
+                                     does for the same path) is passed through untouched on every OS. -->
                                 <argument>-c</argument>
-                                <argument>cd "${project.build.outputDirectory}/maven-extractor-lib" &amp;&amp; ls *.jar &gt; jars.list</argument>
+                                <argument>cd "$1" &amp;&amp; ls *.jar &gt; jars.list</argument>
+                                <argument>_</argument>
+                                <argument>${project.build.outputDirectory}/maven-extractor-lib</argument>
                             </arguments>
                         </configuration>
                     </execution>

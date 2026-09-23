@@ -413,11 +413,14 @@ does this; the job fails fast with a JFrog error instead of succeeding silently)
 This version uses one repository for both release and snapshot artifacts. Use a Maven repository
 that accepts both layouts.
 
-Dependency resolution from Artifactory is not supported in this version. Maven still resolves
-from `settings.xml` / Central.
+**Resolve Repository** (optional) redirects Maven dependency resolution to an Artifactory
+repository (typically a virtual repo). Leave it empty to keep Maven's normal `settings.xml` /
+Central resolution. Requires Maven 3.0.2–3.9.11 when set (Maven 3.9.12+ currently NPEs in the
+extractor — see [build-info#841](https://github.com/jfrog/build-info/issues/841)).
 
-Do not add the Freestyle **Publish JFrog Build Info** post-build action on Maven Project jobs.
-That action is hidden for this job type; native Build Settings already publishes build info.
+If a Maven Project job already uses the Freestyle **Publish JFrog Build Info** post-build action
+and has not yet enabled native Build Settings, that publisher still runs. Once native Build
+Settings is enabled, CLI publish is skipped automatically for that job.
 
 ## Using HTTP/S proxy
 

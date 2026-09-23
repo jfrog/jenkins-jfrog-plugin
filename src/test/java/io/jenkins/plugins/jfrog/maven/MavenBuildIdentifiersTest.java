@@ -24,7 +24,9 @@ class MavenBuildIdentifiersTest {
         env.put("JFROG_CLI_BUILD_NAME", "from-env");
 
         assertEquals("from-env", MavenBuildIdentifiers.resolveBuildName("  ", env, "folder/job"));
-        assertEquals("folder::job", MavenBuildIdentifiers.resolveBuildName(null, new EnvVars(), "folder/job"));
+        // Matches CliEnvConfigurator's raw JOB_NAME default (no separator substitution), so a
+        // folder job migrating from the CLI publish path resolves to the same build name.
+        assertEquals("folder/job", MavenBuildIdentifiers.resolveBuildName(null, new EnvVars(), "folder/job"));
     }
 
     @Test
@@ -39,8 +41,8 @@ class MavenBuildIdentifiersTest {
     }
 
     @Test
-    void sanitizeBuildNameReplacesSlashesAndHandlesBlank() {
-        assertEquals("folder::job", MavenBuildIdentifiers.sanitizeBuildName("folder/job"));
+    void sanitizeBuildNameKeepsSlashesAndHandlesBlank() {
+        assertEquals("folder/job", MavenBuildIdentifiers.sanitizeBuildName("folder/job"));
         assertEquals("unknown-build", MavenBuildIdentifiers.sanitizeBuildName("  "));
     }
 

@@ -1,20 +1,28 @@
 #!/usr/bin/env bash
-# Re-vendors org.jfrog.buildinfo:build-info-extractor-maven3 into
-# io.jenkins.plugins.jfrog.vendored:build-info-extractor-maven3-filtered, stripping the
-# "Artifactory-backed dependency resolution" classes that are incompatible with Maven 3.9.x.
+# Stages TWO variants of org.jfrog.buildinfo:build-info-extractor-maven3 into
+# maven-extractor-lib/ for the forked Maven JVM:
 #
-# See pom.xml (search for "build-info-extractor-maven3-filtered") and README.md in this
-# directory for the full explanation of why this exists.
+#   build-info-extractor-maven3-<version>.jar             (full: BuildInfoRecorder + resolver)
+#   build-info-extractor-maven3-<version>-no-resolver.jar (BuildInfoRecorder only)
 #
-# Run this after bumping the `buildinfo.version` property in pom.xml, then update that
-# property and rebuild.
+# The resolver / ArtifactoryProjectBuilder classes in the full jar override core Maven Plexus
+# components (DefaultProjectBuilder, PluginManager). Some Maven 3.9.x releases NPE when those
+# overrides are present - jfrog/build-info#841 - and critically, that NPE happens as soon as the
+# jar is on the classpath at all, independent of whether Resolve Repository is even configured.
+# ArtifactoryPlexusContributor picks which variant to inject per build: the full one only when
+# Resolve Repository is set AND the detected Maven version is compatible; the no-resolver one
+# otherwise, so plain deploy/build-info capture is never at risk from this bug regardless of
+# Maven version.
+#
+# See pom.xml (search for "build-info-extractor-maven3") and README.md in this directory.
 #
 # Usage:
 #   vendor-tools/vendor-build-info-extractor-maven3.sh <buildinfo.version>
 #   vendor-tools/vendor-build-info-extractor-maven3.sh <buildinfo.version> <output-jar-path>
 #
-# The optional output path writes the filtered jar there and skips install-file.
-# The Maven generate-resources step uses that form so CI does not need a pre-installed artifact.
+# The optional output path writes the full jar there (and the no-resolver variant alongside it)
+# and skips install-file. The Maven generate-resources step uses that form so CI does not need a
+# pre-installed artifact.
 set -euo pipefail
 
 VERSION="${1:?Usage: $0 <buildinfo.version> [output-jar-path]}"
@@ -36,39 +44,43 @@ if [ ! -f "$ORIGINAL_JAR" ]; then
     exit 1
 fi
 
-echo "Extracting $ORIGINAL_JAR ..." >&2
+# Sanity: the full jar must contain resolver classes or Resolve Repository is a lie.
+# Use `jar` (bundled with the JDK), not `unzip`/`zip` - those are separate OS packages that are
+# not reliably present, especially on Windows Git Bash runners. `jar` is guaranteed to be on
+# PATH here: this script only runs as part of a Maven build, which already requires a JDK.
+if ! jar tf "$ORIGINAL_JAR" | grep -q 'org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipseArtifactResolver'; then
+    echo "ERROR: $ORIGINAL_JAR is missing ArtifactoryEclipseArtifactResolver" >&2
+    exit 1
+fi
+
+echo "Building the no-resolver variant ..." >&2
 EXTRACT_DIR="$WORK_DIR/extracted"
 mkdir -p "$EXTRACT_DIR"
-(cd "$EXTRACT_DIR" && unzip -q "$ORIGINAL_JAR")
-
-echo "Removing Artifactory-backed dependency-resolution classes (incompatible with Maven 3.9.x)..." >&2
-cd "$EXTRACT_DIR"
-rm -fv org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipseResolversHelper*.class
-rm -fv org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipsePluginManager*.class
-rm -fv org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipseMetadataResolver*.class
-rm -fv org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipseArtifactResolver*.class
-rm -fv org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipseRepositoryListener*.class
-rm -fv org/jfrog/build/extractor/maven/ArtifactoryProjectBuilder*.class
-cd - > /dev/null
-
-echo "Filtering META-INF/plexus/components.xml ..." >&2
+(cd "$EXTRACT_DIR" && jar xf "$ORIGINAL_JAR")
+rm -fv "$EXTRACT_DIR/org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipseResolversHelper.class" \
+       "$EXTRACT_DIR/org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipsePluginManager.class" \
+       "$EXTRACT_DIR/org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipseMetadataResolver.class" \
+       "$EXTRACT_DIR/org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipseArtifactResolver.class" \
+       "$EXTRACT_DIR/org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipseRepositoryListener.class" \
+       "$EXTRACT_DIR/org/jfrog/build/extractor/maven/ArtifactoryProjectBuilder.class"
 python3 "$SCRIPT_DIR/filter_components.py" \
     "$EXTRACT_DIR/META-INF/plexus/components.xml" \
     "$EXTRACT_DIR/META-INF/plexus/components.xml.filtered"
 mv "$EXTRACT_DIR/META-INF/plexus/components.xml.filtered" "$EXTRACT_DIR/META-INF/plexus/components.xml"
-
-FILTERED_JAR="$WORK_DIR/build-info-extractor-maven3-${VERSION}-filtered.jar"
-echo "Repackaging into $FILTERED_JAR ..." >&2
-(cd "$EXTRACT_DIR" && zip -r -q "$FILTERED_JAR" .)
+NO_RESOLVER_JAR="$WORK_DIR/build-info-extractor-maven3-${VERSION}-no-resolver.jar"
+(cd "$EXTRACT_DIR" && jar cf "$NO_RESOLVER_JAR" .)
 
 if [ -n "${OUTPUT_JAR}" ]; then
-    mkdir -p "$(dirname "${OUTPUT_JAR}")"
-    cp "${FILTERED_JAR}" "${OUTPUT_JAR}"
-    printf 'Wrote filtered jar to %s\n' "${OUTPUT_JAR}" >&2
+    OUTPUT_DIR="$(dirname "${OUTPUT_JAR}")"
+    mkdir -p "$OUTPUT_DIR"
+    cp "${ORIGINAL_JAR}" "${OUTPUT_JAR}"
+    cp "${NO_RESOLVER_JAR}" "${OUTPUT_DIR}/build-info-extractor-maven3-${VERSION}-no-resolver.jar"
+    printf 'Wrote full extractor jar to %s\n' "${OUTPUT_JAR}" >&2
+    printf 'Wrote no-resolver extractor jar to %s\n' "${OUTPUT_DIR}/build-info-extractor-maven3-${VERSION}-no-resolver.jar" >&2
 else
     echo "Installing io.jenkins.plugins.jfrog.vendored:build-info-extractor-maven3-filtered:${VERSION} ..." >&2
     mvn install:install-file \
-        -Dfile="$FILTERED_JAR" \
+        -Dfile="$ORIGINAL_JAR" \
         -DgroupId=io.jenkins.plugins.jfrog.vendored \
         -DartifactId=build-info-extractor-maven3-filtered \
         -Dversion="$VERSION" \

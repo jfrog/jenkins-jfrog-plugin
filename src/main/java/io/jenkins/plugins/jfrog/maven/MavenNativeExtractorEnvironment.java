@@ -9,16 +9,22 @@ import hudson.maven.PlexusModuleContributorFactory;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.Environment;
+import hudson.model.Item;
 import hudson.model.Node;
+import hudson.model.TaskListener;
 import hudson.remoting.Which;
 import hudson.tasks.Maven;
+import io.jenkins.plugins.jfrog.CliEnvConfigurator;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
+import io.jenkins.plugins.jfrog.configuration.FolderCredentialsResolver;
 import io.jenkins.plugins.jfrog.configuration.JenkinsProxyConfiguration;
 import io.jenkins.plugins.jfrog.configuration.JFrogPlatformInstance;
 import io.jenkins.plugins.jfrog.plugins.PluginsUtils;
+import hudson.util.Secret;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jfrog.build.api.BuildInfoConfigProperties;
 import org.jfrog.build.api.util.NullLog;
 import org.jfrog.build.extractor.clientConfiguration.ArtifactoryClientConfiguration;
@@ -27,8 +33,9 @@ import org.jfrog.build.extractor.maven.BuildInfoRecorder;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -114,6 +121,13 @@ public class MavenNativeExtractorEnvironment extends Environment {
             // The extractor reads BUILDINFO_PROPFILE. Dotted keys like
             // buildInfoConfig.propertiesFile are often dropped by the forked Maven JVM.
             env.put(BuildInfoConfigProperties.ENV_BUILDINFO_PROPFILE, propsPath);
+            // Hand the path directly to MavenExtractorArguments so its intercept() doesn't need
+            // to call build.getEnvironment() (which would re-invoke this method) just to read it.
+            MavenNativeExtractorListener.MavenExtractorArguments extractorArguments =
+                    build.getAction(MavenNativeExtractorListener.MavenExtractorArguments.class);
+            if (extractorArguments != null) {
+                extractorArguments.setPropsPath(propsPath);
+            }
             if (StringUtils.isNotBlank(propertiesFileKey) && StringUtils.isNotBlank(propertiesFileKeyIv)) {
                 env.put(ENV_PROPERTIES_FILE_KEY, propertiesFileKey);
                 env.put(ENV_PROPERTIES_FILE_KEY_IV, propertiesFileKeyIv);
@@ -181,7 +195,7 @@ public class MavenNativeExtractorEnvironment extends Environment {
         // than the deployer, via Resolver Server; when left blank, it shares the deploy server.
         String resolveRepo = env.expand(StringUtils.defaultString(reporter.getResolveRepo()));
         if (StringUtils.isNotBlank(resolveRepo)) {
-            checkMavenVersionSupportsResolution();
+            checkMavenVersionSupportsResolution(env);
             JFrogPlatformInstance resolverServer = reporter.resolveResolverServer();
             if (resolverServer == null) {
                 throw new IllegalStateException("[JFrog] Maven native capture: resolver server ID '" +
@@ -251,49 +265,96 @@ public class MavenNativeExtractorEnvironment extends Environment {
      * Dependency resolution from Artifactory (via {@code ArtifactoryEclipseArtifactResolver} et al.
      * in build-info-extractor-maven3) requires Maven 3.0.2+. Older versions silently ignore the
      * resolver override, which would otherwise look like resolution "worked" but used Central instead.
+     * Maven 3.9.12+ is rejected when Resolve is configured: the extractor's PluginManager override
+     * NPEs on those releases (build-info#841) until an upstream fix ships.
      * Best-effort: if the Maven installation's version cannot be determined, the build is allowed to
      * proceed rather than fail on an unrelated detection problem.
      */
-    private void checkMavenVersionSupportsResolution() {
-        if (!(build instanceof MavenModuleSetBuild)) {
+    private void checkMavenVersionSupportsResolution(EnvVars env) {
+        String version = detectMavenVersion(build, env, listener);
+        if (version == null) {
+            // Best-effort detection only; do not fail the build over an unrelated I/O problem.
             return;
+        }
+        assertMavenVersionSupportsResolution(version);
+    }
+
+    /**
+     * Reads the Maven version a build will run with, from its {@code maven-core-<version>.jar}.
+     * Returns {@code null} when the version cannot be determined (non-Maven-Project build, no
+     * explicit tool, missing home, etc.) rather than throwing - callers decide what "unknown"
+     * means for their own safe-default behavior.
+     * <p>
+     * Must NOT be called with an env obtained via {@code build.getEnvironment(listener)} from
+     * inside {@link #buildEnvVars(Map)} itself — that re-invokes every registered
+     * {@code Environment.buildEnvVars()}, including this one, causing unbounded recursion. Pass
+     * the {@link EnvVars} already being assembled by the in-progress call instead. Callers outside
+     * that call stack (e.g. {@link ArtifactoryPlexusContributor}, which runs later when the forked
+     * Maven process is actually launched) may safely resolve their own {@link EnvVars} first.
+     */
+    static String detectMavenVersion(AbstractBuild<?, ?> build, EnvVars env, TaskListener listener) {
+        if (!(build instanceof MavenModuleSetBuild)) {
+            return null;
         }
         try {
             MavenModuleSet project = ((MavenModuleSetBuild) build).getProject();
             Maven.MavenInstallation installation = project.getMaven();
             if (installation == null) {
-                return;
+                return null;
             }
             Node node = build.getBuiltOn();
             if (node != null) {
                 installation = installation.forNode(node, listener);
             }
-            installation = installation.forEnvironment(build.getEnvironment(listener));
+            installation = installation.forEnvironment(env);
             String home = installation.getHome();
             if (StringUtils.isBlank(home)) {
-                return;
+                return null;
             }
             FilePath homePath = new FilePath(build.getWorkspace().getChannel(), home);
             FilePath[] coreJars = homePath.child("lib").list("maven-core-*.jar");
             if (coreJars == null || coreJars.length == 0) {
-                return;
+                return null;
             }
             Matcher matcher = Pattern.compile("maven-core-(.+)\\.jar").matcher(coreJars[0].getName());
-            if (!matcher.matches()) {
-                return;
-            }
-            ComparableVersion found = new ComparableVersion(matcher.group(1));
-            ComparableVersion minimum = new ComparableVersion("3.0.2");
-            if (found.compareTo(minimum) < 0) {
-                throw new IllegalStateException("[JFrog] Maven native capture: resolving dependencies from " +
-                        "Artifactory requires Maven 3.0.2 or higher. Detected: " + matcher.group(1) + ".");
-            }
-        } catch (IllegalStateException e) {
-            throw e;
+            return matcher.matches() ? matcher.group(1) : null;
         } catch (Exception e) {
-            // Best-effort detection only; do not fail the build over an unrelated I/O problem.
             listener.getLogger().println("[JFrog] Maven native capture: could not determine Maven version (" +
                     e.getMessage() + "); skipping the minimum-version check for resolution.");
+            return null;
+        }
+    }
+
+    /**
+     * Visible for tests. Rejects Maven &lt; 3.0.2 (silent Central fallback) and Maven &gt;= 3.9.12
+     * (extractor PluginManager NPE) when Resolve Repository is configured.
+     */
+    static void assertMavenVersionSupportsResolution(String version) {
+        ComparableVersion found = new ComparableVersion(version);
+        ComparableVersion minimum = new ComparableVersion("3.0.2");
+        if (found.compareTo(minimum) < 0) {
+            throw new IllegalStateException("[JFrog] Maven native capture: resolving dependencies from " +
+                    "Artifactory requires Maven 3.0.2 or higher. Detected: " + version + ".");
+        }
+        ComparableVersion brokenFrom = new ComparableVersion("3.9.12");
+        if (found.compareTo(brokenFrom) >= 0) {
+            throw new IllegalStateException("[JFrog] Maven native capture: resolving dependencies from " +
+                    "Artifactory is not compatible with Maven " + version +
+                    " (extractor PluginManager NPE on 3.9.12+; see jfrog/build-info#841). " +
+                    "Use Maven 3.8.x or 3.9.0–3.9.11, or leave Resolve Repository empty and use settings.xml.");
+        }
+    }
+
+    /**
+     * Non-throwing variant of {@link #assertMavenVersionSupportsResolution(String)} for callers
+     * that need a boolean to pick a code path rather than fail the build.
+     */
+    static boolean supportsResolution(String version) {
+        try {
+            assertMavenVersionSupportsResolution(version);
+            return true;
+        } catch (IllegalStateException e) {
+            return false;
         }
     }
 
@@ -303,10 +364,36 @@ public class MavenNativeExtractorEnvironment extends Environment {
             throw new IllegalStateException("[JFrog] " + context + ": server '" + server.getId() +
                     "' has no credentials configured.");
         }
-        Credentials credentials = PluginsUtils.credentialsLookup(credentialsConfig.getCredentialsId(), build.getParent());
+        String credentialsId = credentialsConfig.getCredentialsId();
+        Item lookupContext = build.getParent();
+
+        // Prefer a folder-scoped override for this server ID when the job lives under a folder
+        // that maps the server to different credentials - matches the Pipeline/Freestyle CLI path
+        // in JfStep.addCredentialsArguments(), so Maven-native builds resolve credentials the same
+        // way as every other job type in the same folder.
+        FolderCredentialsResolver.Resolution folderOverride =
+                FolderCredentialsResolver.resolve(build.getParent(), server.getId());
+        if (folderOverride != null) {
+            credentialsId = folderOverride.getCredentialsId();
+            lookupContext = folderOverride.getContext();
+        }
+
+        StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, lookupContext);
+        if (accessTokenCredentials != null) {
+            return new Credentials(Secret.fromString(""), Secret.fromString(""),
+                    accessTokenCredentials.getSecret());
+        }
+
+        Credentials credentials = PluginsUtils.credentialsLookup(credentialsId, lookupContext);
         if (credentials == null || credentials == Credentials.EMPTY_CREDENTIALS) {
+            if (folderOverride != null) {
+                throw new IllegalStateException("[JFrog] " + context + ": folder-level credentials override for " +
+                        "server '" + server.getId() + "' in folder '" + folderOverride.getContext().getFullName() +
+                        "' resolved to no credentials (id '" + credentialsId + "'). The credential may have been " +
+                        "deleted or renamed.");
+            }
             throw new IllegalStateException("[JFrog] " + context + ": credentials id '" +
-                    credentialsConfig.getCredentialsId() + "' could not be resolved.");
+                    credentialsId + "' could not be resolved.");
         }
         return credentials;
     }
@@ -341,7 +428,9 @@ public class MavenNativeExtractorEnvironment extends Environment {
             configuration.proxy.setPassword(proxy.password);
         }
         if (StringUtils.isNotBlank(proxy.noProxy)) {
-            configuration.proxy.setNoProxy(proxy.noProxy);
+            // Same wildcard-to-suffix normalization CliEnvConfigurator applies for the CLI path,
+            // so curl/npm-style NO_PROXY matching behaves identically for Maven-native builds.
+            configuration.proxy.setNoProxy(CliEnvConfigurator.createNoProxyValue(proxy.noProxy));
         }
     }
 
@@ -360,25 +449,60 @@ public class MavenNativeExtractorEnvironment extends Environment {
     }
 
     /**
-     * Contributes the filtered {@code build-info-extractor-maven3} jar into the forked Maven
-     * process's "plexus.core" bootstrap realm. Skipped when Maven Integration is not installed.
+     * Contributes the {@code build-info-extractor-maven3} jar into the forked Maven process's
+     * "plexus.core" bootstrap realm. Skipped when Maven Integration is not installed.
+     * <p>
+     * Two variants are staged by the vendor script: a full jar (BuildInfoRecorder + the
+     * Artifactory-backed resolver/ArtifactoryProjectBuilder Plexus overrides) and a no-resolver
+     * jar (BuildInfoRecorder only). The resolver overrides NPE on Maven 3.9.12+ as soon as they
+     * are on the classpath at all (jfrog/build-info#841) - independent of whether Resolve
+     * Repository is actually configured. The full jar is therefore only selected when resolution
+     * is both requested and known to run on a compatible Maven version; every other build gets
+     * the no-resolver jar, so plain deploy/build-info capture is never at risk from that bug.
      */
     @hudson.Extension(optional = true)
     public static class ArtifactoryPlexusContributor extends PlexusModuleContributorFactory {
 
         @Override
         public PlexusModuleContributor createFor(AbstractBuild<?, ?> context) throws IOException, InterruptedException {
-            if (MavenNativeExtractorListener.findReporter(context) == null) {
+            MavenArtifactoryReporter reporter = MavenNativeExtractorListener.findReporter(context);
+            if (reporter == null) {
                 return null;
             }
             Node node = context.getBuiltOn();
             if (node == null || node.getRootPath() == null) {
                 throw new IOException("Cannot contribute JFrog Maven extractor: build node is not available");
             }
-            FilePath[] files = PluginDependencyHelper.getActualDependencyDirectory(
-                    Which.jarFile(BuildInfoRecorder.class), node.getRootPath())
-                    .list("*.jar", "classes.jar");
-            return PlexusModuleContributor.of(Arrays.asList(files));
+            boolean useFullJar = false;
+            if (StringUtils.isNotBlank(reporter.getResolveRepo())) {
+                EnvVars env;
+                try {
+                    env = context.getEnvironment(TaskListener.NULL);
+                } catch (Exception e) {
+                    env = new EnvVars();
+                }
+                String version = detectMavenVersion(context, env, TaskListener.NULL);
+                useFullJar = version != null && supportsResolution(version);
+            }
+
+            FilePath dependencyDir = PluginDependencyHelper.getActualDependencyDirectory(
+                    Which.jarFile(BuildInfoRecorder.class), node.getRootPath());
+            FilePath[] allFiles = dependencyDir.list("*.jar", "classes.jar");
+            List<FilePath> selected = new ArrayList<>();
+            for (FilePath file : allFiles) {
+                String name = file.getName();
+                boolean isFullExtractorJar = name.startsWith("build-info-extractor-maven3-")
+                        && !name.endsWith("-no-resolver.jar");
+                boolean isNoResolverExtractorJar = name.endsWith("-no-resolver.jar");
+                if (isFullExtractorJar && !useFullJar) {
+                    continue;
+                }
+                if (isNoResolverExtractorJar && useFullJar) {
+                    continue;
+                }
+                selected.add(file);
+            }
+            return PlexusModuleContributor.of(selected);
         }
     }
 }

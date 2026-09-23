@@ -44,14 +44,25 @@ final class MavenAccessTokens {
             throw new IOException("Access token JWT has no subject");
         }
         int usernameStartIndex = payloadObject.sub.lastIndexOf("/") + 1;
-        return payloadObject.sub.substring(usernameStartIndex);
+        String username = payloadObject.sub.substring(usernameStartIndex);
+        if (StringUtils.isBlank(username)) {
+            // A subject ending in '/' (usernameStartIndex == sub.length()) would otherwise
+            // silently resolve to "", sending Artifactory a Basic-Auth request with a blank
+            // username instead of failing loudly here.
+            throw new IOException("Access token JWT subject has no username after the last '/'");
+        }
+        return username;
     }
 
-    private static byte[] decodeJwtPayload(String payload) {
+    private static byte[] decodeJwtPayload(String payload) throws IOException {
         try {
             return Base64.getUrlDecoder().decode(payload);
         } catch (IllegalArgumentException ignored) {
-            return Base64.getDecoder().decode(payload);
+            try {
+                return Base64.getDecoder().decode(payload);
+            } catch (IllegalArgumentException e) {
+                throw new IOException("Access token JWT payload is not valid Base64", e);
+            }
         }
     }
 

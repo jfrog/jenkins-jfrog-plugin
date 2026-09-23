@@ -105,7 +105,7 @@ public class CliEnvConfigurator {
      * @param noProxy - A string representing the list of No Proxy Hosts.
      * @return A comma-separated string of No Proxy Hosts.
      */
-    static String createNoProxyValue(String noProxy) {
+    public static String createNoProxyValue(String noProxy) {
         if (StringUtils.isBlank(noProxy)) {
             return "";
         }

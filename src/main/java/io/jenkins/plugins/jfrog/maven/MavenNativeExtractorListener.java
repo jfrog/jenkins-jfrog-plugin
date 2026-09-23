@@ -1,6 +1,5 @@
 package io.jenkins.plugins.jfrog.maven;
 
-import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.maven.MavenArgumentInterceptorAction;
@@ -9,15 +8,12 @@ import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.Environment;
 import hudson.model.InvisibleAction;
-import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 import hudson.util.ArgumentListBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.jfrog.build.api.BuildInfoConfigProperties;
 
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Runs before Jenkins launches the forked Maven process. MavenReporter hooks are too late.
@@ -26,8 +22,6 @@ import java.util.logging.Logger;
 @Extension(optional = true)
 @SuppressWarnings("rawtypes")
 public class MavenNativeExtractorListener extends RunListener<AbstractBuild> {
-
-    private static final Logger LOGGER = Logger.getLogger(MavenNativeExtractorListener.class.getName());
 
     @Override
     public Environment setUpEnvironment(AbstractBuild build, Launcher launcher, BuildListener listener)
@@ -43,7 +37,7 @@ public class MavenNativeExtractorListener extends RunListener<AbstractBuild> {
         return new MavenNativeExtractorEnvironment(build, reporter, listener);
     }
 
-    static MavenArtifactoryReporter findReporter(AbstractBuild build) {
+    public static MavenArtifactoryReporter findReporter(AbstractBuild build) {
         if (!(build instanceof MavenModuleSetBuild)) {
             return null;
         }
@@ -55,14 +49,7 @@ public class MavenNativeExtractorListener extends RunListener<AbstractBuild> {
      * survive Jenkins Maven argument splitting. Encryption key/IV stay in the environment
      * only — they must not appear on the {@code Executing Maven:} log line.
      */
-    static void addExtractorLaunchArguments(ArgumentListBuilder args, EnvVars env) {
-        if (env == null) {
-            return;
-        }
-        String propsPath = env.get(BuildInfoConfigProperties.ENV_BUILDINFO_PROPFILE);
-        if (StringUtils.isBlank(propsPath)) {
-            propsPath = env.get(BuildInfoConfigProperties.PROP_PROPS_FILE);
-        }
+    static void addExtractorLaunchArguments(ArgumentListBuilder args, String propsPath) {
         if (StringUtils.isBlank(propsPath)) {
             return;
         }
@@ -73,8 +60,23 @@ public class MavenNativeExtractorListener extends RunListener<AbstractBuild> {
     /**
      * Jenkins Maven launches {@code java Maven35Main} and tokenizes job Maven opts on spaces.
      * {@link ArgumentListBuilder#add(String)} keeps {@code -Dkey=value} as one token.
+     * <p>
+     * Holds the properties-file path set directly by {@link MavenNativeExtractorEnvironment}
+     * once it's resolved. {@code intercept()} deliberately does NOT call
+     * {@code build.getEnvironment()} to re-derive this - that call re-invokes every registered
+     * {@code Environment.buildEnvVars()} (including the one that populates this very path), which
+     * both duplicates a full environment resolution on every build and, worse, would silently
+     * swallow a configuration error {@code buildEnvVars()} is meant to fail the build on, since
+     * the re-invocation happens deep inside this class's own try/catch rather than Jenkins core's
+     * build-setup path.
      */
     static final class MavenExtractorArguments extends InvisibleAction implements MavenArgumentInterceptorAction {
+
+        private volatile String propsPath;
+
+        void setPropsPath(String propsPath) {
+            this.propsPath = propsPath;
+        }
 
         @Override
         public String getGoalsAndOptions(MavenModuleSetBuild build) {
@@ -83,13 +85,7 @@ public class MavenNativeExtractorListener extends RunListener<AbstractBuild> {
 
         @Override
         public ArgumentListBuilder intercept(ArgumentListBuilder args, MavenModuleSetBuild build) {
-            try {
-                addExtractorLaunchArguments(args, build.getEnvironment(TaskListener.NULL));
-            } catch (Exception e) {
-                LOGGER.log(Level.WARNING,
-                        "Failed to pass JFrog Maven extractor system properties; environment variables remain the fallback",
-                        e);
-            }
+            addExtractorLaunchArguments(args, propsPath);
             return args;
         }
     }

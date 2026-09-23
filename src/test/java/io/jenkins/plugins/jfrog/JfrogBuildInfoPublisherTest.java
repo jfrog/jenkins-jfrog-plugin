@@ -10,15 +10,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JfrogBuildInfoPublisherTest {
 
     @Test
-    void isApplicableHidesCliPublishOnMavenProjectJobs() throws Exception {
+    void isApplicableRemainsAvailableOnMavenProjectJobs() throws Exception {
         JfrogBuildInfoPublisher.DescriptorImpl descriptor = new JfrogBuildInfoPublisher.DescriptorImpl();
 
-        assertFalse(descriptor.isApplicable(mavenModuleSetClass()));
+        // Upgrade path: existing Maven jobs that still use this publisher must keep seeing it.
+        assertTrue(descriptor.isApplicable(mavenModuleSetClass()));
         assertTrue(descriptor.isApplicable(FreeStyleProject.class));
     }
 
     @Test
-    void skipsCliPublishForMavenModuleSet() throws Exception {
+    void detectsMavenModuleSetAndModuleByClassName() throws Exception {
         assertTrue(JfrogBuildInfoPublisher.isMavenProjectJob(mavenModuleSetClass()));
         assertTrue(JfrogBuildInfoPublisher.isMavenProjectJob(mavenModuleClass()));
         assertFalse(JfrogBuildInfoPublisher.isMavenProjectJob(FreeStyleProject.class));

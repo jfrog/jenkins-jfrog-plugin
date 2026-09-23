@@ -94,8 +94,10 @@ public class PipelineTestBase {
 
     @AfterAll
     public static void tearDown() {
-        // Remove repositories
-        Arrays.stream(TestRepository.values()).forEach(PipelineTestBase::removeRepo);
+        // Remove virtual repositories before the local/remote repositories they reference.
+        Arrays.stream(TestRepository.values())
+                .sorted(Comparator.comparing(r -> r.getRepoType() != TestRepository.RepoType.VIRTUAL))
+                .forEach(PipelineTestBase::removeRepo);
         artifactoryClient.close();
     }
 
@@ -198,7 +200,9 @@ public class PipelineTestBase {
     private static void createRepo(TestRepository repository) {
         ArtifactoryResponse response = null;
         try {
-            String repositorySettings = readConfigurationWithSubstitution(repository.getRepoName());
+            String repositorySettings = repository.getRepoType() == TestRepository.RepoType.VIRTUAL
+                    ? buildVirtualRepoSettings(repository)
+                    : readConfigurationWithSubstitution(repository.getRepoName());
             response = artifactoryClient.restCall(new ArtifactoryRequestImpl()
                     .method(ArtifactoryRequest.Method.PUT)
                     .requestType(ArtifactoryRequest.ContentType.JSON)
@@ -210,6 +214,23 @@ public class PipelineTestBase {
         if (!response.isSuccessResponse()) {
             fail(String.format("Failed creating repository %s: %s", getRepoKey(repository), response.getStatusLine()));
         }
+    }
+
+    /**
+     * Builds the settings body for a virtual repository, substituting the actual (timestamped)
+     * keys of its member repositories - unlike {@link #readConfigurationWithSubstitution}, these
+     * placeholders aren't known until test setup time, so they can't be baked into the static
+     * resource file. Member repositories must already exist (be declared earlier in
+     * {@link TestRepository}) by the time this runs.
+     *
+     * @param repository - The virtual repository to build settings for.
+     */
+    private static String buildVirtualRepoSettings(TestRepository repository) {
+        String template = readConfigurationWithSubstitution(repository.getRepoName());
+        return new StringSubstitutor(new HashMap<String, String>() {{
+            put("MAVEN_LOCAL_REPO_KEY", getRepoKey(TestRepository.MAVEN_LOCAL_REPO));
+            put("MAVEN_REMOTE_REPO_KEY", getRepoKey(TestRepository.MAVEN_REMOTE_REPO));
+        }}).replace(template);
     }
 
     /**

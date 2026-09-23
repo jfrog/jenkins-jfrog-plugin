@@ -15,6 +15,7 @@ import hudson.tasks.Publisher;
 import hudson.util.ArgumentListBuilder;
 import hudson.util.ListBoxModel;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
+import io.jenkins.plugins.jfrog.maven.MavenNativeExtractorListener;
 import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -67,7 +68,15 @@ public class JfrogBuildInfoPublisher extends Notifier {
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
             throws InterruptedException, IOException {
-        if (isMavenProjectJob(build.getProject().getClass())) {
+        // Only skip CLI publish when the native Maven reporter is actually configured.
+        // Existing Maven jobs that still rely on this publisher (without the new reporter)
+        // must keep publishing after upgrade. Also keep running when publishOnlyOnSuccess is
+        // explicitly false: that setting means the job wants a publish attempt even on a failed
+        // build, a guarantee the native reporter's in-process, goal-driven capture cannot
+        // replicate (it has no separate "did the overall build succeed" gate to honor).
+        if (isMavenProjectJob(build.getProject().getClass())
+                && publishOnlyOnSuccess
+                && MavenNativeExtractorListener.findReporter(build) != null) {
             listener.getLogger().println("[JFrog Build Info] Skipping CLI publish for Maven Project jobs. " +
                     "Native Build Settings already publishes build info.");
             return true;
@@ -210,7 +219,10 @@ public class JfrogBuildInfoPublisher extends Notifier {
 
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> jobType) {
-            return !isMavenProjectJob(jobType);
+            // Still offered on Maven Project jobs so upgrades that have not yet migrated to
+            // MavenArtifactoryReporter can keep publishing via jf rt bp. perform() no-ops only
+            // when the native reporter is actually present.
+            return true;
         }
 
         /**
@@ -235,8 +247,9 @@ public class JfrogBuildInfoPublisher extends Notifier {
     }
 
     /**
-     * Maven Project jobs publish via {@code MavenArtifactoryReporter}, not {@code jf rt bp}.
-     * Walks class names so this always-loaded publisher does not initialize Maven Integration.
+     * Used to detect Maven Project jobs. Walks class names so this always-loaded publisher
+     * does not initialize Maven Integration. CLI publish is skipped only when a
+     * {@code MavenArtifactoryReporter} is also configured on the job.
      */
     static boolean isMavenProjectJob(Class<?> jobType) {
         for (Class<?> type = jobType; type != null; type = type.getSuperclass()) {

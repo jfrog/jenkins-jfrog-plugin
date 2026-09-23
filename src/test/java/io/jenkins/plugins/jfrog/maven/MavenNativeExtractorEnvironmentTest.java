@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MavenNativeExtractorEnvironmentTest {
@@ -66,5 +68,27 @@ class MavenNativeExtractorEnvironmentTest {
     @Test
     void emptyInputProducesEmptyMap() {
         assertTrue(MavenNativeExtractorEnvironment.parseDeploymentProperties("").isEmpty());
+    }
+
+
+    @Test
+    void acceptsMavenVersionsCompatibleWithResolution() {
+        assertDoesNotThrow(() -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.0.2"));
+        assertDoesNotThrow(() -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.8.8"));
+        assertDoesNotThrow(() -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.9.11"));
+    }
+
+    @Test
+    void rejectsMavenTooOldForResolution() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.0.1"));
+        assertTrue(ex.getMessage().contains("3.0.2"));
+    }
+
+    @Test
+    void rejectsMaven3912PlusWhenResolutionConfigured() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.9.12"));
+        assertTrue(ex.getMessage().contains("3.9.12"));
     }
 }
