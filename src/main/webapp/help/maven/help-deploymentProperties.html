@@ -1,0 +1,9 @@
+<div>
+    Optional. Semicolon-separated <code>key=value</code> pairs, for example
+    <code>status=staging;region=us</code>, attached as Artifactory properties to every artifact this
+    build deploys.
+    <br/><br/>
+    Useful for tagging artifacts so downstream tooling (promotion pipelines, cleanup policies, AQL
+    searches) can filter or act on them without needing to know the build name/number.
+    Values may reference environment variables, for example <code>commit=${GIT_COMMIT}</code>.
+</div>

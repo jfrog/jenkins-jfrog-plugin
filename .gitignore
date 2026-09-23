@@ -1,6 +1,9 @@
 # Target dir
 target
 
+# Local JFrog CLI resolution stubs
+.jfrog
+
 # Work dir
 work
 

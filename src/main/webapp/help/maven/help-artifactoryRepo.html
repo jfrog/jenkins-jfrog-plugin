@@ -1,0 +1,9 @@
+<div>
+    Target Artifactory repository to <strong>deploy release artifacts</strong> to, and to publish build
+    info to, for this Maven Project job (for example, libs-release-local).
+    Used for snapshot artifacts too, unless a separate <strong>Snapshot Repository</strong> is set below.
+    This field only controls deployment; it has no effect on where dependencies are downloaded from.
+    To also resolve dependencies through Artifactory, set the separate
+    <strong>Resolve Repository</strong> field below. Otherwise, dependency resolution is left entirely
+    to Maven's own settings.xml (mirrors, profiles, Central, etc.).
+</div>

@@ -1,0 +1,11 @@
+<div>
+    Optional. Comma-separated Ant-style wildcard patterns (for example
+    <code>*-tests.jar,*-javadoc.jar</code>) matched against each artifact's file name.
+    Matching artifacts are skipped during deployment. Applied after
+    <strong>Artifact include patterns</strong> — an artifact must pass the include check first, then
+    survive the exclude check.
+    <br/><br/>
+    By default, an excluded artifact can still appear in the published build info (its checksums are
+    recorded even though it wasn't uploaded). Check <strong>Filter excluded artifacts from build info</strong>
+    below to leave it out of build info entirely too.
+</div>

@@ -1,0 +1,10 @@
+<div>
+    Optional. Target Artifactory repository to <strong>deploy SNAPSHOT artifacts</strong> to
+    (for example, libs-snapshot-local) — an artifact whose version ends in <code>-SNAPSHOT</code>.
+    Leave empty to deploy snapshots to the same repository configured under
+    <strong>Artifactory Repository</strong> above.
+    <br/><br/>
+    Splitting release and snapshot artifacts into separate repositories is a common Artifactory
+    convention: release repositories are typically kept immutable, while snapshot repositories allow
+    overwriting the same version repeatedly and are cleaned up more aggressively.
+</div>

@@ -1,0 +1,14 @@
+<div>
+    When checked, environment variables from this build are attached to the published build info,
+    useful for traceability (e.g. seeing which CI parameters produced a given artifact).
+    <br/><br/>
+    Which variables are captured is controlled by the <strong>Include patterns</strong> and
+    <strong>Exclude patterns</strong> fields below: a variable is included if its name matches an include
+    pattern and does not match any exclude pattern. Exclude patterns are checked after include patterns,
+    so they always win.
+    <br/><br/>
+    <strong>Security note:</strong> environment variables can contain secrets (tokens, passwords) injected
+    by other build steps or credentials bindings. Leaving <strong>Exclude patterns</strong> empty applies
+    a built-in safe default that filters out common secret-like variable names, but review your own
+    variable names before relying on it, especially in a shared or regulated environment.
+</div>
