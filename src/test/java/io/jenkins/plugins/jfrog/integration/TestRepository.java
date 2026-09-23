@@ -3,6 +3,7 @@ package io.jenkins.plugins.jfrog.integration;
 enum TestRepository {
     LOCAL_REPO("jenkins-jfrog-tests-local", RepoType.LOCAL),
     MAVEN_LOCAL_REPO("jenkins-jfrog-tests-maven-local", RepoType.LOCAL),
+    MAVEN_SNAPSHOT_REPO("jenkins-jfrog-tests-maven-snapshot", RepoType.LOCAL),
     CLI_REMOTE_REPO("jenkins-jfrog-tests-cli-remote", RepoType.REMOTE);
 
     enum RepoType {

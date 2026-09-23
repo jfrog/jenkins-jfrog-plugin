@@ -21,6 +21,7 @@ import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -97,6 +98,131 @@ class MavenProjectITest extends PipelineTestBase {
         }
     }
 
+    @Test
+    public void testMavenProjectDeploysReleaseAndSnapshotToSeparateRepos(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        configureMavenInstallation(jenkins);
+
+        String version = "1.0.0-SNAPSHOT";
+        String buildName = "rteco-1662-maven-native-it-snapshot";
+        String buildNumber = "it-" + System.currentTimeMillis();
+        String releaseRepoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
+        String snapshotRepoKey = getRepoKey(TestRepository.MAVEN_SNAPSHOT_REPO);
+        String jarName = ARTIFACT_ID + "-" + version + ".jar";
+        String jarPath = GROUP_ID.replace('.', '/') + "/" + ARTIFACT_ID + "/" + version + "/" + jarName;
+
+        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
+        reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
+        reporter.setArtifactoryRepo(releaseRepoKey);
+        reporter.setSnapshotRepo(snapshotRepoKey);
+        reporter.setDeployArtifacts(true);
+        reporter.setBuildName(buildName);
+        reporter.setBuildNumber(buildNumber);
+
+        MavenModuleSet project = jenkins.createProject(MavenModuleSet.class, "maven-native-it-snapshot");
+        project.setMaven("default-maven");
+        project.setGoals("-B -DskipTests clean install");
+        project.setDisableTriggerDownstreamProjects(true);
+        project.setIsArchivingDisabled(true);
+        project.setUsePrivateRepository(true);
+        project.setScm(new SingleFileSCM("pom.xml", mavenPom(version)));
+        project.getReporters().add(reporter);
+
+        jenkins.buildAndAssertSuccess(project);
+        try {
+            // The snapshot repo is configured with handleReleases=false, so if snapshotRepoKey
+            // wiring were broken and the deploy fell back to the release repo key, this download
+            // would fail rather than silently passing.
+            byte[] jar = downloadArtifact(snapshotRepoKey, jarPath);
+            assertTrue(jar.length > 0, "Downloaded snapshot jar is empty");
+            assertEquals('P', (char) jar[0]);
+            assertEquals('K', (char) jar[1]);
+        } finally {
+            deleteBuildInfo(buildName, buildNumber);
+        }
+    }
+
+    @Test
+    public void testMavenProjectAppliesDeploymentProperties(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        configureMavenInstallation(jenkins);
+
+        String version = "1.0.0-" + System.currentTimeMillis();
+        String buildName = "rteco-1662-maven-native-it-props";
+        String buildNumber = "it-" + System.currentTimeMillis();
+        String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
+        String jarPath = GROUP_ID.replace('.', '/') + "/" + ARTIFACT_ID + "/" + version + "/"
+                + ARTIFACT_ID + "-" + version + ".jar";
+
+        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
+        reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
+        reporter.setArtifactoryRepo(repoKey);
+        reporter.setDeployArtifacts(true);
+        reporter.setBuildName(buildName);
+        reporter.setBuildNumber(buildNumber);
+        reporter.setDeploymentProperties("status=staging;region=us");
+
+        MavenModuleSet project = jenkins.createProject(MavenModuleSet.class, "maven-native-it-props");
+        project.setMaven("default-maven");
+        project.setGoals("-B -DskipTests clean install");
+        project.setDisableTriggerDownstreamProjects(true);
+        project.setIsArchivingDisabled(true);
+        project.setUsePrivateRepository(true);
+        project.setScm(new SingleFileSCM("pom.xml", mavenPom(version)));
+        project.getReporters().add(reporter);
+
+        jenkins.buildAndAssertSuccess(project);
+        try {
+            JsonNode properties = downloadItemProperties(repoKey, jarPath);
+            assertEquals("staging", properties.path("status").get(0).asText());
+            assertEquals("us", properties.path("region").get(0).asText());
+        } finally {
+            deleteBuildInfo(buildName, buildNumber);
+        }
+    }
+
+    @Test
+    public void testMavenProjectExcludesArtifactsMatchingPattern(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        configureMavenInstallation(jenkins);
+
+        String version = "1.0.0-" + System.currentTimeMillis();
+        String buildName = "rteco-1662-maven-native-it-exclude";
+        String buildNumber = "it-" + System.currentTimeMillis();
+        String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
+        String basePath = GROUP_ID.replace('.', '/') + "/" + ARTIFACT_ID + "/" + version + "/";
+        String jarPath = basePath + ARTIFACT_ID + "-" + version + ".jar";
+        String pomPath = basePath + ARTIFACT_ID + "-" + version + ".pom";
+
+        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
+        reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
+        reporter.setArtifactoryRepo(repoKey);
+        reporter.setDeployArtifacts(true);
+        reporter.setBuildName(buildName);
+        reporter.setBuildNumber(buildNumber);
+        reporter.setArtifactExcludePatterns("*.pom");
+
+        MavenModuleSet project = jenkins.createProject(MavenModuleSet.class, "maven-native-it-exclude");
+        project.setMaven("default-maven");
+        project.setGoals("-B -DskipTests clean install");
+        project.setDisableTriggerDownstreamProjects(true);
+        project.setIsArchivingDisabled(true);
+        project.setUsePrivateRepository(true);
+        project.setScm(new SingleFileSCM("pom.xml", mavenPom(version)));
+        project.getReporters().add(reporter);
+
+        jenkins.buildAndAssertSuccess(project);
+        try {
+            byte[] jar = downloadArtifact(repoKey, jarPath);
+            assertTrue(jar.length > 0, "Downloaded jar is empty");
+
+            assertThrows(Exception.class, () -> downloadArtifact(repoKey, pomPath),
+                    "The .pom was excluded by pattern and should not have been deployed");
+        } finally {
+            deleteBuildInfo(buildName, buildNumber);
+        }
+    }
+
     private static void configureMavenInstallation(JenkinsRule jenkins) {
         String mavenHome = resolveMavenHome();
         if (StringUtils.isBlank(mavenHome)) {
@@ -168,6 +294,20 @@ class MavenProjectITest extends PipelineTestBase {
         try (InputStream in = getArtifactoryClient().repository(repoKey).download(path).doDownload()) {
             return in.readAllBytes();
         }
+    }
+
+    private static JsonNode downloadItemProperties(String repoKey, String path) throws Exception {
+        ArtifactoryResponse response = getArtifactoryClient().restCall(new ArtifactoryRequestImpl()
+                .method(ArtifactoryRequest.Method.GET)
+                .responseType(ArtifactoryRequest.ContentType.JSON)
+                .apiUrl("api/storage/" + repoKey + "/" + path + "?properties"));
+        assertTrue(response.isSuccessResponse(),
+                "Failed to fetch properties for " + repoKey + "/" + path + ": " + response.getStatusLine()
+                        + " " + response.getRawBody());
+        JsonNode root = MAPPER.readTree(response.getRawBody());
+        JsonNode properties = root.path("properties");
+        assertFalse(properties.isMissingNode(), "Response has no properties: " + response.getRawBody());
+        return properties;
     }
 
     private static void deleteBuildInfo(String buildName, String buildNumber) {

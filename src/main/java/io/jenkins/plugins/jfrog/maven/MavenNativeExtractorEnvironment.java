@@ -232,7 +232,7 @@ public class MavenNativeExtractorEnvironment extends Environment {
      * Parses a semicolon-separated {@code key=value} deployment properties string into a map,
      * e.g. {@code status=staging;region=us}. Blank entries are skipped.
      */
-    private static Map<String, String> parseDeploymentProperties(String deploymentProperties) {
+    static Map<String, String> parseDeploymentProperties(String deploymentProperties) {
         Map<String, String> params = new LinkedHashMap<>();
         for (String pair : deploymentProperties.split(";")) {
             if (StringUtils.isBlank(pair)) {
