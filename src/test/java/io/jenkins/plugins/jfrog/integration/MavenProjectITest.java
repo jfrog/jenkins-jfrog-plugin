@@ -849,7 +849,8 @@ class MavenProjectITest extends PipelineTestBase {
     }
 
     private static int httpStatus(ArtifactoryResponse response) {
-        String line = response.getStatusLine() == null ? "" : response.getStatusLine();
+        Object statusLine = response.getStatusLine();
+        String line = statusLine == null ? "" : statusLine.toString();
         Matcher matcher = Pattern.compile("\\b([1-5]\\d{2})\\b").matcher(line);
         if (matcher.find()) {
             return Integer.parseInt(matcher.group(1));
@@ -950,15 +951,27 @@ class MavenProjectITest extends PipelineTestBase {
         if (!dependencies.isArray()) {
             return null;
         }
-        String gav = group + ":" + artifact + ":" + version;
-        String typed = group + ":" + artifact + ":jar:" + version;
         for (JsonNode dependency : dependencies) {
-            String id = dependency.path("id").asText();
-            if (gav.equals(id) || typed.equals(id)) {
+            if (dependencyIdMatches(dependency.path("id").asText(), group, artifact, version)) {
                 return dependency;
             }
         }
         return null;
+    }
+
+    private static boolean dependencyIdMatches(String id, String group, String artifact, String version) {
+        String gav = group + ":" + artifact + ":" + version;
+        String typed = group + ":" + artifact + ":jar:" + version;
+        if (gav.equals(id) || typed.equals(id)) {
+            return true;
+        }
+        if (!version.endsWith("-SNAPSHOT")) {
+            return false;
+        }
+        String uniqueBase = version.substring(0, version.length() - "SNAPSHOT".length());
+        String uniqueVersion = Pattern.quote(uniqueBase) + "\\d{8}\\.\\d{6}-\\d+";
+        return id.matches(Pattern.quote(group + ":" + artifact + ":") + uniqueVersion)
+                || id.matches(Pattern.quote(group + ":" + artifact + ":jar:") + uniqueVersion);
     }
 
     private static String checksumValue(JsonNode node, String field) {

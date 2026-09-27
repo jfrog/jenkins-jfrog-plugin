@@ -219,10 +219,11 @@ public class JfrogBuildInfoPublisher extends Notifier {
 
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> jobType) {
-            // Still offered on Maven Project jobs so upgrades that have not yet migrated to
-            // MavenArtifactoryReporter can keep publishing via jf rt bp. perform() no-ops only
-            // when the native reporter is actually present.
-            return true;
+            // Hidden on Maven Project jobs: deploy and publish live under Build Settings
+            // (MavenArtifactoryReporter). Freestyle still offers this post-build action.
+            // Already-saved publishers keep running; perform() no-ops when native
+            // capture is actually publishing.
+            return !isMavenProjectJob(jobType);
         }
 
         /**

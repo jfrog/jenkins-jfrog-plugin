@@ -404,8 +404,6 @@ Deploy and resolve servers are independent (no fallback). Resolution requires Ma
 higher. Empty Maven Goals still count as Jenkins' default `install`. Goals such as `clean package`
 skip deploy/build-info.
 
-CLI **Publish JFrog Build Info** still runs unless native capture is actually publishing build info.
-
 ## Using HTTP/S proxy
 
 If you're using a JFrog platform that's situated behind an HTTP/S proxy, you should set up your proxy configuration
