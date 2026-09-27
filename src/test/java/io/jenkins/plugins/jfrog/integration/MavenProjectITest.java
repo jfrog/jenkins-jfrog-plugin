@@ -61,7 +61,7 @@ class MavenProjectITest extends PipelineTestBase {
 
         MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
         reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
-        reporter.setArtifactoryRepo(repoKey);
+        reporter.setReleaseRepo(repoKey);
         reporter.setDeployArtifacts(true);
         reporter.setBuildName(buildName);
         reporter.setBuildNumber(buildNumber);
@@ -124,7 +124,7 @@ class MavenProjectITest extends PipelineTestBase {
 
         MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
         reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
-        reporter.setArtifactoryRepo(releaseRepoKey);
+        reporter.setReleaseRepo(releaseRepoKey);
         reporter.setSnapshotRepo(snapshotRepoKey);
         reporter.setDeployArtifacts(true);
         reporter.setBuildName(buildName);
@@ -167,7 +167,7 @@ class MavenProjectITest extends PipelineTestBase {
 
         MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
         reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
-        reporter.setArtifactoryRepo(repoKey);
+        reporter.setReleaseRepo(repoKey);
         reporter.setDeployArtifacts(true);
         reporter.setBuildName(buildName);
         reporter.setBuildNumber(buildNumber);
@@ -207,7 +207,7 @@ class MavenProjectITest extends PipelineTestBase {
 
         MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
         reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
-        reporter.setArtifactoryRepo(repoKey);
+        reporter.setReleaseRepo(repoKey);
         reporter.setDeployArtifacts(true);
         reporter.setBuildName(buildName);
         reporter.setBuildNumber(buildNumber);
@@ -263,7 +263,10 @@ class MavenProjectITest extends PipelineTestBase {
 
         MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
         reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
-        reporter.setArtifactoryRepo(repoKey);
+        reporter.setReleaseRepo(repoKey);
+        // JFrog Resolve Server is required and independent - no fallback to serverId above.
+        // Setting Resolve Repository enables resolution (no separate checkbox needed).
+        reporter.setResolveServerId(TEST_CONFIGURED_SERVER_ID);
         reporter.setResolveRepo(resolveRepoKey);
         reporter.setDeployArtifacts(true);
         reporter.setBuildName(buildName);

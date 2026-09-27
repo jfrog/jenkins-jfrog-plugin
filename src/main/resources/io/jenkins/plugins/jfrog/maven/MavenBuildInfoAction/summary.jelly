@@ -1,0 +1,7 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:t="/lib/hudson">
+    <t:summary icon="/plugin/jfrog/icons/artifactory-icon.png">
+        Artifactory Build Info:
+        <a href="${it.buildInfoUrl}" target="_blank" rel="noopener noreferrer">${it.buildInfoUrl}</a>
+    </t:summary>
+</j:jelly>

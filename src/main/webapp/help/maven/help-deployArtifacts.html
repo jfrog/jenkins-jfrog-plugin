@@ -1,9 +1,10 @@
 <div>
-    When checked, artifacts produced by the Maven build are deployed to Artifactory.
-    Build info is published whenever this Build Settings action is enabled, even if deploy is unchecked,
-    but only when the project's <strong>effective</strong> Maven Goals include <strong>install</strong> or
-    <strong>deploy</strong>. Other goals (for example <code>clean package</code>) skip both deploy and
-    build-info.
+    When checked, artifacts produced by the Maven build are deployed to Artifactory. Independent of
+    <strong>Capture and publish build info</strong> (under Build info) - check either, both, or
+    neither. Both require a <strong>JFrog Artifactory Server</strong> above, and only take effect
+    when the project's <strong>effective</strong> Maven Goals include <strong>install</strong> or
+    <strong>deploy</strong>. Other goals (for example <code>clean package</code>) skip both. Leaving
+    JFrog Artifactory Server empty and both checkboxes unchecked is a valid resolution-only setup.
     <br/><br/>
     <strong>Note:</strong> leaving <strong>Goals and options</strong> blank does not skip deploy/build-info —
     Jenkins' Maven Integration defaults an empty Goals field to <strong>install</strong>, which counts as

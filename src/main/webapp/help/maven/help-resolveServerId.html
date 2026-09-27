@@ -1,0 +1,12 @@
+<div>
+    The JFrog Artifactory Server (configured under Manage Jenkins → System) to resolve dependencies
+    from. <strong>Required only when Resolve Repository is set</strong> - there is no fallback to
+    <strong>JFrog Artifactory Server</strong> under Deployment; the two are entirely independent
+    selections, each serving its own purpose (resolution vs. deploy/build-info). Leave empty to skip
+    dependency resolution.
+    <br/><br/>
+    Because credentials in this plugin are tied to the server they're configured on, picking a
+    different server here than the one used for deployment also means dependency resolution
+    authenticates with that server's own credentials - completely independent from the deployer's
+    credentials.
+</div>

@@ -1,0 +1,11 @@
+<div>
+    When checked, the Git commit revision, repository URL, and branch (read from the
+    <strong>GIT_COMMIT</strong>, <strong>GIT_URL</strong>, and <strong>GIT_BRANCH</strong> environment
+    variables the Git plugin sets for this build) are recorded in the published build info's
+    structured <strong>VCS</strong> section - the same section Artifactory's UI reads for a build's
+    "VCS" tab.
+    <br/><br/>
+    This is independent of <strong>Capture environment variables</strong> above, which sweeps
+    arbitrary environment variables into build info generically rather than populating this
+    dedicated VCS section.
+</div>

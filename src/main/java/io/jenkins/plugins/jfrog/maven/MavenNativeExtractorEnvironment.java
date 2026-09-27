@@ -11,6 +11,7 @@ import hudson.model.BuildListener;
 import hudson.model.Environment;
 import hudson.model.Item;
 import hudson.model.Node;
+import hudson.model.Result;
 import hudson.model.TaskListener;
 import hudson.remoting.Which;
 import hudson.tasks.Maven;
@@ -31,8 +32,12 @@ import org.jfrog.build.extractor.clientConfiguration.ArtifactoryClientConfigurat
 import org.jfrog.build.extractor.clientConfiguration.util.encryption.EncryptionKeyPair;
 import org.jfrog.build.extractor.maven.BuildInfoRecorder;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,6 +61,9 @@ public class MavenNativeExtractorEnvironment extends Environment {
     private String propertiesFileKey;
     private String propertiesFileKeyIv;
     private boolean tornDown;
+    private JFrogPlatformInstance resolvedServer;
+    private String resolvedBuildName;
+    private String resolvedBuildNumber;
 
     public MavenNativeExtractorEnvironment(AbstractBuild<?, ?> build, MavenArtifactoryReporter reporter,
                                            BuildListener listener) {
@@ -76,7 +84,12 @@ public class MavenNativeExtractorEnvironment extends Environment {
             return;
         }
 
-        if (build instanceof MavenModuleSetBuild) {
+        // JFrog Artifactory Server is optional - a resolution-only config (Resolve Repository set,
+        // no server) is valid, matching the legacy plugin's posture where the deploy publisher is
+        // an entirely separate, optional block from the resolver wrapper. The goals requirement
+        // only matters when there's actually something to deploy/publish.
+        boolean intendsToPublish = StringUtils.isNotBlank(reporter.getServerId());
+        if (intendsToPublish && build instanceof MavenModuleSetBuild) {
             String goals = ((MavenModuleSetBuild) build).getProject().getGoals();
             if (!MavenGoals.allowsArtifactoryPublish(goals)) {
                 throw new IllegalStateException("[JFrog] Maven native capture requires Goals to include " +
@@ -86,10 +99,14 @@ public class MavenNativeExtractorEnvironment extends Environment {
             }
         }
 
-        JFrogPlatformInstance server = reporter.resolveServer();
-        if (server == null) {
+        JFrogPlatformInstance server = reporter.findDeployServer();
+        if (intendsToPublish && server == null) {
             throw new IllegalStateException("[JFrog] Maven native capture: server ID '" + reporter.getServerId() +
                     "' is not configured under Manage Jenkins -> System -> JFrog Platform.");
+        }
+        if (server == null && StringUtils.isBlank(reporter.getResolveRepo())) {
+            throw new IllegalStateException("[JFrog] Maven native capture: configure a JFrog Artifactory Server " +
+                    "(for deploy/build-info) or set Resolve Repository (for dependency resolution), or both.");
         }
 
         FilePath workspace = build.getWorkspace();
@@ -112,8 +129,9 @@ public class MavenNativeExtractorEnvironment extends Environment {
                         propertiesFileKeyIv = keyPair.getStringIv();
                     }
                 }
-                listener.getLogger().println("[JFrog] Maven native capture enabled (server: " + server.getId() +
-                        ", repo: " + configuration.publisher.getRepoKey() +
+                listener.getLogger().println("[JFrog] Maven native capture enabled (server: " +
+                        (server != null ? server.getId() : "none (resolution-only)") +
+                        ", repo: " + StringUtils.defaultIfBlank(configuration.publisher.getRepoKey(), "n/a") +
                         ", deployArtifacts: " + reporter.isDeployArtifacts() + ")");
             }
             String propsPath = propertiesFile.getRemote();
@@ -148,58 +166,141 @@ public class MavenNativeExtractorEnvironment extends Environment {
     @Override
     public boolean tearDown(AbstractBuild build, BuildListener listener) {
         tornDown = true;
+        try {
+            addBuildInfoAction(build);
+        } catch (Exception e) {
+            listener.getLogger().println("[JFrog] Maven native capture: could not finish build-info " +
+                    "post-processing (" + e.getMessage() + ")");
+        }
         deletePropertiesFileQuietly();
         return true;
+    }
+
+    private static final Pattern BUILD_INFO_URL_PATTERN = Pattern.compile("Browse it in Artifactory under (\\S+)");
+
+    /**
+     * Best-effort: {@code tearDown} has no direct signal of whether the extractor, running inside
+     * the forked Maven JVM, actually finished publishing - a non-failing build result is used as a
+     * proxy for "publish likely happened".
+     * <p>
+     * Uses {@link MavenBuildInfoAction} (a summary box on the build's own page), not
+     * {@link io.jenkins.plugins.jfrog.actions.BuildInfoBuildBadgeAction} (a {@code BuildBadgeAction}
+     * that renders everywhere the build is listed - history rows, the project page, etc.) - the
+     * build-info link only makes sense in the context of that one specific build.
+     */
+    private void addBuildInfoAction(AbstractBuild build) {
+        if (resolvedServer == null) {
+            return;
+        }
+        Result result = build.getResult();
+        if (result != null && result.isWorseThan(Result.UNSTABLE)) {
+            return;
+        }
+        // Confirm the extractor actually published before showing any link - if Goals didn't
+        // allow it, or publish otherwise failed inside the forked Maven JVM, this line never
+        // appears, and no link should be shown at all.
+        if (StringUtils.isBlank(findPublishedBuildInfoUrl(build))) {
+            return;
+        }
+        // <platformUrl>/ui/builds/<name>/<number> - the modern JFrog Platform UI's stable build
+        // page. Plain string concatenation: no REST lookup needed for this simpler form.
+        String url = StringUtils.removeEnd(resolvedServer.getUrl(), "/") + "/ui/builds/" +
+                resolvedBuildName + "/" + resolvedBuildNumber;
+        build.addAction(new MavenBuildInfoAction(url));
+    }
+
+    /**
+     * Parses the exact URL the extractor itself printed to the Maven console on a successful
+     * publish ("Build-info successfully deployed. Browse it in Artifactory under &lt;url&gt;"),
+     * rather than reconstructing it from {@link #resolvedServer}/{@link #resolvedBuildName}/
+     * {@link #resolvedBuildNumber}. The extractor's own hint is authoritative and stays correct
+     * even if its URL-construction logic differs from a simple
+     * {@code <server>/webapp/builds/<name>/<number>} guess - for example under a different
+     * context path, an HA/proxy setup, or a future extractor version that changes the format.
+     */
+    private static String findPublishedBuildInfoUrl(AbstractBuild build) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                new FileInputStream(build.getLogFile()), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                Matcher matcher = BUILD_INFO_URL_PATTERN.matcher(line);
+                if (matcher.find()) {
+                    return matcher.group(1);
+                }
+            }
+        } catch (IOException ignored) {
+            // Best-effort only; no console log to scan yet is not an error.
+        }
+        return null;
     }
 
     private ArtifactoryClientConfiguration buildClientConfiguration(JFrogPlatformInstance server, EnvVars env)
             throws IOException {
         ArtifactoryClientConfiguration configuration = new ArtifactoryClientConfiguration(new NullLog());
-
-        Credentials credentials = resolveCredentials(server, "Maven native capture");
-        configuration.publisher.setContextUrl(server.inferArtifactoryUrl());
-        String releaseRepo = env.expand(StringUtils.defaultString(reporter.getArtifactoryRepo()));
-        if (StringUtils.isBlank(releaseRepo)) {
-            throw new IllegalStateException("[JFrog] Maven native capture: Artifactory repository is empty.");
-        }
-        String snapshotRepo = env.expand(StringUtils.defaultString(reporter.getSnapshotRepo()));
-        if (StringUtils.isBlank(snapshotRepo)) {
-            snapshotRepo = releaseRepo;
-        }
-        configuration.publisher.setRepoKey(releaseRepo);
-        configuration.publisher.setSnapshotRepoKey(snapshotRepo);
         configuration.publisher.setMaven(true);
-        configuration.publisher.setPublishArtifacts(reporter.isDeployArtifacts());
-        configuration.publisher.setPublishBuildInfo(Boolean.TRUE);
-        applyCredentials(configuration.publisher, credentials);
-        applyProxy(configuration, server.inferArtifactoryUrl());
 
-        String artifactIncludePatterns = env.expand(StringUtils.defaultString(reporter.getArtifactIncludePatterns()));
-        if (StringUtils.isNotBlank(artifactIncludePatterns)) {
-            configuration.publisher.setIncludePatterns(artifactIncludePatterns);
-        }
-        String artifactExcludePatterns = env.expand(StringUtils.defaultString(reporter.getArtifactExcludePatterns()));
-        if (StringUtils.isNotBlank(artifactExcludePatterns)) {
-            configuration.publisher.setExcludePatterns(artifactExcludePatterns);
-        }
-        configuration.publisher.setFilterExcludedArtifactsFromBuild(reporter.isFilterExcludedArtifactsFromBuild());
+        // JFrog Artifactory Server is optional: a resolution-only config (Resolve Repository set,
+        // no server) is valid, matching the legacy plugin's posture where the deploy publisher is
+        // an entirely separate, optional block from the resolver wrapper. Without a server there is
+        // nowhere to deploy to or publish build info to, so both are simply switched off below.
+        if (server == null) {
+            configuration.publisher.setPublishArtifacts(Boolean.FALSE);
+            configuration.publisher.setPublishBuildInfo(Boolean.FALSE);
+        } else {
+            Credentials credentials = resolveCredentials(server, "Maven native capture");
+            configuration.publisher.setContextUrl(server.inferArtifactoryUrl());
 
-        String deploymentProperties = env.expand(StringUtils.defaultString(reporter.getDeploymentProperties()));
-        if (StringUtils.isNotBlank(deploymentProperties)) {
-            configuration.publisher.addMatrixParams(parseDeploymentProperties(deploymentProperties));
+            // Deploy target (repo, patterns, deployment properties) is only meaningful - and only
+            // required - when Deploy Artifacts is on. Build info is published independently of it.
+            if (reporter.isDeployArtifacts()) {
+                String releaseRepo = env.expand(StringUtils.defaultString(reporter.getReleaseRepo()));
+                if (StringUtils.isBlank(releaseRepo)) {
+                    throw new IllegalStateException("[JFrog] Maven native capture: Artifactory repository is empty.");
+                }
+                String snapshotRepo = env.expand(StringUtils.defaultString(reporter.getSnapshotRepo()));
+                if (StringUtils.isBlank(snapshotRepo)) {
+                    snapshotRepo = releaseRepo;
+                }
+                configuration.publisher.setRepoKey(releaseRepo);
+                configuration.publisher.setSnapshotRepoKey(snapshotRepo);
+
+                String artifactIncludePatterns = env.expand(StringUtils.defaultString(reporter.getArtifactIncludePatterns()));
+                if (StringUtils.isNotBlank(artifactIncludePatterns)) {
+                    configuration.publisher.setIncludePatterns(artifactIncludePatterns);
+                }
+                String artifactExcludePatterns = env.expand(StringUtils.defaultString(reporter.getArtifactExcludePatterns()));
+                if (StringUtils.isNotBlank(artifactExcludePatterns)) {
+                    configuration.publisher.setExcludePatterns(artifactExcludePatterns);
+                }
+
+                String deploymentProperties = env.expand(StringUtils.defaultString(reporter.getDeploymentProperties()));
+                if (StringUtils.isNotBlank(deploymentProperties)) {
+                    configuration.publisher.addMatrixParams(parseDeploymentProperties(deploymentProperties));
+                }
+            }
+            configuration.publisher.setPublishArtifacts(reporter.isDeployArtifacts());
+            configuration.publisher.setPublishBuildInfo(reporter.isPublishBuildInfo());
+            applyCredentials(configuration.publisher, credentials);
+            applyProxy(configuration, server.inferArtifactoryUrl());
+            // Always filter deploy-excluded artifacts out of the published build info too - there's
+            // no legitimate case for publishing metadata about an artifact that was deliberately
+            // excluded from deployment.
+            configuration.publisher.setFilterExcludedArtifactsFromBuild(true);
         }
 
-        // Resolver is entirely independent of the publisher above: it is only activated when a
-        // Resolve Repository is explicitly configured, and never falls back to the deploy repo.
-        // It may also use a different JFrog Platform Server (and therefore different credentials)
-        // than the deployer, via Resolver Server; when left blank, it shares the deploy server.
-        String resolveRepo = env.expand(StringUtils.defaultString(reporter.getResolveRepo()));
-        if (StringUtils.isNotBlank(resolveRepo)) {
+        // Resolver is entirely independent of the publisher above: it is only activated when
+        // Resolve Repository is set, and never falls back to the deploy repo or deploy server.
+        // JFrog Resolve Server is its own required, independent server selection.
+        if (StringUtils.isNotBlank(reporter.getResolveRepo())) {
+            String resolveRepo = env.expand(StringUtils.defaultString(reporter.getResolveRepo()));
+            if (StringUtils.isBlank(resolveRepo)) {
+                throw new IllegalStateException("[JFrog] Maven native capture: Resolve Repository is empty.");
+            }
             checkMavenVersionSupportsResolution(env);
-            JFrogPlatformInstance resolverServer = reporter.resolveResolverServer();
+            JFrogPlatformInstance resolverServer = reporter.findResolveServer();
             if (resolverServer == null) {
-                throw new IllegalStateException("[JFrog] Maven native capture: resolver server ID '" +
-                        StringUtils.defaultIfBlank(reporter.getResolverServerId(), reporter.getServerId()) +
+                throw new IllegalStateException("[JFrog] Maven native capture: JFrog Resolve Server '" +
+                        StringUtils.defaultString(reporter.getResolveServerId()) +
                         "' is not configured under Manage Jenkins -> System -> JFrog Platform.");
             }
             Credentials resolverCredentials = resolveCredentials(resolverServer, "Maven native capture (resolver)");
@@ -217,26 +318,50 @@ public class MavenNativeExtractorEnvironment extends Environment {
                     resolverServer.getId() + "'.");
         }
 
-        if (reporter.isCaptureEnvVars()) {
-            configuration.setIncludeEnvVars(Boolean.TRUE);
-            String includePatterns = env.expand(StringUtils.defaultString(reporter.getEnvVarsIncludePatterns()));
-            configuration.setEnvVarsIncludePatterns(StringUtils.isNotBlank(includePatterns) ? includePatterns : "*");
-            String excludePatterns = env.expand(StringUtils.defaultString(reporter.getEnvVarsExcludePatterns()));
-            configuration.setEnvVarsExcludePatterns(StringUtils.isNotBlank(excludePatterns) ? excludePatterns :
-                    "*password*;*psw*;*secret*;*key*;*token*;*auth*");
-        }
+        // Everything below is build-info identity/content - meaningless without a server to
+        // publish to (resolution-only mode) or when Capture and publish build info is unchecked.
+        if (server != null && reporter.isPublishBuildInfo()) {
+            if (reporter.isCaptureEnvVars()) {
+                configuration.setIncludeEnvVars(Boolean.TRUE);
+                String includePatterns = env.expand(StringUtils.defaultString(reporter.getEnvVarsIncludePatterns()));
+                configuration.setEnvVarsIncludePatterns(StringUtils.isNotBlank(includePatterns) ? includePatterns : "*");
+                String excludePatterns = env.expand(StringUtils.defaultString(reporter.getEnvVarsExcludePatterns()));
+                configuration.setEnvVarsExcludePatterns(StringUtils.isNotBlank(excludePatterns) ? excludePatterns :
+                        "*password*;*psw*;*secret*;*key*;*token*;*auth*");
+            }
 
-        configuration.info.setBuildName(MavenBuildIdentifiers.resolveBuildName(
-                reporter.getBuildName(), env, build.getParent().getFullName()));
-        configuration.info.setBuildNumber(MavenBuildIdentifiers.resolveBuildNumber(
-                reporter.getBuildNumber(), env, String.valueOf(build.getNumber())));
-        String buildUrl = MavenBuildIdentifiers.resolveBuildUrl(env);
-        if (StringUtils.isNotBlank(buildUrl)) {
-            configuration.info.setBuildUrl(buildUrl);
-        }
-        String project = env.expand(StringUtils.defaultString(reporter.getProject()));
-        if (StringUtils.isNotBlank(project)) {
-            configuration.info.setProject(project);
+            if (reporter.isCaptureVcs()) {
+                // Populates build-info's structured `vcs` block (distinct from the generic env-var
+                // capture above), sourced from the env vars the Git plugin already sets for this build.
+                String vcsUrl = env.get("GIT_URL");
+                String vcsRevision = env.get("GIT_COMMIT");
+                String vcsBranch = env.get("GIT_BRANCH");
+                if (StringUtils.isNotBlank(vcsUrl)) {
+                    configuration.info.setVcsUrl(vcsUrl);
+                }
+                if (StringUtils.isNotBlank(vcsRevision)) {
+                    configuration.info.setVcsRevision(vcsRevision);
+                }
+                if (StringUtils.isNotBlank(vcsBranch)) {
+                    configuration.info.setVcsBranch(vcsBranch);
+                }
+            }
+
+            resolvedBuildName = MavenBuildIdentifiers.resolveBuildName(
+                    reporter.getBuildName(), env, build.getParent().getFullName());
+            resolvedBuildNumber = MavenBuildIdentifiers.resolveBuildNumber(
+                    reporter.getBuildNumber(), env, String.valueOf(build.getNumber()));
+            resolvedServer = server;
+            configuration.info.setBuildName(resolvedBuildName);
+            configuration.info.setBuildNumber(resolvedBuildNumber);
+            String buildUrl = MavenBuildIdentifiers.resolveBuildUrl(env);
+            if (StringUtils.isNotBlank(buildUrl)) {
+                configuration.info.setBuildUrl(buildUrl);
+            }
+            String project = env.expand(StringUtils.defaultString(reporter.getProject()));
+            if (StringUtils.isNotBlank(project)) {
+                configuration.info.setProject(project);
+            }
         }
         configuration.setActivateRecorder(Boolean.TRUE);
         return configuration;

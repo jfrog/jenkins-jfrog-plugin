@@ -32,27 +32,35 @@ class MavenArtifactoryReporterTest {
     }
 
     @Test
-    void doCheckRequiresConfiguredServer(JenkinsRule jenkinsRule) {
+    void doCheckRequiresConfiguredServerWhenDeployOrPublishBuildInfoIsChecked(JenkinsRule jenkinsRule) {
         MavenArtifactoryReporter.DescriptorImpl descriptor = new MavenArtifactoryReporter.DescriptorImpl();
 
-        FormValidation empty = descriptor.doCheckServerId(null, "");
+        FormValidation empty = descriptor.doCheckServerId(null, "", true, false);
         assertEquals(FormValidation.Kind.ERROR, empty.kind);
         assertTrue(empty.getMessage().contains("No JFrog Platform instances configured"));
 
-        FormValidation unknown = descriptor.doCheckServerId(null, "prod");
+        FormValidation unknown = descriptor.doCheckServerId(null, "prod", false, true);
         assertEquals(FormValidation.Kind.ERROR, unknown.kind);
         assertTrue(unknown.getMessage().contains("Unknown JFrog Platform server"));
+
+        // Optional when neither Deploy Artifacts nor Capture and publish build info is checked -
+        // resolution-only use, matching the legacy plugin's posture where the deploy publisher is
+        // a separate, optional block from the resolver wrapper.
+        FormValidation resolutionOnly = descriptor.doCheckServerId(null, "", false, false);
+        assertEquals(FormValidation.Kind.OK, resolutionOnly.kind);
     }
 
     @Test
     void doCheckValidatesRepository(JenkinsRule jenkinsRule) {
         MavenArtifactoryReporter.DescriptorImpl descriptor = new MavenArtifactoryReporter.DescriptorImpl();
 
-        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckArtifactoryRepo(null, " ").kind);
-        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckArtifactoryRepo(null, "../secret").kind);
-        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckArtifactoryRepo(null, "repo\\win").kind);
-        assertEquals(FormValidation.Kind.OK, descriptor.doCheckArtifactoryRepo(null, "libs-release-local").kind);
-        assertEquals(FormValidation.Kind.OK, descriptor.doCheckArtifactoryRepo(null, "${MY_REPO}").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckReleaseRepo(null, " ", true).kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckReleaseRepo(null, "../secret", true).kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckReleaseRepo(null, "repo\\win", true).kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckReleaseRepo(null, "libs-release-local", true).kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckReleaseRepo(null, "${MY_REPO}", true).kind);
+        // When Deploy Artifacts is off, the repo is no longer required.
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckReleaseRepo(null, " ", false).kind);
     }
 
     @Test
@@ -74,57 +82,67 @@ class MavenArtifactoryReporterTest {
     }
 
     @Test
-    void resolverServerFallsBackToDeployServerWhenNotOverridden(JenkinsRule jenkinsRule) {
+    void resolveServerIsIndependentOfDeployServerWithNoFallback(JenkinsRule jenkinsRule) {
         registerServer("deploy-server");
+        registerServer("resolve-server");
 
         MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
         reporter.setServerId("deploy-server");
+        // resolveServerId intentionally left unset: must NOT fall back to deploy-server.
+        assertNull(reporter.findResolveServer());
 
-        assertNotNull(reporter.resolveResolverServer());
-        assertEquals("deploy-server", reporter.resolveResolverServer().getId());
+        reporter.setResolveServerId("resolve-server");
+        assertEquals("resolve-server", reporter.findResolveServer().getId());
     }
 
     @Test
-    void resolverServerUsesOverrideWhenSet(JenkinsRule jenkinsRule) {
-        registerServer("deploy-server");
-        registerServer("resolver-server");
-
+    void resolveServerIsNullWhenIdDoesNotMatchAConfiguredServer(JenkinsRule jenkinsRule) {
         MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
-        reporter.setServerId("deploy-server");
-        reporter.setResolverServerId("resolver-server");
+        reporter.setResolveServerId("does-not-exist");
 
-        assertEquals("resolver-server", reporter.resolveResolverServer().getId());
-    }
-
-    @Test
-    void resolverServerIsNullWhenNeitherIdMatchesAConfiguredServer(JenkinsRule jenkinsRule) {
-        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
-        reporter.setServerId("does-not-exist");
-
-        assertNull(reporter.resolveResolverServer());
+        assertNull(reporter.findResolveServer());
     }
 
     @Test
     void doCheckOptionalRepoFieldsAcceptBlankAndValidateWhenSet(JenkinsRule jenkinsRule) {
         MavenArtifactoryReporter.DescriptorImpl descriptor = new MavenArtifactoryReporter.DescriptorImpl();
 
-        assertEquals(FormValidation.Kind.OK, descriptor.doCheckResolveRepo(null, "").kind);
         assertEquals(FormValidation.Kind.OK, descriptor.doCheckSnapshotRepo(null, "").kind);
         assertEquals(FormValidation.Kind.OK, descriptor.doCheckResolveSnapshotRepo(null, "").kind);
-
-        assertEquals(FormValidation.Kind.OK, descriptor.doCheckResolveRepo(null, "maven-virtual").kind);
-        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckResolveRepo(null, "../secret").kind);
         assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckSnapshotRepo(null, "repo\\win").kind);
     }
 
     @Test
-    void doCheckResolverServerIdAcceptsBlankAndValidatesKnownServer(JenkinsRule jenkinsRule) {
+    void doCheckResolveRepoAcceptsBlankAndValidatesWhenSet(JenkinsRule jenkinsRule) {
+        MavenArtifactoryReporter.DescriptorImpl descriptor = new MavenArtifactoryReporter.DescriptorImpl();
+
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckResolveRepo(null, "").kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckResolveRepo(null, "maven-virtual").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckResolveRepo(null, "../secret").kind);
+    }
+
+    @Test
+    void doCheckResolveServerIdValidatesKnownServer(JenkinsRule jenkinsRule) {
         registerServer("known-server");
         MavenArtifactoryReporter.DescriptorImpl descriptor = new MavenArtifactoryReporter.DescriptorImpl();
 
-        assertEquals(FormValidation.Kind.OK, descriptor.doCheckResolverServerId(null, "").kind);
-        assertEquals(FormValidation.Kind.OK, descriptor.doCheckResolverServerId(null, "known-server").kind);
-        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckResolverServerId(null, "unknown-server").kind);
+        assertEquals(FormValidation.Kind.OK,
+                descriptor.doCheckResolveServerId(null, "known-server", "").kind);
+        assertEquals(FormValidation.Kind.ERROR,
+                descriptor.doCheckResolveServerId(null, "unknown-server", "").kind);
+    }
+
+    @Test
+    void doCheckResolveServerIdIsRequiredOnlyWhenResolveRepoIsSet(JenkinsRule jenkinsRule) {
+        MavenArtifactoryReporter.DescriptorImpl descriptor = new MavenArtifactoryReporter.DescriptorImpl();
+
+        // Blank, with Resolve Repository set: an error - no fallback to JFrog Artifactory Server.
+        FormValidation blankWhileRepoSet = descriptor.doCheckResolveServerId(null, "", "maven-virtual");
+        assertEquals(FormValidation.Kind.ERROR, blankWhileRepoSet.kind);
+
+        // Resolve Repository is empty - resolveServerId blankness is moot.
+        FormValidation resolutionNotUsed = descriptor.doCheckResolveServerId(null, "", "");
+        assertEquals(FormValidation.Kind.OK, resolutionNotUsed.kind);
     }
 
     @Test

@@ -395,28 +395,43 @@ Requires the Jenkins **Maven Integration** plugin (the Maven Project job type). 
 not installed, the JFrog plugin still loads and Pipeline/Freestyle keep working; the Maven action
 is simply not registered.
 
-1. Configure a JFrog Platform instance under **Manage Jenkins → System** (same servers as Pipeline/Freestyle).
+1. Configure a JFrog Artifactory Server (a JFrog Platform instance) under **Manage Jenkins → System**
+   (same servers as Pipeline/Freestyle).
 2. Open a **Maven Project** job.
-3. Scroll to **Build Settings** (between Post Steps and Post-build Actions).
-4. Enable **JFrog Artifactory (Maven Project)**.
-5. Select the JFrog Platform server and the Artifactory repository.
+3. Scroll to **Build Settings** (between Post Steps and Post-build Actions - this is fixed by the
+   Maven Integration plugin's own layout, not something this plugin controls).
+4. Enable **JFrog Artifactory (Maven Native Reporter)**.
+5. Under **Deployment**, select the JFrog Artifactory Server, then check **Deploy Artifacts** and
+   fill in the Release Repository (and, optionally, a separate Snapshot Repository) if you want
+   artifacts deployed. Build info is published either way.
 
-**Deploy artifacts** controls whether binaries are deployed. Build info is published whenever the
-Build Settings action is enabled **and** the job's Maven Goals include `install` or `deploy`.
-Goals such as `clean package` or `clean verify` skip both deploy and build-info (the extractor
-does this; the job fails fast with a JFrog error instead of succeeding silently).
+**JFrog Artifactory Server is optional** - leave it empty to use this action purely for dependency
+resolution (see **Dependency resolution** below), with no deploy or build-info publish at all. Set
+it to also deploy artifacts and/or publish build info.
 
-**Build Name** / **Build Number** are optional. Empty fields use `JFROG_CLI_BUILD_NAME` /
-`JFROG_CLI_BUILD_NUMBER` when set, otherwise the Jenkins job name and build number. `$VAR` /
-`${VAR}` expansion is supported.
+Build info is published whenever a server is configured **and** the job's Maven Goals include
+`install` or `deploy`. Goals such as `clean package` or `clean verify` skip both deploy and
+build-info (the extractor does this; the job fails fast with a JFrog error instead of succeeding
+silently).
 
-This version uses one repository for both release and snapshot artifacts. Use a Maven repository
-that accepts both layouts.
+**Build Name** / **Build Number** (under **Build info**) are optional. Empty fields use
+`JFROG_CLI_BUILD_NAME` / `JFROG_CLI_BUILD_NUMBER` when set, otherwise the Jenkins job name and
+build number. `$VAR` / `${VAR}` expansion is supported. Build Name/Number identify the whole
+Maven reactor build, matching build-info's own model - each module is a distinct entry inside
+that one build, not a build of its own.
 
-**Resolve Repository** (optional) redirects Maven dependency resolution to an Artifactory
-repository (typically a virtual repo). Leave it empty to keep Maven's normal `settings.xml` /
-Central resolution. Requires Maven 3.0.2–3.9.11 when set (Maven 3.9.12+ currently NPEs in the
-extractor — see [build-info#841](https://github.com/jfrog/build-info/issues/841)).
+**Capture Git info** adds the build's Git commit, URL, and branch to build info's VCS section.
+
+Excluded artifacts (via **Artifact exclude patterns**) are automatically left out of published
+build info as well as deployment - there's no separate toggle for this.
+
+**Dependency resolution** (under its own section, ahead of Deployment) is entirely optional - leave
+both **JFrog Resolve Server** and **Resolve Repository** (typically a virtual repo) empty to skip
+resolution and use Maven's normal `settings.xml` / Central resolution. When **Resolve Repository**
+is set, **JFrog Resolve Server** becomes required. These are fully independent of JFrog Artifactory
+Server / Deploy Artifacts / Capture and publish build info, with no fallback between any of them.
+Resolution requires Maven 3.0.2–3.9.11 (Maven 3.9.12+ currently NPEs in the extractor — see
+[build-info#841](https://github.com/jfrog/build-info/issues/841)).
 
 If a Maven Project job already uses the Freestyle **Publish JFrog Build Info** post-build action
 and has not yet enabled native Build Settings, that publisher still runs. Once native Build
