@@ -298,7 +298,7 @@ public class MavenArtifactoryReporter extends MavenReporter {
                                                   @QueryParameter boolean deployArtifacts) {
             checkConfigurePermission(item);
             return checkRepo(value, deployArtifacts
-                    ? "Repository must not be empty when Deploy Artifacts is enabled"
+                    ? "Release Repository is required when Deploy Artifacts is enabled"
                     : null);
         }
 

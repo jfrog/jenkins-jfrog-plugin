@@ -23,7 +23,7 @@
         <f:optionalBlock field="deployArtifacts" title="Deploy Artifacts"
                           checked="${instance.deployArtifacts}" inline="true">
             <f:entry title="Release Repository" field="releaseRepo"
-                     description="Repository for release artifacts. Suggestions come from the deploy server.">
+                     description="Required. Repository for release artifacts. Suggestions come from the deploy server.">
                 <f:combobox checkDependsOn="serverId"/>
             </f:entry>
             <f:entry title="Snapshot Repository" field="snapshotRepo"

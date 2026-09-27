@@ -28,6 +28,8 @@ import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jfrog.build.api.BuildInfoConfigProperties;
 import org.jfrog.build.api.util.NullLog;
 import org.jfrog.build.extractor.clientConfiguration.ArtifactoryClientConfiguration;
+import org.jfrog.build.extractor.clientConfiguration.IncludeExcludePatterns;
+import org.jfrog.build.extractor.clientConfiguration.PatternMatcher;
 import org.jfrog.build.extractor.clientConfiguration.util.encryption.EncryptionKeyPair;
 
 import java.io.BufferedReader;
@@ -46,6 +48,7 @@ import java.util.regex.Pattern;
 
 import static org.jfrog.build.api.BuildInfoConfigProperties.ENV_PROPERTIES_FILE_KEY;
 import static org.jfrog.build.api.BuildInfoConfigProperties.ENV_PROPERTIES_FILE_KEY_IV;
+import static org.jfrog.build.extractor.clientConfiguration.ClientConfigurationFields.ADD_DEPLOYABLE_ARTIFACTS;
 
 /**
  * Sets up the environment a Maven Project build needs so that the Maven extractor
@@ -219,36 +222,36 @@ public class MavenNativeExtractorEnvironment extends Environment {
 
         // Deploy server is optional (resolution-only). Resolve server/repo are required above.
         if (server == null) {
-            configuration.publisher.setPublishArtifacts(Boolean.FALSE);
-            configuration.publisher.setPublishBuildInfo(Boolean.FALSE);
+            applyPublisherArtifactFlags(configuration, false, false);
         } else {
             Credentials credentials = resolveCredentials(server, "Maven native capture");
             configuration.publisher.setContextUrl(server.inferArtifactoryUrl());
 
-            if (reporter.isDeployArtifacts()) {
+            if (publisherNeedsTargetRepo(reporter.isDeployArtifacts(), reporter.isPublishBuildInfo())) {
                 String releaseRepo = expand(env, reporter.getReleaseRepo());
                 if (StringUtils.isBlank(releaseRepo)) {
-                    throw fail("Artifactory repository is empty.");
+                    throw fail("Release Repository is empty. Required when Deploy Artifacts is enabled.");
                 }
                 String snapshotRepo = expandOr(env, reporter.getSnapshotRepo(), releaseRepo);
                 configuration.publisher.setRepoKey(releaseRepo);
                 configuration.publisher.setSnapshotRepoKey(snapshotRepo);
 
-                String artifactIncludePatterns = expand(env, reporter.getArtifactIncludePatterns());
-                if (StringUtils.isNotBlank(artifactIncludePatterns)) {
-                    configuration.publisher.setIncludePatterns(artifactIncludePatterns);
-                }
-                String artifactExcludePatterns = expand(env, reporter.getArtifactExcludePatterns());
-                if (StringUtils.isNotBlank(artifactExcludePatterns)) {
-                    configuration.publisher.setExcludePatterns(artifactExcludePatterns);
-                }
-                String deploymentProperties = expand(env, reporter.getDeploymentProperties());
-                if (StringUtils.isNotBlank(deploymentProperties)) {
-                    configuration.publisher.addMatrixParams(parseDeploymentProperties(deploymentProperties));
+                if (reporter.isDeployArtifacts()) {
+                    String artifactIncludePatterns = expand(env, reporter.getArtifactIncludePatterns());
+                    if (StringUtils.isNotBlank(artifactIncludePatterns)) {
+                        configuration.publisher.setIncludePatterns(artifactIncludePatterns);
+                    }
+                    String artifactExcludePatterns = expand(env, reporter.getArtifactExcludePatterns());
+                    if (StringUtils.isNotBlank(artifactExcludePatterns)) {
+                        configuration.publisher.setExcludePatterns(artifactExcludePatterns);
+                    }
+                    String deploymentProperties = expand(env, reporter.getDeploymentProperties());
+                    if (StringUtils.isNotBlank(deploymentProperties)) {
+                        configuration.publisher.addMatrixParams(parseDeploymentProperties(deploymentProperties));
+                    }
                 }
             }
-            configuration.publisher.setPublishArtifacts(reporter.isDeployArtifacts());
-            configuration.publisher.setPublishBuildInfo(reporter.isPublishBuildInfo());
+            applyPublisherArtifactFlags(configuration, reporter.isDeployArtifacts(), reporter.isPublishBuildInfo());
             applyCredentials(configuration.publisher, credentials);
             applyProxy(configuration, server.inferArtifactoryUrl());
             // Artifacts excluded from deploy should not appear in published build info either.
@@ -279,12 +282,15 @@ public class MavenNativeExtractorEnvironment extends Environment {
 
         if (server != null && reporter.isPublishBuildInfo()) {
             if (reporter.isCaptureEnvVars()) {
-                configuration.setIncludeEnvVars(Boolean.TRUE);
                 String includePatterns = expand(env, reporter.getEnvVarsIncludePatterns());
-                configuration.setEnvVarsIncludePatterns(StringUtils.isNotBlank(includePatterns) ? includePatterns : "*");
                 String excludePatterns = expand(env, reporter.getEnvVarsExcludePatterns());
-                configuration.setEnvVarsExcludePatterns(StringUtils.isNotBlank(excludePatterns) ? excludePatterns :
-                        "*password*;*psw*;*secret*;*key*;*token*;*auth*");
+                if (StringUtils.isBlank(includePatterns)) {
+                    includePatterns = "*";
+                }
+                if (StringUtils.isBlank(excludePatterns)) {
+                    excludePatterns = "*password*;*psw*;*secret*;*key*;*token*;*auth*";
+                }
+                applyCapturedEnvVars(configuration, env, includePatterns, excludePatterns);
             }
 
             if (reporter.isCaptureVcs()) {
@@ -320,6 +326,82 @@ public class MavenNativeExtractorEnvironment extends Environment {
             params.put(pair.substring(0, idx).trim(), pair.substring(idx + 1).trim());
         }
         return params;
+    }
+
+    static boolean publisherNeedsTargetRepo(boolean deployArtifacts, boolean publishBuildInfo) {
+        return deployArtifacts;
+    }
+
+    static void applyPublisherArtifactFlags(ArtifactoryClientConfiguration configuration, boolean deployArtifacts,
+                                            boolean publishBuildInfo) {
+        configuration.publisher.setPublishArtifacts(deployArtifacts);
+        configuration.publisher.setPublishBuildInfo(publishBuildInfo);
+        // Extractor defaults this to true and then requires a target repo when recording artifacts.
+        configuration.publisher.setBooleanValue(ADD_DEPLOYABLE_ARTIFACTS, deployArtifacts);
+    }
+
+    static void applyCapturedEnvVars(ArtifactoryClientConfiguration configuration, Map<String, String> env,
+                                     String includePatterns, String excludePatterns) {
+        configuration.setIncludeEnvVars(Boolean.TRUE);
+        configuration.setEnvVarsIncludePatterns(toExtractorEnvPatterns(includePatterns, true));
+        configuration.setEnvVarsExcludePatterns(toExtractorEnvPatterns(excludePatterns, false));
+        configuration.info.addBuildVariables(
+                capturedJenkinsEnvVars(env, includePatterns, excludePatterns),
+                envVarPatterns(includePatterns, excludePatterns));
+    }
+
+    /**
+     * The Maven extractor splits include/exclude strings on comma/space only, then matches the full
+     * {@code buildInfo.env.NAME} keys. Convert UI patterns so those keys survive filtering.
+     */
+    static String toExtractorEnvPatterns(String patterns, boolean prefixWildcard) {
+        String[] parts = splitPatterns(patterns);
+        if (parts.length == 0) {
+            return patterns;
+        }
+        List<String> converted = new ArrayList<>();
+        for (String part : parts) {
+            if (prefixWildcard && !part.startsWith("*")) {
+                converted.add("*" + part);
+            } else {
+                converted.add(part);
+            }
+        }
+        return String.join(",", converted);
+    }
+
+    static Map<String, String> capturedJenkinsEnvVars(Map<String, String> env, String includePatterns,
+                                                      String excludePatterns) {
+        IncludeExcludePatterns patterns = envVarPatterns(includePatterns, excludePatterns);
+        Map<String, String> captured = new LinkedHashMap<>();
+        Map<String, String> systemEnv = System.getenv();
+        for (Map.Entry<String, String> entry : env.entrySet()) {
+            if (systemEnv.containsKey(entry.getKey())) {
+                continue;
+            }
+            if (PatternMatcher.pathConflicts(entry.getKey(), patterns)) {
+                continue;
+            }
+            captured.put(entry.getKey(), entry.getValue());
+        }
+        return captured;
+    }
+
+    static IncludeExcludePatterns envVarPatterns(String includePatterns, String excludePatterns) {
+        return new IncludeExcludePatterns(splitPatterns(includePatterns), splitPatterns(excludePatterns));
+    }
+
+    static String[] splitPatterns(String patterns) {
+        if (StringUtils.isBlank(patterns)) {
+            return new String[0];
+        }
+        List<String> parts = new ArrayList<>();
+        for (String part : patterns.split("[;,]")) {
+            if (StringUtils.isNotBlank(part)) {
+                parts.add(part.trim());
+            }
+        }
+        return parts.toArray(new String[0]);
     }
 
     private static String expand(EnvVars env, String value) {

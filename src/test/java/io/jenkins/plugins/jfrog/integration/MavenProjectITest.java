@@ -55,9 +55,6 @@ class MavenProjectITest extends PipelineTestBase {
         String buildName = "rteco-1662-maven-native-it";
         String buildNumber = "it-" + System.currentTimeMillis();
         String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
-        String moduleId = GROUP_ID + ":" + ARTIFACT_ID + ":" + version;
-        String jarName = ARTIFACT_ID + "-" + version + ".jar";
-        String jarPath = artifactPath(version, "jar");
 
         MavenArtifactoryReporter reporter = nativeReporter(repoKey, buildName, buildNumber);
 
@@ -86,21 +83,8 @@ class MavenProjectITest extends PipelineTestBase {
         try {
             assertEquals(buildName, published.path("name").asText());
             assertEquals(buildNumber, published.path("number").asText());
-
-            JsonNode modules = published.path("modules");
-            assertTrue(modules.isArray() && modules.size() > 0, "Published build-info has no modules: " + published);
-            JsonNode module = findModule(modules, moduleId);
-            assertEquals(moduleId, module.path("id").asText());
-
-            JsonNode artifacts = module.path("artifacts");
-            assertTrue(hasArtifact(artifacts, jarName), "Missing jar in build-info artifacts: " + artifacts);
-            assertTrue(hasArtifact(artifacts, ARTIFACT_ID + "-" + version + ".pom"),
-                    "Missing pom in build-info artifacts: " + artifacts);
-
-            byte[] jar = downloadArtifact(repoKey, jarPath);
-            assertTrue(jar.length > 0, "Downloaded jar is empty");
-            assertEquals('P', (char) jar[0]);
-            assertEquals('K', (char) jar[1]);
+            assertBuildInfoHasPublishedArtifacts(published, version, true);
+            assertJarInArtifactory(repoKey, version);
         } finally {
             deleteBuildInfo(buildName, buildNumber);
         }
@@ -284,8 +268,9 @@ class MavenProjectITest extends PipelineTestBase {
         assertTrue(log.contains("resolving dependencies from '" + resolveRepoKey + "'"), log);
         try {
             JsonNode published = downloadBuildInfo(buildName, buildNumber);
-            JsonNode modules = published.path("modules");
-            assertTrue(modules.isArray() && modules.size() > 0, "Published build-info has no modules: " + published);
+            assertBuildInfoHasPublishedArtifacts(published, version, true);
+            assertBuildInfoHasDependency(published, version, depGroup, depArtifact);
+            assertJarInArtifactory(repoKey, version);
         } finally {
             deleteBuildInfo(buildName, buildNumber);
         }
@@ -336,6 +321,37 @@ class MavenProjectITest extends PipelineTestBase {
             assertEquals(buildName, published.path("name").asText());
             assertThrows(Exception.class, () -> downloadArtifact(repoKey, artifactPath(version, "jar")),
                     "deployArtifacts=false should not upload the jar");
+        } finally {
+            deleteBuildInfo(buildName, buildNumber);
+        }
+    }
+
+    @Test
+    public void testMavenProjectPublishesBuildInfoWithoutReleaseRepo(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
+
+        String version = "1.0.0-" + System.currentTimeMillis();
+        String buildName = "rteco-1662-maven-native-it-bi-no-repo";
+        String buildNumber = "it-" + System.currentTimeMillis();
+
+        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
+        reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
+        reporter.setResolveServerId(TEST_CONFIGURED_SERVER_ID);
+        reporter.setResolveRepo(getRepoKey(TestRepository.MAVEN_VIRTUAL_REPO));
+        reporter.setDeployArtifacts(false);
+        reporter.setPublishBuildInfo(true);
+        reporter.setBuildName(buildName);
+        reporter.setBuildNumber(buildNumber);
+
+        MavenModuleSet project = mavenNativeJob(jenkins, "maven-native-it-bi-no-repo", reporter, mavenPom(version));
+        MavenModuleSetBuild build = jenkins.buildAndAssertSuccess(project);
+        String log = build.getLog();
+        assertFalse(log.contains("Release Repository is empty"), log);
+        assertFalse(log.contains("Target repository cannot be empty"), log);
+        try {
+            JsonNode published = downloadBuildInfo(buildName, buildNumber);
+            assertEquals(buildName, published.path("name").asText());
         } finally {
             deleteBuildInfo(buildName, buildNumber);
         }
@@ -441,8 +457,9 @@ class MavenProjectITest extends PipelineTestBase {
                 + resolveSnapshotRepoKey + "')"), log);
         try {
             JsonNode published = downloadBuildInfo(buildName, buildNumber);
-            JsonNode modules = published.path("modules");
-            assertTrue(modules.isArray() && modules.size() > 0, "Published build-info has no modules: " + published);
+            assertBuildInfoHasPublishedArtifacts(published, version, true);
+            assertBuildInfoHasDependency(published, version, depGroup, depArtifact);
+            assertJarInArtifactory(repoKey, version);
         } finally {
             deleteBuildInfo(buildName, buildNumber);
         }
@@ -480,11 +497,32 @@ class MavenProjectITest extends PipelineTestBase {
                 + resolveRepoKey + "')"), log);
         try {
             JsonNode published = downloadBuildInfo(buildName, buildNumber);
-            JsonNode modules = published.path("modules");
-            assertTrue(modules.isArray() && modules.size() > 0, "Published build-info has no modules: " + published);
+            assertBuildInfoHasPublishedArtifacts(published, version, true);
+            assertBuildInfoHasDependency(published, version, depGroup, depArtifact);
+            assertJarInArtifactory(repoKey, version);
         } finally {
             deleteBuildInfo(buildName, buildNumber);
         }
+    }
+
+    @Test
+    public void testMavenProjectResolvesWithoutDeployServer(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
+
+        String version = "1.0.0-" + System.currentTimeMillis();
+        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
+        reporter.setResolveServerId(TEST_CONFIGURED_SERVER_ID);
+        reporter.setResolveRepo(getRepoKey(TestRepository.MAVEN_VIRTUAL_REPO));
+        reporter.setDeployArtifacts(false);
+        reporter.setPublishBuildInfo(false);
+
+        MavenModuleSet project = mavenNativeJob(jenkins, "maven-native-it-resolve-only", reporter, mavenPom(version));
+        MavenModuleSetBuild build = jenkins.buildAndAssertSuccess(project);
+        String log = build.getLog();
+        assertTrue(log.contains("[JFrog] Maven native capture enabled"), log);
+        assertTrue(log.contains("none (resolution-only)"), log);
+        assertFalse(log.contains("Target repository cannot be empty"), log);
     }
 
     @Test
@@ -755,6 +793,33 @@ class MavenProjectITest extends PipelineTestBase {
         }
     }
 
+    private static void assertBuildInfoHasPublishedArtifacts(JsonNode published, String version, boolean expectPom) {
+        JsonNode module = findModule(published.path("modules"), GROUP_ID + ":" + ARTIFACT_ID + ":" + version);
+        JsonNode artifacts = module.path("artifacts");
+        assertTrue(hasArtifact(artifacts, ARTIFACT_ID + "-" + version + ".jar"),
+                "Build-info artifacts missing jar: " + artifacts);
+        if (expectPom) {
+            assertTrue(hasArtifact(artifacts, ARTIFACT_ID + "-" + version + ".pom"),
+                    "Build-info artifacts missing pom: " + artifacts);
+        }
+    }
+
+    private static void assertBuildInfoHasDependency(JsonNode published, String version, String depGroup,
+                                                     String depArtifact) {
+        JsonNode module = findModule(published.path("modules"), GROUP_ID + ":" + ARTIFACT_ID + ":" + version);
+        JsonNode dependencies = module.path("dependencies");
+        String prefix = depGroup + ":" + depArtifact + ":";
+        assertTrue(hasDependencyIdPrefix(dependencies, prefix),
+                "Build-info dependencies missing " + prefix + ": " + dependencies);
+    }
+
+    private static void assertJarInArtifactory(String repoKey, String version) throws Exception {
+        byte[] jar = downloadArtifact(repoKey, artifactPath(version, "jar"));
+        assertTrue(jar.length > 0, "Downloaded jar is empty");
+        assertEquals('P', (char) jar[0]);
+        assertEquals('K', (char) jar[1]);
+    }
+
     private static JsonNode findModule(JsonNode modules, String moduleId) {
         for (JsonNode module : modules) {
             if (moduleId.equals(module.path("id").asText())) {
@@ -771,6 +836,18 @@ class MavenProjectITest extends PipelineTestBase {
         }
         for (JsonNode artifact : artifacts) {
             if (name.equals(artifact.path("name").asText())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasDependencyIdPrefix(JsonNode dependencies, String idPrefix) {
+        if (!dependencies.isArray()) {
+            return false;
+        }
+        for (JsonNode dependency : dependencies) {
+            if (dependency.path("id").asText().startsWith(idPrefix)) {
                 return true;
             }
         }

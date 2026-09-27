@@ -62,7 +62,6 @@ class MavenArtifactoryReporterTest {
         assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckReleaseRepo(null, "repo\\win", true).kind);
         assertEquals(FormValidation.Kind.OK, descriptor.doCheckReleaseRepo(null, "libs-release-local", true).kind);
         assertEquals(FormValidation.Kind.OK, descriptor.doCheckReleaseRepo(null, "${MY_REPO}", true).kind);
-        // When Deploy Artifacts is off, the repo is no longer required.
         assertEquals(FormValidation.Kind.OK, descriptor.doCheckReleaseRepo(null, " ", false).kind);
     }
 

@@ -2,10 +2,17 @@ package io.jenkins.plugins.jfrog.maven;
 
 import org.junit.jupiter.api.Test;
 
+import org.jfrog.build.api.util.NullLog;
+import org.jfrog.build.extractor.clientConfiguration.ArtifactoryClientConfiguration;
+import org.jfrog.build.extractor.clientConfiguration.IncludeExcludePatterns;
+import org.jfrog.build.extractor.clientConfiguration.PatternMatcher;
+
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -106,5 +113,72 @@ class MavenNativeExtractorEnvironmentTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> MavenNativeExtractorEnvironment.requireMavenVersionForResolution(null));
         assertTrue(ex.getMessage().contains("could not determine"));
+    }
+
+    @Test
+    void publisherNeedsTargetRepoOnlyWhenDeployingArtifacts() {
+        assertTrue(MavenNativeExtractorEnvironment.publisherNeedsTargetRepo(true, false));
+        assertFalse(MavenNativeExtractorEnvironment.publisherNeedsTargetRepo(false, true));
+        assertTrue(MavenNativeExtractorEnvironment.publisherNeedsTargetRepo(true, true));
+        assertFalse(MavenNativeExtractorEnvironment.publisherNeedsTargetRepo(false, false));
+    }
+
+    @Test
+    void skipsDeployableArtifactsWhenNotDeployingOrPublishing() {
+        ArtifactoryClientConfiguration configuration = new ArtifactoryClientConfiguration(new NullLog());
+
+        MavenNativeExtractorEnvironment.applyPublisherArtifactFlags(configuration, false, false);
+        assertEquals(Boolean.FALSE, configuration.publisher.shouldAddDeployableArtifacts());
+        assertEquals(Boolean.FALSE, configuration.publisher.isPublishArtifacts());
+
+        MavenNativeExtractorEnvironment.applyPublisherArtifactFlags(configuration, false, true);
+        assertEquals(Boolean.FALSE, configuration.publisher.shouldAddDeployableArtifacts());
+        assertEquals(Boolean.FALSE, configuration.publisher.isPublishArtifacts());
+        assertEquals(Boolean.TRUE, configuration.publisher.isPublishBuildInfo());
+    }
+
+    @Test
+    void copiesJenkinsEnvVarsMatchingIncludePatternsAndSkipsSecrets() {
+        Map<String, String> env = new LinkedHashMap<>();
+        env.put("JFROG_IT_MARKER", "it-env-abc");
+        env.put("JFROG_IT_PASSWORD", "should-be-excluded");
+        env.put("UNRELATED", "no");
+
+        Map<String, String> captured = MavenNativeExtractorEnvironment.capturedJenkinsEnvVars(
+                env, "JFROG_IT_MARKER;GIT_*", "*password*;*psw*;*secret*;*key*;*token*;*auth*");
+
+        assertEquals("it-env-abc", captured.get("JFROG_IT_MARKER"));
+        assertFalse(captured.containsKey("JFROG_IT_PASSWORD"));
+        assertFalse(captured.containsKey("UNRELATED"));
+    }
+
+    @Test
+    void extractorEnvPatternsKeepPrefixedIncludeKeysAndDropSecrets() {
+        ArtifactoryClientConfiguration configuration = new ArtifactoryClientConfiguration(new NullLog());
+        Map<String, String> env = new LinkedHashMap<>();
+        env.put("JFROG_IT_MARKER", "it-env-abc");
+        env.put("JFROG_IT_PASSWORD", "should-be-excluded");
+
+        MavenNativeExtractorEnvironment.applyCapturedEnvVars(
+                configuration, env, "JFROG_IT_MARKER;GIT_*",
+                "*password*;*psw*;*secret*;*key*;*token*;*auth*");
+
+        assertEquals(Boolean.TRUE, configuration.isIncludeEnvVars());
+        assertTrue(configuration.getAllProperties().containsValue("it-env-abc"),
+                configuration.getAllProperties().toString());
+        assertFalse(configuration.getAllProperties().containsValue("should-be-excluded"),
+                configuration.getAllProperties().toString());
+
+        IncludeExcludePatterns extractorPatterns = new IncludeExcludePatterns(
+                configuration.getEnvVarsIncludePatterns(),
+                configuration.getEnvVarsExcludePatterns());
+        assertFalse(PatternMatcher.pathConflicts("buildInfo.env.JFROG_IT_MARKER", extractorPatterns),
+                configuration.getEnvVarsIncludePatterns());
+        assertFalse(PatternMatcher.pathConflicts("buildInfo.env.GIT_URL", extractorPatterns),
+                configuration.getEnvVarsIncludePatterns());
+        assertTrue(PatternMatcher.pathConflicts("buildInfo.env.UNRELATED", extractorPatterns),
+                configuration.getEnvVarsIncludePatterns());
+        assertTrue(PatternMatcher.pathConflicts("buildInfo.env.JFROG_IT_PASSWORD", extractorPatterns),
+                configuration.getEnvVarsExcludePatterns());
     }
 }
