@@ -1,5 +1,7 @@
 package io.jenkins.plugins.jfrog.maven;
 
+import hudson.model.Action;
+import io.jenkins.plugins.jfrog.actions.BuildInfoBuildBadgeAction;
 import org.junit.jupiter.api.Test;
 
 import org.jfrog.build.api.util.NullLog;
@@ -89,6 +91,17 @@ class MavenNativeExtractorEnvironmentTest {
     void leavesPlatformUiBuildInfoUrlUnchanged() {
         String url = "https://bukgradlefix.jfrogdev.org/ui/builds/mvn-new-2/";
         assertEquals(url, MavenNativeExtractorEnvironment.toPlatformUiBuildInfoUrl(url));
+    }
+
+    @Test
+    void publishedBuildInfoActionUsesSameBadgeAndSidebarAsPipeline() {
+        String url = "https://example.jfrog.io/ui/builds/job/15";
+        Action action = MavenNativeExtractorEnvironment.publishedBuildInfoAction(url);
+
+        assertTrue(action instanceof BuildInfoBuildBadgeAction);
+        assertEquals("Artifactory Build Info", action.getDisplayName());
+        assertEquals("/plugin/jfrog/icons/artifactory-icon.png", action.getIconFileName());
+        assertEquals(url, action.getUrlName());
     }
 
     @Test

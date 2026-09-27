@@ -15,6 +15,7 @@ import hudson.model.Result;
 import hudson.model.TaskListener;
 import hudson.tasks.Maven;
 import io.jenkins.plugins.jfrog.CliEnvConfigurator;
+import io.jenkins.plugins.jfrog.actions.BuildInfoBuildBadgeAction;
 import io.jenkins.plugins.jfrog.configuration.Credentials;
 import io.jenkins.plugins.jfrog.configuration.CredentialsConfig;
 import io.jenkins.plugins.jfrog.configuration.FolderCredentialsResolver;
@@ -169,9 +170,8 @@ public class MavenNativeExtractorEnvironment extends Environment {
     private static final Pattern BUILD_INFO_URL_PATTERN = Pattern.compile("Browse it in Artifactory under (\\S+)");
 
     /**
-     * Shows a build-page summary link only when the extractor actually printed a publish URL.
-     * The extractor still emits {@code /artifactory/webapp/builds}; that is rewritten to
-     * {@code /ui/builds} so the link works on platform Artifactory.
+     * Same badge and sidebar link as pipeline/freestyle {@code jf rt bp}.
+     * No build-page summary block.
      */
     private void addBuildInfoAction(AbstractBuild build) {
         if (resolvedServer == null) {
@@ -185,7 +185,11 @@ public class MavenNativeExtractorEnvironment extends Environment {
         if (StringUtils.isBlank(url)) {
             return;
         }
-        build.addAction(new MavenBuildInfoAction(url));
+        build.addAction(publishedBuildInfoAction(url));
+    }
+
+    static hudson.model.Action publishedBuildInfoAction(String url) {
+        return new BuildInfoBuildBadgeAction(url);
     }
 
     private static String findPublishedBuildInfoUrl(AbstractBuild build) {
