@@ -23,12 +23,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MavenArtifactoryReporterTest {
 
     @Test
-    void deployArtifactsDefaultsTrueAndCanBeDisabled() {
+    void deployAndPublishBuildInfoDefaultOffAndCanBeEnabled() {
         MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
 
-        assertTrue(reporter.isDeployArtifacts());
-        reporter.setDeployArtifacts(false);
         assertFalse(reporter.isDeployArtifacts());
+        assertFalse(reporter.isPublishBuildInfo());
+        reporter.setDeployArtifacts(true);
+        reporter.setPublishBuildInfo(true);
+        assertTrue(reporter.isDeployArtifacts());
+        assertTrue(reporter.isPublishBuildInfo());
     }
 
     @Test

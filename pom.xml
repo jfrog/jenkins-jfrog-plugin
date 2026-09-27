@@ -11,7 +11,7 @@
     <properties>
         <jenkins.version>2.479.3</jenkins.version>
         <skipITs>true</skipITs>
-        <buildinfo.version>2.41.23</buildinfo.version>
+        <buildinfo.version>2.43.9</buildinfo.version>
         <hpi.bundledArtifacts>build-info-api,build-info-client,build-info-extractor,build-info-extractor-maven3,file-specs-java</hpi.bundledArtifacts>
     </properties>
     <groupId>io.jenkins.plugins</groupId>
@@ -122,6 +122,16 @@
                 <exclusion>
                     <groupId>org.apache.commons</groupId>
                     <artifactId>commons-compress</artifactId>
+                </exclusion>
+                <!-- Forked Maven already provides Aether/Resolver. Bundling aether-api on the
+                     Jenkins controller trips hpi.bundledArtifacts and can collide with core. -->
+                <exclusion>
+                    <groupId>org.eclipse.aether</groupId>
+                    <artifactId>aether-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.eclipse.aether</groupId>
+                    <artifactId>aether-impl</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>

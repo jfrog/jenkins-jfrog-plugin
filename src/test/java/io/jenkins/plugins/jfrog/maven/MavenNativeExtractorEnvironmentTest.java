@@ -70,12 +70,28 @@ class MavenNativeExtractorEnvironmentTest {
         assertTrue(MavenNativeExtractorEnvironment.parseDeploymentProperties("").isEmpty());
     }
 
+    @Test
+    void rewritesLegacyWebappBuildInfoUrlToPlatformUi() {
+        assertEquals(
+                "https://bukgradlefix.jfrogdev.org/ui/builds/mvn-new-1/37",
+                MavenNativeExtractorEnvironment.toPlatformUiBuildInfoUrl(
+                        "https://bukgradlefix.jfrogdev.org/artifactory/webapp/builds/mvn-new-1/37"));
+    }
+
+    @Test
+    void leavesPlatformUiBuildInfoUrlUnchanged() {
+        String url = "https://bukgradlefix.jfrogdev.org/ui/builds/mvn-new-2/";
+        assertEquals(url, MavenNativeExtractorEnvironment.toPlatformUiBuildInfoUrl(url));
+    }
 
     @Test
     void acceptsMavenVersionsCompatibleWithResolution() {
         assertDoesNotThrow(() -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.0.2"));
         assertDoesNotThrow(() -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.8.8"));
         assertDoesNotThrow(() -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.9.11"));
+        // 2.43.6+ extractor injects prerequisitesCheckers (build-info#841).
+        assertDoesNotThrow(() -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.9.12"));
+        assertDoesNotThrow(() -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.9.15"));
     }
 
     @Test
@@ -83,13 +99,6 @@ class MavenNativeExtractorEnvironmentTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.0.1"));
         assertTrue(ex.getMessage().contains("3.0.2"));
-    }
-
-    @Test
-    void rejectsMaven3912PlusWhenResolutionConfigured() {
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.9.12"));
-        assertTrue(ex.getMessage().contains("3.9.12"));
     }
 
     @Test

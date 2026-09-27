@@ -41,10 +41,9 @@ class MavenProjectITest extends PipelineTestBase {
     private static final String ARTIFACT_ID = "maven-native-it";
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    // Known-good per jfrog/build-info#841 (extractor NPEs on Maven 3.9.12+). Pinned and downloaded
-    // rather than relying on the ambient/system Maven, which is not guaranteed to be in range on a
-    // given CI runner or developer machine (e.g. GitHub Actions ships 3.9.12+ on its Linux image).
-    private static final String RESOLUTION_COMPATIBLE_MAVEN_VERSION = "3.9.9";
+    // Pinned above 3.9.12 so ITs cover extractor 2.43.9 (build-info#841). Downloaded rather than
+    // relying on the ambient Maven on a given CI runner.
+    private static final String RESOLUTION_COMPATIBLE_MAVEN_VERSION = "3.9.16";
     private static final String RESOLUTION_COMPATIBLE_MAVEN_TOOL_NAME = "resolution-compatible-maven";
 
     @Test
@@ -146,6 +145,34 @@ class MavenProjectITest extends PipelineTestBase {
     }
 
     @Test
+    public void testMavenProjectDeploysSnapshotToReleaseRepoWhenSnapshotRepoIsEmpty(JenkinsRule jenkins)
+            throws Exception {
+        setupJenkins(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
+
+        String version = "1.0.0-" + System.currentTimeMillis() + "-SNAPSHOT";
+        String buildName = "rteco-1662-maven-native-it-empty-snap";
+        String buildNumber = "it-" + System.currentTimeMillis();
+        String releaseRepoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
+        String snapshotRepoKey = getRepoKey(TestRepository.MAVEN_SNAPSHOT_REPO);
+        String jarPath = artifactPath(version, "jar");
+
+        MavenArtifactoryReporter reporter = nativeReporter(releaseRepoKey, buildName, buildNumber);
+        reporter.setSnapshotRepo("");
+
+        MavenModuleSet project = mavenNativeJob(jenkins, "maven-native-it-empty-snap", reporter, mavenPom(version));
+        jenkins.buildAndAssertSuccess(project);
+        try {
+            byte[] jar = downloadMavenArtifactAllowingUniqueSnapshots(releaseRepoKey, version, "jar");
+            assertTrue(jar.length > 0, "Empty Snapshot Repository should reuse Release Repository");
+            assertThrows(Exception.class, () -> downloadArtifact(snapshotRepoKey, jarPath),
+                    "Empty Snapshot Repository must not deploy to the dedicated snapshot repo");
+        } finally {
+            deleteBuildInfo(buildName, buildNumber);
+        }
+    }
+
+    @Test
     public void testMavenProjectAppliesDeploymentProperties(JenkinsRule jenkins) throws Exception {
         setupJenkins(jenkins);
         configureResolutionCompatibleMavenInstallation(jenkins);
@@ -218,9 +245,7 @@ class MavenProjectITest extends PipelineTestBase {
     @Test
     public void testMavenProjectResolvesDependenciesFromArtifactory(JenkinsRule jenkins) throws Exception {
         setupJenkins(jenkins);
-        // Resolve Repository requires a Maven version the extractor doesn't NPE on (jfrog/build-info#841
-        // rejects 3.9.12+). The ambient/system Maven on a given CI runner or developer machine is not
-        // guaranteed to be in range - download a known-compatible version instead of relying on it.
+        // Download a known Maven rather than relying on whatever is ambient on the CI runner.
         configureResolutionCompatibleMavenInstallation(jenkins);
 
         String depVersion = "1.0.0-resolve-" + System.currentTimeMillis();
@@ -424,6 +449,45 @@ class MavenProjectITest extends PipelineTestBase {
     }
 
     @Test
+    public void testMavenProjectResolvesSnapshotsFromResolveRepoWhenResolveSnapshotRepoIsEmpty(JenkinsRule jenkins)
+            throws Exception {
+        setupJenkins(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
+
+        String depVersion = "1.0.0-" + System.currentTimeMillis() + "-SNAPSHOT";
+        String depGroup = GROUP_ID;
+        String depArtifact = "maven-native-resolve-empty-snapshot-dep";
+        String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
+        String resolveRepoKey = getRepoKey(TestRepository.MAVEN_VIRTUAL_REPO);
+
+        // Virtual includes local, not the dedicated snapshot repo. Empty Resolve Snapshot
+        // Repository must reuse Resolve Repository so this seeded snapshot is found.
+        uploadMavenArtifact(repoKey, depGroup, depArtifact, depVersion);
+
+        String version = "1.0.0-" + System.currentTimeMillis();
+        String buildName = "rteco-1662-maven-native-it-resolve-empty-snap";
+        String buildNumber = "it-" + System.currentTimeMillis();
+
+        MavenArtifactoryReporter reporter = nativeReporter(repoKey, buildName, buildNumber);
+        reporter.setResolveRepo(resolveRepoKey);
+        reporter.setResolveSnapshotRepo("");
+
+        MavenModuleSet project = mavenNativeJob(jenkins, "maven-native-it-resolve-empty-snap", reporter,
+                mavenPomWithDependency(version, depGroup, depArtifact, depVersion));
+        MavenModuleSetBuild build = jenkins.buildAndAssertSuccess(project);
+        String log = build.getLog();
+        assertTrue(log.contains("resolving dependencies from '" + resolveRepoKey + "' (snapshots: '"
+                + resolveRepoKey + "')"), log);
+        try {
+            JsonNode published = downloadBuildInfo(buildName, buildNumber);
+            JsonNode modules = published.path("modules");
+            assertTrue(modules.isArray() && modules.size() > 0, "Published build-info has no modules: " + published);
+        } finally {
+            deleteBuildInfo(buildName, buildNumber);
+        }
+    }
+
+    @Test
     public void testMavenProjectWithoutReporterDoesNotEnableNativeCapture(JenkinsRule jenkins) throws Exception {
         setupJenkins(jenkins);
         configureResolutionCompatibleMavenInstallation(jenkins);
@@ -449,6 +513,7 @@ class MavenProjectITest extends PipelineTestBase {
         reporter.setResolveServerId(TEST_CONFIGURED_SERVER_ID);
         reporter.setResolveRepo(getRepoKey(TestRepository.MAVEN_VIRTUAL_REPO));
         reporter.setDeployArtifacts(true);
+        reporter.setPublishBuildInfo(true);
         reporter.setBuildName(buildName);
         reporter.setBuildNumber(buildNumber);
         return reporter;
@@ -633,6 +698,36 @@ class MavenProjectITest extends PipelineTestBase {
     private static byte[] downloadArtifact(String repoKey, String path) throws Exception {
         try (InputStream in = getArtifactoryClient().repository(repoKey).download(path).doDownload()) {
             return in.readAllBytes();
+        }
+    }
+
+    /**
+     * Local Maven repos often store unique timestamped snapshot files. Artifactory may still serve
+     * the {@code -SNAPSHOT} path; if not, pick the timestamped jar from the GAV folder.
+     */
+    private static byte[] downloadMavenArtifactAllowingUniqueSnapshots(String repoKey, String version, String extension)
+            throws Exception {
+        String path = artifactPath(version, extension);
+        try {
+            return downloadArtifact(repoKey, path);
+        } catch (Exception first) {
+            String dir = GROUP_ID.replace('.', '/') + "/" + ARTIFACT_ID + "/" + version;
+            ArtifactoryResponse response = getArtifactoryClient().restCall(new ArtifactoryRequestImpl()
+                    .method(ArtifactoryRequest.Method.GET)
+                    .responseType(ArtifactoryRequest.ContentType.JSON)
+                    .apiUrl("api/storage/" + repoKey + "/" + dir));
+            if (!response.isSuccessResponse()) {
+                throw first;
+            }
+            JsonNode children = MAPPER.readTree(response.getRawBody()).path("children");
+            String suffix = "." + extension;
+            for (JsonNode child : children) {
+                String uri = child.path("uri").asText();
+                if (uri.endsWith(suffix) && uri.contains(ARTIFACT_ID) && !uri.contains("-sources")) {
+                    return downloadArtifact(repoKey, dir + uri);
+                }
+            }
+            throw first;
         }
     }
 

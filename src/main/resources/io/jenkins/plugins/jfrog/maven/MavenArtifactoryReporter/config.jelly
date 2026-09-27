@@ -21,7 +21,7 @@
             <f:select checkDependsOn="deployArtifacts publishBuildInfo"/>
         </f:entry>
         <f:optionalBlock field="deployArtifacts" title="Deploy Artifacts"
-                          checked="${h.defaultToTrue(instance.deployArtifacts)}" inline="true">
+                          checked="${instance.deployArtifacts}" inline="true">
             <f:entry title="Release Repository" field="releaseRepo"
                      description="Repository for release artifacts. Suggestions come from the deploy server.">
                 <f:combobox checkDependsOn="serverId"/>
@@ -49,7 +49,7 @@
 
     <f:section title="Build info">
         <f:optionalBlock field="publishBuildInfo" title="Capture and publish build info"
-                          checked="${h.defaultToTrue(instance.publishBuildInfo)}" inline="true">
+                          checked="${instance.publishBuildInfo}" inline="true">
             <f:entry title="JFrog Project" field="project"
                      description="Optional. JFrog Platform project key (same as jf --project).">
                 <f:textbox />

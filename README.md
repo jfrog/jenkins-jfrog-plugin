@@ -396,12 +396,13 @@ keep working.
 1. Configure a JFrog Platform instance under **Manage Jenkins → System**.
 2. Open a **Maven Project** job → **Build Settings** → **JFrog Artifactory for Maven**.
 3. Set **JFrog Resolve Server** and **Resolve Repository** (required). Snapshot repo is optional.
-4. Under **Deployment**, select a server and repositories if you want artifacts deployed. Check
-   **Capture and publish build info** only if you want build info published.
+4. Under **Deployment**, select a server and repositories and check **Deploy Artifacts** if you
+   want artifacts deployed. Check **Capture and publish build info** if you want build info
+   published. Both are off until you enable them.
 
-Deploy and resolve servers are independent (no fallback). Resolution requires Maven 3.0.2–3.9.11
-([build-info#841](https://github.com/jfrog/build-info/issues/841) on 3.9.12+). Empty Maven Goals
-still count as Jenkins' default `install`. Goals such as `clean package` skip deploy/build-info.
+Deploy and resolve servers are independent (no fallback). Resolution requires Maven 3.0.2 or
+higher. Empty Maven Goals still count as Jenkins' default `install`. Goals such as `clean package`
+skip deploy/build-info.
 
 CLI **Publish JFrog Build Info** still runs unless native capture is actually publishing build info.
 

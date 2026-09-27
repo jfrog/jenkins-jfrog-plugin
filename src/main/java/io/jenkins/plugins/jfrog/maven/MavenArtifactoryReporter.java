@@ -50,7 +50,7 @@ public class MavenArtifactoryReporter extends MavenReporter {
     private String resolveRepo;
     private String resolveSnapshotRepo;
     private String resolveServerId;
-    private boolean deployArtifacts = true;
+    private boolean deployArtifacts;
     private boolean captureEnvVars;
     private String envVarsIncludePatterns;
     private String envVarsExcludePatterns;
@@ -61,7 +61,7 @@ public class MavenArtifactoryReporter extends MavenReporter {
     private String buildName;
     private String buildNumber;
     private boolean captureVcs;
-    private boolean publishBuildInfo = true;
+    private boolean publishBuildInfo;
 
     @DataBoundConstructor
     public MavenArtifactoryReporter() {

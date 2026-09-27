@@ -77,9 +77,11 @@ public class PluginDependencyHelper {
                 continue;
             }
             try (InputStream in = classLoader.getResourceAsStream(EXTRACTOR_LIB_RESOURCE + "/" + jarName)) {
-                if (in != null) {
-                    remoteJar.copyFrom(in);
+                if (in == null) {
+                    throw new IOException("Missing extractor jar on the plugin classpath: " +
+                            EXTRACTOR_LIB_RESOURCE + "/" + jarName);
                 }
+                remoteJar.copyFrom(in);
             }
         }
     }

@@ -167,7 +167,8 @@ public class MavenNativeExtractorEnvironment extends Environment {
 
     /**
      * Shows a build-page summary link only when the extractor actually printed a publish URL.
-     * Reconstructing {@code /ui/builds/<name>/<number>} is wrong for folder jobs and JFrog projects.
+     * The extractor still emits {@code /artifactory/webapp/builds}; that is rewritten to
+     * {@code /ui/builds} so the link works on platform Artifactory.
      */
     private void addBuildInfoAction(AbstractBuild build) {
         if (resolvedServer == null) {
@@ -191,13 +192,24 @@ public class MavenNativeExtractorEnvironment extends Environment {
             while ((line = reader.readLine()) != null) {
                 Matcher matcher = BUILD_INFO_URL_PATTERN.matcher(line);
                 if (matcher.find()) {
-                    return matcher.group(1);
+                    return toPlatformUiBuildInfoUrl(matcher.group(1));
                 }
             }
         } catch (IOException ignored) {
             // Best-effort only; no console log to scan yet is not an error.
         }
         return null;
+    }
+
+    /**
+     * Maven extractor still logs the Artifactory 6 UI ({@code /artifactory/webapp/builds}).
+     * Platform instances serve the same build at {@code /ui/builds}.
+     */
+    static String toPlatformUiBuildInfoUrl(String browseUrl) {
+        if (StringUtils.isBlank(browseUrl)) {
+            return browseUrl;
+        }
+        return browseUrl.replace("/artifactory/webapp/builds/", "/ui/builds/");
     }
 
     private ArtifactoryClientConfiguration buildClientConfiguration(JFrogPlatformInstance server, EnvVars env)
@@ -339,7 +351,7 @@ public class MavenNativeExtractorEnvironment extends Environment {
      */
     static void requireMavenVersionForResolution(String version) {
         if (StringUtils.isBlank(version)) {
-            throw fail("could not determine the Maven version. Resolving from Artifactory requires Maven 3.0.2–3.9.11.");
+            throw fail("could not determine the Maven version. Resolving from Artifactory requires Maven 3.0.2 or higher.");
         }
         assertMavenVersionSupportsResolution(version);
     }
@@ -394,12 +406,6 @@ public class MavenNativeExtractorEnvironment extends Environment {
         if (found.compareTo(minimum) < 0) {
             throw fail("resolving dependencies from Artifactory requires Maven 3.0.2 or higher. Detected: " +
                     version + ".");
-        }
-        ComparableVersion brokenFrom = new ComparableVersion("3.9.12");
-        if (found.compareTo(brokenFrom) >= 0) {
-            throw fail("resolving dependencies from Artifactory is not compatible with Maven " + version +
-                    " (extractor PluginManager NPE on 3.9.12+; see jfrog/build-info#841). " +
-                    "Use Maven 3.8.x or 3.9.0–3.9.11.");
         }
     }
 
@@ -489,7 +495,7 @@ public class MavenNativeExtractorEnvironment extends Environment {
 
     /**
      * Injects extractor jars into Maven's plexus.core realm after verifying that the Maven version
-     * supports the Artifactory resolver overrides (build-info#841).
+     * is at least 3.0.2.
      */
     @hudson.Extension(optional = true)
     public static class ArtifactoryPlexusContributor extends PlexusModuleContributorFactory {
