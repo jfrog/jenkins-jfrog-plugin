@@ -4,9 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hudson.maven.MavenModuleSet;
 import hudson.maven.MavenModuleSetBuild;
+import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.tasks.Maven;
+import io.jenkins.plugins.jfrog.JfrogBuildInfoPublisher;
 import io.jenkins.plugins.jfrog.maven.MavenArtifactoryReporter;
-import org.apache.commons.lang3.StringUtils;
 import org.jfrog.artifactory.client.ArtifactoryRequest;
 import org.jfrog.artifactory.client.ArtifactoryResponse;
 import org.jfrog.artifactory.client.impl.ArtifactoryRequestImpl;
@@ -49,7 +50,7 @@ class MavenProjectITest extends PipelineTestBase {
     @Test
     public void testMavenProjectPublishesBuildInfoAndArtifacts(JenkinsRule jenkins) throws Exception {
         setupJenkins(jenkins);
-        configureMavenInstallation(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
 
         String version = "1.0.0-" + System.currentTimeMillis();
         String buildName = "rteco-1662-maven-native-it";
@@ -57,17 +58,12 @@ class MavenProjectITest extends PipelineTestBase {
         String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
         String moduleId = GROUP_ID + ":" + ARTIFACT_ID + ":" + version;
         String jarName = ARTIFACT_ID + "-" + version + ".jar";
-        String jarPath = GROUP_ID.replace('.', '/') + "/" + ARTIFACT_ID + "/" + version + "/" + jarName;
+        String jarPath = artifactPath(version, "jar");
 
-        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
-        reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
-        reporter.setReleaseRepo(repoKey);
-        reporter.setDeployArtifacts(true);
-        reporter.setBuildName(buildName);
-        reporter.setBuildNumber(buildNumber);
+        MavenArtifactoryReporter reporter = nativeReporter(repoKey, buildName, buildNumber);
 
         MavenModuleSet project = jenkins.createProject(MavenModuleSet.class, "maven-native-it");
-        project.setMaven("default-maven");
+        project.setMaven(RESOLUTION_COMPATIBLE_MAVEN_TOOL_NAME);
         // build-info-extractor-maven3 skips deploy/publish unless goals include install or deploy.
         project.setGoals("-B -DskipTests clean install");
         project.setDisableTriggerDownstreamProjects(true);
@@ -75,6 +71,7 @@ class MavenProjectITest extends PipelineTestBase {
         project.setUsePrivateRepository(true);
         project.setScm(new SingleFileSCM("pom.xml", mavenPom(version)));
         project.getReporters().add(reporter);
+        project.getPublishersList().add(new JfrogBuildInfoPublisher());
 
         MavenModuleSetBuild build = jenkins.buildAndAssertSuccess(project);
         String log = build.getLog();
@@ -82,6 +79,7 @@ class MavenProjectITest extends PipelineTestBase {
         assertTrue(log.contains("server: " + TEST_CONFIGURED_SERVER_ID), log);
         assertTrue(log.contains("repo: " + repoKey), log);
         assertTrue(log.contains("deployArtifacts: true"), log);
+        assertTrue(log.contains("Skipping CLI publish for Maven Project jobs"), log);
         assertFalse(log.contains("-DPROPERTIES_FILE_KEY="), log);
         assertFalse(log.contains("-DPROPERTIES_FILE_KEY_IV="), log);
 
@@ -112,26 +110,20 @@ class MavenProjectITest extends PipelineTestBase {
     @Test
     public void testMavenProjectDeploysReleaseAndSnapshotToSeparateRepos(JenkinsRule jenkins) throws Exception {
         setupJenkins(jenkins);
-        configureMavenInstallation(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
 
         String version = "1.0.0-SNAPSHOT";
         String buildName = "rteco-1662-maven-native-it-snapshot";
         String buildNumber = "it-" + System.currentTimeMillis();
         String releaseRepoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
         String snapshotRepoKey = getRepoKey(TestRepository.MAVEN_SNAPSHOT_REPO);
-        String jarName = ARTIFACT_ID + "-" + version + ".jar";
-        String jarPath = GROUP_ID.replace('.', '/') + "/" + ARTIFACT_ID + "/" + version + "/" + jarName;
+        String jarPath = artifactPath(version, "jar");
 
-        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
-        reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
-        reporter.setReleaseRepo(releaseRepoKey);
+        MavenArtifactoryReporter reporter = nativeReporter(releaseRepoKey, buildName, buildNumber);
         reporter.setSnapshotRepo(snapshotRepoKey);
-        reporter.setDeployArtifacts(true);
-        reporter.setBuildName(buildName);
-        reporter.setBuildNumber(buildNumber);
 
         MavenModuleSet project = jenkins.createProject(MavenModuleSet.class, "maven-native-it-snapshot");
-        project.setMaven("default-maven");
+        project.setMaven(RESOLUTION_COMPATIBLE_MAVEN_TOOL_NAME);
         project.setGoals("-B -DskipTests clean install");
         project.setDisableTriggerDownstreamProjects(true);
         project.setIsArchivingDisabled(true);
@@ -156,25 +148,19 @@ class MavenProjectITest extends PipelineTestBase {
     @Test
     public void testMavenProjectAppliesDeploymentProperties(JenkinsRule jenkins) throws Exception {
         setupJenkins(jenkins);
-        configureMavenInstallation(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
 
         String version = "1.0.0-" + System.currentTimeMillis();
         String buildName = "rteco-1662-maven-native-it-props";
         String buildNumber = "it-" + System.currentTimeMillis();
         String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
-        String jarPath = GROUP_ID.replace('.', '/') + "/" + ARTIFACT_ID + "/" + version + "/"
-                + ARTIFACT_ID + "-" + version + ".jar";
+        String jarPath = artifactPath(version, "jar");
 
-        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
-        reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
-        reporter.setReleaseRepo(repoKey);
-        reporter.setDeployArtifacts(true);
-        reporter.setBuildName(buildName);
-        reporter.setBuildNumber(buildNumber);
+        MavenArtifactoryReporter reporter = nativeReporter(repoKey, buildName, buildNumber);
         reporter.setDeploymentProperties("status=staging;region=us");
 
         MavenModuleSet project = jenkins.createProject(MavenModuleSet.class, "maven-native-it-props");
-        project.setMaven("default-maven");
+        project.setMaven(RESOLUTION_COMPATIBLE_MAVEN_TOOL_NAME);
         project.setGoals("-B -DskipTests clean install");
         project.setDisableTriggerDownstreamProjects(true);
         project.setIsArchivingDisabled(true);
@@ -195,26 +181,20 @@ class MavenProjectITest extends PipelineTestBase {
     @Test
     public void testMavenProjectExcludesArtifactsMatchingPattern(JenkinsRule jenkins) throws Exception {
         setupJenkins(jenkins);
-        configureMavenInstallation(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
 
         String version = "1.0.0-" + System.currentTimeMillis();
         String buildName = "rteco-1662-maven-native-it-exclude";
         String buildNumber = "it-" + System.currentTimeMillis();
         String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
-        String basePath = GROUP_ID.replace('.', '/') + "/" + ARTIFACT_ID + "/" + version + "/";
-        String jarPath = basePath + ARTIFACT_ID + "-" + version + ".jar";
-        String pomPath = basePath + ARTIFACT_ID + "-" + version + ".pom";
+        String jarPath = artifactPath(version, "jar");
+        String pomPath = artifactPath(version, "pom");
 
-        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
-        reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
-        reporter.setReleaseRepo(repoKey);
-        reporter.setDeployArtifacts(true);
-        reporter.setBuildName(buildName);
-        reporter.setBuildNumber(buildNumber);
+        MavenArtifactoryReporter reporter = nativeReporter(repoKey, buildName, buildNumber);
         reporter.setArtifactExcludePatterns("*.pom");
 
         MavenModuleSet project = jenkins.createProject(MavenModuleSet.class, "maven-native-it-exclude");
-        project.setMaven("default-maven");
+        project.setMaven(RESOLUTION_COMPATIBLE_MAVEN_TOOL_NAME);
         project.setGoals("-B -DskipTests clean install");
         project.setDisableTriggerDownstreamProjects(true);
         project.setIsArchivingDisabled(true);
@@ -261,16 +241,8 @@ class MavenProjectITest extends PipelineTestBase {
         String buildName = "rteco-1662-maven-native-it-resolve";
         String buildNumber = "it-" + System.currentTimeMillis();
 
-        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
-        reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
-        reporter.setReleaseRepo(repoKey);
-        // JFrog Resolve Server is required and independent - no fallback to serverId above.
-        // Setting Resolve Repository enables resolution (no separate checkbox needed).
-        reporter.setResolveServerId(TEST_CONFIGURED_SERVER_ID);
+        MavenArtifactoryReporter reporter = nativeReporter(repoKey, buildName, buildNumber);
         reporter.setResolveRepo(resolveRepoKey);
-        reporter.setDeployArtifacts(true);
-        reporter.setBuildName(buildName);
-        reporter.setBuildNumber(buildNumber);
 
         MavenModuleSet project = jenkins.createProject(MavenModuleSet.class, "maven-native-it-resolve");
         project.setMaven(RESOLUTION_COMPATIBLE_MAVEN_TOOL_NAME);
@@ -294,14 +266,210 @@ class MavenProjectITest extends PipelineTestBase {
         }
     }
 
-    private static void configureMavenInstallation(JenkinsRule jenkins) {
-        String mavenHome = resolveMavenHome();
-        if (StringUtils.isBlank(mavenHome)) {
-            fail("Could not resolve a Maven installation. Set maven.home, MAVEN_HOME, or M2_HOME.");
+    @Test
+    public void testMavenProjectIncludesOnlyMatchingArtifacts(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
+
+        String version = "1.0.0-" + System.currentTimeMillis();
+        String buildName = "rteco-1662-maven-native-it-include";
+        String buildNumber = "it-" + System.currentTimeMillis();
+        String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
+
+        MavenArtifactoryReporter reporter = nativeReporter(repoKey, buildName, buildNumber);
+        reporter.setArtifactIncludePatterns("*.jar");
+
+        MavenModuleSet project = mavenNativeJob(jenkins, "maven-native-it-include", reporter, mavenPom(version));
+        jenkins.buildAndAssertSuccess(project);
+        try {
+            byte[] jar = downloadArtifact(repoKey, artifactPath(version, "jar"));
+            assertTrue(jar.length > 0, "Downloaded jar is empty");
+            assertThrows(Exception.class, () -> downloadArtifact(repoKey, artifactPath(version, "pom")),
+                    "The .pom was outside the include pattern and should not have been deployed");
+        } finally {
+            deleteBuildInfo(buildName, buildNumber);
         }
-        Maven.MavenInstallation installation =
-                new Maven.MavenInstallation("default-maven", mavenHome, Collections.emptyList());
-        jenkins.jenkins.getDescriptorByType(Maven.DescriptorImpl.class).setInstallations(installation);
+    }
+
+    @Test
+    public void testMavenProjectDoesNotDeployWhenDeployArtifactsIsFalse(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
+
+        String version = "1.0.0-" + System.currentTimeMillis();
+        String buildName = "rteco-1662-maven-native-it-no-deploy";
+        String buildNumber = "it-" + System.currentTimeMillis();
+        String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
+
+        MavenArtifactoryReporter reporter = nativeReporter(repoKey, buildName, buildNumber);
+        reporter.setDeployArtifacts(false);
+
+        MavenModuleSet project = mavenNativeJob(jenkins, "maven-native-it-no-deploy", reporter, mavenPom(version));
+        jenkins.buildAndAssertSuccess(project);
+        try {
+            JsonNode published = downloadBuildInfo(buildName, buildNumber);
+            assertEquals(buildName, published.path("name").asText());
+            assertThrows(Exception.class, () -> downloadArtifact(repoKey, artifactPath(version, "jar")),
+                    "deployArtifacts=false should not upload the jar");
+        } finally {
+            deleteBuildInfo(buildName, buildNumber);
+        }
+    }
+
+    @Test
+    public void testMavenProjectDoesNotPublishBuildInfoWhenDisabled(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
+
+        String version = "1.0.0-" + System.currentTimeMillis();
+        String buildName = "rteco-1662-maven-native-it-no-bi";
+        String buildNumber = "it-" + System.currentTimeMillis();
+        String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
+
+        MavenArtifactoryReporter reporter = nativeReporter(repoKey, buildName, buildNumber);
+        reporter.setPublishBuildInfo(false);
+
+        MavenModuleSet project = mavenNativeJob(jenkins, "maven-native-it-no-bi", reporter, mavenPom(version));
+        MavenModuleSetBuild build = jenkins.buildAndAssertSuccess(project);
+        assertFalse(build.getLog().contains("Skipping CLI publish for Maven Project jobs"), build.getLog());
+        try {
+            byte[] jar = downloadArtifact(repoKey, artifactPath(version, "jar"));
+            assertTrue(jar.length > 0, "Downloaded jar is empty");
+            assertBuildInfoMissing(buildName, buildNumber);
+        } finally {
+            deleteBuildInfo(buildName, buildNumber);
+        }
+    }
+
+    @Test
+    public void testMavenProjectCapturesEnvVarsAndVcs(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
+
+        String marker = "it-env-" + System.currentTimeMillis();
+        String vcsUrl = "https://example.com/maven-native-it.git";
+        String vcsRevision = "abc123def456";
+        String vcsBranch = "refs/heads/it";
+        jenkins.jenkins.getGlobalNodeProperties().add(new EnvironmentVariablesNodeProperty(
+                new EnvironmentVariablesNodeProperty.Entry("JFROG_IT_MARKER", marker),
+                new EnvironmentVariablesNodeProperty.Entry("JFROG_IT_PASSWORD", "should-be-excluded"),
+                new EnvironmentVariablesNodeProperty.Entry("GIT_URL", vcsUrl),
+                new EnvironmentVariablesNodeProperty.Entry("GIT_COMMIT", vcsRevision),
+                new EnvironmentVariablesNodeProperty.Entry("GIT_BRANCH", vcsBranch)));
+
+        String version = "1.0.0-" + System.currentTimeMillis();
+        String buildName = "rteco-1662-maven-native-it-meta";
+        String buildNumber = "it-" + System.currentTimeMillis();
+        String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
+
+        MavenArtifactoryReporter reporter = nativeReporter(repoKey, buildName, buildNumber);
+        reporter.setCaptureEnvVars(true);
+        reporter.setEnvVarsIncludePatterns("JFROG_IT_MARKER;GIT_*");
+        reporter.setEnvVarsExcludePatterns("*password*;*psw*;*secret*;*key*;*token*;*auth*");
+        reporter.setCaptureVcs(true);
+
+        MavenModuleSet project = mavenNativeJob(jenkins, "maven-native-it-meta", reporter, mavenPom(version));
+        jenkins.buildAndAssertSuccess(project);
+        try {
+            JsonNode published = downloadBuildInfo(buildName, buildNumber);
+            assertTrue(jsonTreeContains(published, marker),
+                    "Published build-info is missing captured env var " + marker + ": " + published);
+            assertFalse(jsonTreeContains(published, "should-be-excluded"),
+                    "Excluded secret env var leaked into build-info: " + published);
+            assertTrue(jsonTreeContains(published, vcsUrl), "Published build-info is missing VCS URL: " + published);
+            assertTrue(jsonTreeContains(published, vcsRevision),
+                    "Published build-info is missing VCS revision: " + published);
+            assertTrue(jsonTreeContains(published, vcsBranch),
+                    "Published build-info is missing VCS branch: " + published);
+        } finally {
+            deleteBuildInfo(buildName, buildNumber);
+        }
+    }
+
+    @Test
+    public void testMavenProjectResolvesSnapshotsFromSeparateRepo(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
+
+        String depVersion = "1.0.0-" + System.currentTimeMillis() + "-SNAPSHOT";
+        String depGroup = GROUP_ID;
+        String depArtifact = "maven-native-resolve-snapshot-dep";
+        String repoKey = getRepoKey(TestRepository.MAVEN_LOCAL_REPO);
+        String resolveRepoKey = getRepoKey(TestRepository.MAVEN_VIRTUAL_REPO);
+        String resolveSnapshotRepoKey = getRepoKey(TestRepository.MAVEN_SNAPSHOT_REPO);
+
+        uploadMavenArtifact(resolveSnapshotRepoKey, depGroup, depArtifact, depVersion);
+
+        String version = "1.0.0-" + System.currentTimeMillis();
+        String buildName = "rteco-1662-maven-native-it-resolve-snap";
+        String buildNumber = "it-" + System.currentTimeMillis();
+
+        MavenArtifactoryReporter reporter = nativeReporter(repoKey, buildName, buildNumber);
+        reporter.setResolveRepo(resolveRepoKey);
+        reporter.setResolveSnapshotRepo(resolveSnapshotRepoKey);
+
+        MavenModuleSet project = mavenNativeJob(jenkins, "maven-native-it-resolve-snap", reporter,
+                mavenPomWithDependency(version, depGroup, depArtifact, depVersion));
+        MavenModuleSetBuild build = jenkins.buildAndAssertSuccess(project);
+        String log = build.getLog();
+        assertTrue(log.contains("resolving dependencies from '" + resolveRepoKey + "' (snapshots: '"
+                + resolveSnapshotRepoKey + "')"), log);
+        try {
+            JsonNode published = downloadBuildInfo(buildName, buildNumber);
+            JsonNode modules = published.path("modules");
+            assertTrue(modules.isArray() && modules.size() > 0, "Published build-info has no modules: " + published);
+        } finally {
+            deleteBuildInfo(buildName, buildNumber);
+        }
+    }
+
+    @Test
+    public void testMavenProjectWithoutReporterDoesNotEnableNativeCapture(JenkinsRule jenkins) throws Exception {
+        setupJenkins(jenkins);
+        configureResolutionCompatibleMavenInstallation(jenkins);
+
+        String version = "1.0.0-" + System.currentTimeMillis();
+        MavenModuleSet project = jenkins.createProject(MavenModuleSet.class, "maven-legacy-no-reporter");
+        project.setMaven(RESOLUTION_COMPATIBLE_MAVEN_TOOL_NAME);
+        project.setGoals("-B -DskipTests clean install");
+        project.setDisableTriggerDownstreamProjects(true);
+        project.setIsArchivingDisabled(true);
+        project.setScm(new SingleFileSCM("pom.xml", mavenPom(version)));
+
+        MavenModuleSetBuild build = jenkins.buildAndAssertSuccess(project);
+        String log = build.getLog();
+        assertFalse(log.contains("[JFrog] Maven native capture enabled"), log);
+        assertFalse(log.contains("Skipping CLI publish for Maven Project jobs"), log);
+    }
+
+    private static MavenArtifactoryReporter nativeReporter(String releaseRepo, String buildName, String buildNumber) {
+        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
+        reporter.setServerId(TEST_CONFIGURED_SERVER_ID);
+        reporter.setReleaseRepo(releaseRepo);
+        reporter.setResolveServerId(TEST_CONFIGURED_SERVER_ID);
+        reporter.setResolveRepo(getRepoKey(TestRepository.MAVEN_VIRTUAL_REPO));
+        reporter.setDeployArtifacts(true);
+        reporter.setBuildName(buildName);
+        reporter.setBuildNumber(buildNumber);
+        return reporter;
+    }
+
+    private static MavenModuleSet mavenNativeJob(JenkinsRule jenkins, String name, MavenArtifactoryReporter reporter,
+                                                 String pom) throws Exception {
+        MavenModuleSet project = jenkins.createProject(MavenModuleSet.class, name);
+        project.setMaven(RESOLUTION_COMPATIBLE_MAVEN_TOOL_NAME);
+        project.setGoals("-B -DskipTests clean install");
+        project.setDisableTriggerDownstreamProjects(true);
+        project.setIsArchivingDisabled(true);
+        project.setUsePrivateRepository(true);
+        project.setScm(new SingleFileSCM("pom.xml", pom));
+        project.getReporters().add(reporter);
+        return project;
+    }
+
+    private static String artifactPath(String version, String extension) {
+        return GROUP_ID.replace('.', '/') + "/" + ARTIFACT_ID + "/" + version + "/"
+                + ARTIFACT_ID + "-" + version + "." + extension;
     }
 
     /**
@@ -352,37 +520,6 @@ class MavenProjectITest extends PipelineTestBase {
         }
         return installDir.toString();
     }
-
-    private static String resolveMavenHome() {
-        String mavenHome = System.getProperty("maven.home");
-        if (StringUtils.isNotBlank(mavenHome)) {
-            return mavenHome;
-        }
-        mavenHome = StringUtils.firstNonBlank(System.getenv("MAVEN_HOME"), System.getenv("M2_HOME"));
-        if (StringUtils.isNotBlank(mavenHome)) {
-            return mavenHome;
-        }
-        return detectMavenHomeFromCli();
-    }
-
-    private static String detectMavenHomeFromCli() {
-        try {
-            Process process = new ProcessBuilder("mvn", "-v").redirectErrorStream(true).start();
-            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            if (process.waitFor() != 0) {
-                return null;
-            }
-            for (String line : output.split("\\R")) {
-                if (line.startsWith("Maven home:")) {
-                    return line.substring("Maven home:".length()).trim();
-                }
-            }
-        } catch (Exception ignored) {
-            // Fall through to the missing-installation assertion.
-        }
-        return null;
-    }
-
 
     private static void uploadMavenArtifact(String repoKey, String groupId, String artifactId, String version)
             throws Exception {
@@ -453,6 +590,44 @@ class MavenProjectITest extends PipelineTestBase {
         JsonNode buildInfo = root.path("buildInfo");
         assertFalse(buildInfo.isMissingNode(), "Response has no buildInfo: " + response.getRawBody());
         return buildInfo;
+    }
+
+    private static void assertBuildInfoMissing(String buildName, String buildNumber) throws Exception {
+        ArtifactoryResponse response = getArtifactoryClient().restCall(new ArtifactoryRequestImpl()
+                .method(ArtifactoryRequest.Method.GET)
+                .responseType(ArtifactoryRequest.ContentType.JSON)
+                .apiUrl("api/build/" + encode(buildName) + "/" + encode(buildNumber)));
+        if (!response.isSuccessResponse()) {
+            return;
+        }
+        JsonNode root = MAPPER.readTree(response.getRawBody());
+        assertTrue(root.path("buildInfo").isMissingNode(),
+                "publishBuildInfo=false still published build-info: " + response.getRawBody());
+    }
+
+    private static boolean jsonTreeContains(JsonNode node, String value) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return false;
+        }
+        if (node.isValueNode()) {
+            return node.asText().contains(value);
+        }
+        if (node.isObject()) {
+            var fields = node.fields();
+            while (fields.hasNext()) {
+                var entry = fields.next();
+                if (entry.getKey().contains(value) || jsonTreeContains(entry.getValue(), value)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        for (JsonNode child : node) {
+            if (jsonTreeContains(child, value)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static byte[] downloadArtifact(String repoKey, String path) throws Exception {

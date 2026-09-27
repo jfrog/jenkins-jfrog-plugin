@@ -31,13 +31,6 @@ class PluginDependencyHelperTest {
     }
 
     @Test
-    void shouldSkipJenkinsPluginJar() {
-        assertTrue(PluginDependencyHelper.shouldSkipJenkinsPluginJar("classes.jar"));
-        assertTrue(PluginDependencyHelper.shouldSkipJenkinsPluginJar("jfrog.jar"));
-        assertTrue(PluginDependencyHelper.shouldSkipJenkinsPluginJar("build-info-extractor-maven3-2.41.23.jar"));
-    }
-
-    @Test
     void readExtractorJarNamesReturnsOnlyJars() throws Exception {
         java.util.List<String> names = PluginDependencyHelper.readExtractorJarNames(
                 PluginDependencyHelper.class.getClassLoader());
@@ -52,7 +45,7 @@ class PluginDependencyHelperTest {
         java.util.List<String> names = PluginDependencyHelper.readExtractorJarNames(
                 PluginDependencyHelper.class.getClassLoader());
         String extractor = names.stream()
-                .filter(name -> name.startsWith("build-info-extractor-maven3-") && !name.endsWith("-no-resolver.jar"))
+                .filter(name -> name.startsWith("build-info-extractor-maven3-"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError(
                         "No full build-info-extractor-maven3 jar in jars.list: " + names));
@@ -72,34 +65,6 @@ class PluginDependencyHelperTest {
                 }
             }
             assertTrue(found, "Staged extractor jar must keep ArtifactoryEclipseArtifactResolver for Resolve Repository");
-        }
-    }
-
-    @Test
-    void stagedNoResolverJarExcludesResolverClasses() throws Exception {
-        java.util.List<String> names = PluginDependencyHelper.readExtractorJarNames(
-                PluginDependencyHelper.class.getClassLoader());
-        String extractor = names.stream()
-                .filter(name -> name.endsWith("-no-resolver.jar"))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("No no-resolver jar in jars.list: " + names));
-
-        String resource = PluginDependencyHelper.EXTRACTOR_LIB_RESOURCE + "/" + extractor;
-        try (InputStream in = PluginDependencyHelper.class.getClassLoader().getResourceAsStream(resource)) {
-            assertTrue(in != null, "Missing classpath resource " + resource);
-            boolean found = false;
-            try (ZipInputStream zip = new ZipInputStream(in)) {
-                ZipEntry entry;
-                while ((entry = zip.getNextEntry()) != null) {
-                    if ("org/jfrog/build/extractor/maven/resolver/ArtifactoryEclipseArtifactResolver.class"
-                            .equals(entry.getName())) {
-                        found = true;
-                        break;
-                    }
-                }
-            }
-            assertFalse(found, "No-resolver jar must not carry the Artifactory resolver overrides "
-                    + "(they NPE on Maven 3.9.12+ as soon as they are on the classpath - jfrog/build-info#841)");
         }
     }
 }

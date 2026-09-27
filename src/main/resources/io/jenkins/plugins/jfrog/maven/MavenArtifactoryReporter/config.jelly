@@ -1,81 +1,46 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
-    <f:entry>
-        <div>
-            <ul style="margin: 0; padding-left: 20px;">
-                <li>
-                    JFrog Artifactory Server is optional — required only when <strong>Deploy
-                    Artifacts</strong> or <strong>Capture and publish build info</strong> is
-                    checked. Leave it empty (and leave both of those unchecked) to use this action
-                    purely for dependency resolution (configure <strong>Resolve Repository</strong>
-                    below).
-                </li>
-                <li>
-                    When a server is set: requires the project's Maven Goals to include
-                    <strong>install</strong> or <strong>deploy</strong> — otherwise nothing is
-                    captured or published. An empty <strong>Goals and options</strong> field still
-                    counts as <strong>install</strong> (Jenkins' own default), so use an explicit
-                    goal like <strong>clean package</strong> if you want to skip deployment.
-                </li>
-                <li>
-                    Deploy (below) and Resolve (above) repositories are fully independent — set any
-                    combination. Resolving through Artifactory requires Maven <strong>3.0.2+</strong>.
-                </li>
-            </ul>
-        </div>
-    </f:entry>
-
     <f:section title="Dependency resolution">
         <f:entry title="JFrog Resolve Server" field="resolveServerId"
-                 description="Server to resolve dependencies from (independent of JFrog Artifactory Server under Deployment - no fallback between them, each must be selected explicitly). Leave empty to skip dependency resolution."
-                 help="/plugin/jfrog/help/maven/help-resolveServerId.html">
-            <f:select />
+                 description="Required. Server used to resolve Maven dependencies (independent of the deploy server).">
+            <f:select clazz="required" checkDependsOn="resolveRepo"/>
         </f:entry>
         <f:entry title="Resolve Repository" field="resolveRepo"
-                 description="Repository to resolve release dependencies from (e.g. a virtual repo like maven-virtual). Suggestions are fetched live from JFrog Resolve Server above - type freely if none appear. Leave empty to skip dependency resolution."
-                 help="/plugin/jfrog/help/maven/help-resolveRepo.html">
-            <f:combobox />
+                 description="Required. Virtual repository for release dependencies. Suggestions come from JFrog Resolve Server.">
+            <f:combobox clazz="required" checkDependsOn="resolveServerId"/>
         </f:entry>
         <f:entry title="Resolve Snapshot Repository" field="resolveSnapshotRepo"
-                 description="Optional. Repository for snapshot dependencies. Empty reuses Resolve Repository above."
-                 help="/plugin/jfrog/help/maven/help-resolveSnapshotRepo.html">
-            <f:combobox />
+                 description="Optional. Empty reuses Resolve Repository.">
+            <f:combobox checkDependsOn="resolveServerId"/>
         </f:entry>
     </f:section>
 
     <f:section title="Deployment">
         <f:entry title="JFrog Artifactory Server" field="serverId"
-                 description="Server to deploy to and/or publish build info to (Manage Jenkins → System). Required when Deploy Artifacts below or Capture and publish build info (under Build info) is checked. Independent of JFrog Resolve Server above - no fallback between them."
-                 help="/plugin/jfrog/help/maven/help-serverId.html">
-            <f:select />
+                 description="Required when Deploy Artifacts or Capture and publish build info is checked. Independent of JFrog Resolve Server.">
+            <f:select checkDependsOn="deployArtifacts publishBuildInfo"/>
         </f:entry>
         <f:optionalBlock field="deployArtifacts" title="Deploy Artifacts"
-                          checked="${h.defaultToTrue(instance.deployArtifacts)}" inline="true"
-                          help="/plugin/jfrog/help/maven/help-deployArtifacts.html">
+                          checked="${h.defaultToTrue(instance.deployArtifacts)}" inline="true">
             <f:entry title="Release Repository" field="releaseRepo"
-                     description="Repository for release artifacts (e.g. libs-release-local). Suggestions are fetched live from the server above - type freely if none appear."
-                     help="/plugin/jfrog/help/maven/help-releaseRepo.html">
-                <f:combobox />
+                     description="Repository for release artifacts. Suggestions come from the deploy server.">
+                <f:combobox checkDependsOn="serverId"/>
             </f:entry>
             <f:entry title="Snapshot Repository" field="snapshotRepo"
-                     description="Optional. Repository for snapshot artifacts. Empty reuses Release Repository above."
-                     help="/plugin/jfrog/help/maven/help-snapshotRepo.html">
-                <f:combobox />
+                     description="Optional. Empty reuses Release Repository.">
+                <f:combobox checkDependsOn="serverId"/>
             </f:entry>
             <f:advanced title="Extra settings">
                 <f:entry title="Artifact include patterns" field="artifactIncludePatterns"
-                         description="Optional. Ant-style patterns (e.g. *.jar,*.war) of artifacts to deploy. Empty deploys everything."
-                         help="/plugin/jfrog/help/maven/help-artifactIncludePatterns.html">
+                         description="Optional. Ant-style patterns of artifacts to deploy. Empty deploys everything.">
                     <f:textbox />
                 </f:entry>
                 <f:entry title="Artifact exclude patterns" field="artifactExcludePatterns"
-                         description="Optional. Ant-style patterns (e.g. *-tests.jar,*-javadoc.jar) of artifacts to skip. Applied after Include patterns, and automatically left out of the published build info too."
-                         help="/plugin/jfrog/help/maven/help-artifactExcludePatterns.html">
+                         description="Optional. Applied after include patterns; excluded artifacts are also omitted from build info.">
                     <f:textbox />
                 </f:entry>
                 <f:entry title="Deployment properties" field="deploymentProperties"
-                         description="Optional. key=value pairs separated by ';' (e.g. status=staging;region=us) attached to every deployed artifact."
-                         help="/plugin/jfrog/help/maven/help-deploymentProperties.html">
+                         description="Optional. key=value pairs separated by ';' attached to every deployed artifact.">
                     <f:textbox />
                 </f:entry>
             </f:advanced>
@@ -84,41 +49,35 @@
 
     <f:section title="Build info">
         <f:optionalBlock field="publishBuildInfo" title="Capture and publish build info"
-                          checked="${h.defaultToTrue(instance.publishBuildInfo)}" inline="true"
-                          help="/plugin/jfrog/help/maven/help-publishBuildInfo.html">
+                          checked="${h.defaultToTrue(instance.publishBuildInfo)}" inline="true">
             <f:entry title="JFrog Project" field="project"
-                     description="Optional. JFrog Platform Project key to associate this build with (same as jf's --project flag)."
-                     help="/plugin/jfrog/help/maven/help-project.html">
+                     description="Optional. JFrog Platform project key (same as jf --project).">
                 <f:textbox />
             </f:entry>
             <f:entry title="Build Name" field="buildName"
-                     description="Optional. Empty uses JFROG_CLI_BUILD_NAME or the Jenkins job name."
-                     help="/plugin/jfrog/help/maven/help-buildName.html">
+                     description="Optional. Empty uses JFROG_CLI_BUILD_NAME or the Jenkins job name.">
                 <f:textbox />
             </f:entry>
             <f:entry title="Build Number" field="buildNumber"
-                     description="Optional. Empty uses JFROG_CLI_BUILD_NUMBER or the Jenkins build number."
-                     help="/plugin/jfrog/help/maven/help-buildNumber.html">
+                     description="Optional. Empty uses JFROG_CLI_BUILD_NUMBER or the Jenkins build number.">
                 <f:textbox />
             </f:entry>
             <f:entry title="Capture environment variables" field="captureEnvVars"
-                     description="Include selected environment variables in the published build info."
-                     help="/plugin/jfrog/help/maven/help-captureEnvVars.html">
+                     description="Include selected environment variables in the published build info.">
                 <f:checkbox />
             </f:entry>
             <f:advanced title="Extra settings">
                 <f:entry title="Include patterns" field="envVarsIncludePatterns"
-                         description="Optional. Wildcard patterns separated by ';' (e.g. BUILD_*;JOB_*) of env var names to include. Defaults to * (all) when captured.">
+                         description="Optional. Wildcard patterns separated by ';'. Defaults to * when captured.">
                     <f:textbox />
                 </f:entry>
                 <f:entry title="Exclude patterns" field="envVarsExcludePatterns"
-                         description="Optional. Wildcard patterns separated by ';' of env var names to always exclude, checked after Include patterns. Defaults to filtering out *password*, *secret*, *key*, *token*, *auth*, etc.">
+                         description="Optional. Applied after include patterns. Defaults to *password*;*secret*;*key*;*token*;*auth*.">
                     <f:textbox />
                 </f:entry>
             </f:advanced>
             <f:entry title="Capture Git info" field="captureVcs"
-                     description="Include the Git commit, URL, and branch (from GIT_COMMIT/GIT_URL/GIT_BRANCH) in the published build info's VCS section."
-                     help="/plugin/jfrog/help/maven/help-captureVcs.html">
+                     description="Include GIT_COMMIT, GIT_URL, and GIT_BRANCH in build info VCS.">
                 <f:checkbox />
             </f:entry>
         </f:optionalBlock>

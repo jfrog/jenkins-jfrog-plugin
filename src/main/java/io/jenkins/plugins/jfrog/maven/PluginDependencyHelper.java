@@ -18,8 +18,6 @@ import java.util.List;
 
 /**
  * Copies Maven-extractor jars onto the build node so the forked Maven JVM can load them.
- * Jackson/Commons for that JVM live under {@code maven-extractor-lib/}, not as extra
- * Jenkins-side {@code WEB-INF/lib} copies.
  */
 public class PluginDependencyHelper {
 
@@ -29,7 +27,7 @@ public class PluginDependencyHelper {
     private PluginDependencyHelper() {
     }
 
-    public static FilePath getActualDependencyDirectory(File localDependencyFile, FilePath rootPath)
+    public static FilePath getActualDependencyDirectory(FilePath rootPath)
             throws IOException, InterruptedException {
         if (rootPath == null) {
             throw new IOException("Cannot copy JFrog Maven extractor jars: build node root is not available");
@@ -42,7 +40,6 @@ public class PluginDependencyHelper {
 
         FilePath remoteDependencyMark = new FilePath(remoteDependencyDir, "done");
         if (!remoteDependencyMark.exists()) {
-            copyWebInfJars(localDependencyFile, remoteDependencyDir);
             copyExtractorLibResources(remoteDependencyDir);
             remoteDependencyMark.touch(currentTime);
         }
@@ -62,12 +59,6 @@ public class PluginDependencyHelper {
         return pluginVersion;
     }
 
-    static boolean shouldSkipJenkinsPluginJar(String name) {
-        return "classes.jar".equals(name)
-                || "jfrog.jar".equals(name)
-                || name.startsWith("build-info-extractor-maven3-");
-    }
-
     private static String resolvePluginVersion() {
         Jenkins jenkins = Jenkins.getInstanceOrNull();
         if (jenkins == null || jenkins.getPluginManager() == null) {
@@ -75,24 +66,6 @@ public class PluginDependencyHelper {
         }
         PluginWrapper plugin = jenkins.getPluginManager().getPlugin("jfrog");
         return plugin == null ? null : plugin.getVersion();
-    }
-
-    private static void copyWebInfJars(File localDependencyFile, FilePath remoteDependencyDir)
-            throws IOException, InterruptedException {
-        File localDependencyDir = localDependencyFile == null ? null : localDependencyFile.getParentFile();
-        File[] localDependencies = localDependencyDir == null ? null : localDependencyDir.listFiles();
-        if (localDependencies == null) {
-            return;
-        }
-        for (File localDependency : localDependencies) {
-            if (shouldSkipJenkinsPluginJar(localDependency.getName())) {
-                continue;
-            }
-            FilePath remote = new FilePath(remoteDependencyDir, localDependency.getName());
-            if (!remote.exists()) {
-                new FilePath(localDependency).copyTo(remote);
-            }
-        }
     }
 
     private static void copyExtractorLibResources(FilePath remoteDependencyDir)

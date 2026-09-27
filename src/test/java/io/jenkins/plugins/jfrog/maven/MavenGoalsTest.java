@@ -15,9 +15,14 @@ class MavenGoalsTest {
     }
 
     @Test
+    void blankGoalsCountAsJenkinsDefaultInstall() {
+        assertTrue(MavenGoals.allowsArtifactoryPublish(null));
+        assertTrue(MavenGoals.allowsArtifactoryPublish(""));
+        assertTrue(MavenGoals.allowsArtifactoryPublish("   "));
+    }
+
+    @Test
     void rejectsGoalsThatExtractorWouldSkip() {
-        assertFalse(MavenGoals.allowsArtifactoryPublish(null));
-        assertFalse(MavenGoals.allowsArtifactoryPublish(""));
         assertFalse(MavenGoals.allowsArtifactoryPublish("clean package"));
         assertFalse(MavenGoals.allowsArtifactoryPublish("clean verify"));
     }

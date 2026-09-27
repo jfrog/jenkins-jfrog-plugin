@@ -91,4 +91,11 @@ class MavenNativeExtractorEnvironmentTest {
                 () -> MavenNativeExtractorEnvironment.assertMavenVersionSupportsResolution("3.9.12"));
         assertTrue(ex.getMessage().contains("3.9.12"));
     }
+
+    @Test
+    void failsClosedWhenMavenVersionCannotBeDetected() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> MavenNativeExtractorEnvironment.requireMavenVersionForResolution(null));
+        assertTrue(ex.getMessage().contains("could not determine"));
+    }
 }

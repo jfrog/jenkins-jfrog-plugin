@@ -30,6 +30,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -66,182 +67,91 @@ public class MavenArtifactoryReporter extends MavenReporter {
     public MavenArtifactoryReporter() {
     }
 
-    public String getServerId() {
-        return serverId;
-    }
+    public String getServerId() { return serverId; }
+    @DataBoundSetter public void setServerId(String serverId) { this.serverId = serverId; }
 
-    @DataBoundSetter
-    public void setServerId(String serverId) {
-        this.serverId = serverId;
-    }
+    public String getReleaseRepo() { return releaseRepo; }
+    @DataBoundSetter public void setReleaseRepo(String releaseRepo) { this.releaseRepo = releaseRepo; }
 
-    public String getReleaseRepo() {
-        return releaseRepo;
-    }
+    public String getSnapshotRepo() { return snapshotRepo; }
+    @DataBoundSetter public void setSnapshotRepo(String snapshotRepo) { this.snapshotRepo = snapshotRepo; }
 
-    @DataBoundSetter
-    public void setReleaseRepo(String releaseRepo) {
-        this.releaseRepo = releaseRepo;
-    }
+    public String getResolveRepo() { return resolveRepo; }
+    @DataBoundSetter public void setResolveRepo(String resolveRepo) { this.resolveRepo = resolveRepo; }
 
-    public String getSnapshotRepo() {
-        return snapshotRepo;
-    }
-
-    @DataBoundSetter
-    public void setSnapshotRepo(String snapshotRepo) {
-        this.snapshotRepo = snapshotRepo;
-    }
-
-    public String getResolveRepo() {
-        return resolveRepo;
-    }
-
-    @DataBoundSetter
-    public void setResolveRepo(String resolveRepo) {
-        this.resolveRepo = resolveRepo;
-    }
-
-    public String getResolveSnapshotRepo() {
-        return resolveSnapshotRepo;
-    }
-
+    public String getResolveSnapshotRepo() { return resolveSnapshotRepo; }
     @DataBoundSetter
     public void setResolveSnapshotRepo(String resolveSnapshotRepo) {
         this.resolveSnapshotRepo = resolveSnapshotRepo;
     }
 
-    public String getResolveServerId() {
-        return resolveServerId;
-    }
+    public String getResolveServerId() { return resolveServerId; }
+    @DataBoundSetter public void setResolveServerId(String resolveServerId) { this.resolveServerId = resolveServerId; }
 
-    @DataBoundSetter
-    public void setResolveServerId(String resolveServerId) {
-        this.resolveServerId = resolveServerId;
-    }
+    public boolean isDeployArtifacts() { return deployArtifacts; }
+    @DataBoundSetter public void setDeployArtifacts(boolean deployArtifacts) { this.deployArtifacts = deployArtifacts; }
 
-    public boolean isDeployArtifacts() {
-        return deployArtifacts;
-    }
+    public boolean isCaptureEnvVars() { return captureEnvVars; }
+    @DataBoundSetter public void setCaptureEnvVars(boolean captureEnvVars) { this.captureEnvVars = captureEnvVars; }
 
-    @DataBoundSetter
-    public void setDeployArtifacts(boolean deployArtifacts) {
-        this.deployArtifacts = deployArtifacts;
-    }
-
-    public boolean isCaptureEnvVars() {
-        return captureEnvVars;
-    }
-
-    @DataBoundSetter
-    public void setCaptureEnvVars(boolean captureEnvVars) {
-        this.captureEnvVars = captureEnvVars;
-    }
-
-    public String getEnvVarsIncludePatterns() {
-        return envVarsIncludePatterns;
-    }
-
+    public String getEnvVarsIncludePatterns() { return envVarsIncludePatterns; }
     @DataBoundSetter
     public void setEnvVarsIncludePatterns(String envVarsIncludePatterns) {
         this.envVarsIncludePatterns = envVarsIncludePatterns;
     }
 
-    public String getEnvVarsExcludePatterns() {
-        return envVarsExcludePatterns;
-    }
-
+    public String getEnvVarsExcludePatterns() { return envVarsExcludePatterns; }
     @DataBoundSetter
     public void setEnvVarsExcludePatterns(String envVarsExcludePatterns) {
         this.envVarsExcludePatterns = envVarsExcludePatterns;
     }
 
-    public String getArtifactIncludePatterns() {
-        return artifactIncludePatterns;
-    }
-
+    public String getArtifactIncludePatterns() { return artifactIncludePatterns; }
     @DataBoundSetter
     public void setArtifactIncludePatterns(String artifactIncludePatterns) {
         this.artifactIncludePatterns = artifactIncludePatterns;
     }
 
-    public String getArtifactExcludePatterns() {
-        return artifactExcludePatterns;
-    }
-
+    public String getArtifactExcludePatterns() { return artifactExcludePatterns; }
     @DataBoundSetter
     public void setArtifactExcludePatterns(String artifactExcludePatterns) {
         this.artifactExcludePatterns = artifactExcludePatterns;
     }
 
-    public String getDeploymentProperties() {
-        return deploymentProperties;
-    }
-
+    public String getDeploymentProperties() { return deploymentProperties; }
     @DataBoundSetter
     public void setDeploymentProperties(String deploymentProperties) {
         this.deploymentProperties = deploymentProperties;
     }
 
-    public String getProject() {
-        return project;
-    }
+    public String getProject() { return project; }
+    @DataBoundSetter public void setProject(String project) { this.project = project; }
 
-    @DataBoundSetter
-    public void setProject(String project) {
-        this.project = project;
-    }
+    public String getBuildName() { return buildName; }
+    @DataBoundSetter public void setBuildName(String buildName) { this.buildName = buildName; }
 
-    public String getBuildName() {
-        return buildName;
-    }
+    public String getBuildNumber() { return buildNumber; }
+    @DataBoundSetter public void setBuildNumber(String buildNumber) { this.buildNumber = buildNumber; }
 
-    @DataBoundSetter
-    public void setBuildName(String buildName) {
-        this.buildName = buildName;
-    }
+    public boolean isCaptureVcs() { return captureVcs; }
+    @DataBoundSetter public void setCaptureVcs(boolean captureVcs) { this.captureVcs = captureVcs; }
 
-    public String getBuildNumber() {
-        return buildNumber;
-    }
+    public boolean isPublishBuildInfo() { return publishBuildInfo; }
+    @DataBoundSetter public void setPublishBuildInfo(boolean publishBuildInfo) { this.publishBuildInfo = publishBuildInfo; }
 
-    @DataBoundSetter
-    public void setBuildNumber(String buildNumber) {
-        this.buildNumber = buildNumber;
-    }
-
-    public boolean isCaptureVcs() {
-        return captureVcs;
-    }
-
-    @DataBoundSetter
-    public void setCaptureVcs(boolean captureVcs) {
-        this.captureVcs = captureVcs;
-    }
-
-    public boolean isPublishBuildInfo() {
-        return publishBuildInfo;
-    }
-
-    @DataBoundSetter
-    public void setPublishBuildInfo(boolean publishBuildInfo) {
-        this.publishBuildInfo = publishBuildInfo;
-    }
-
-    /**
-     * The server to deploy to and publish build info to.
-     */
     public JFrogPlatformInstance findDeployServer() {
         return findServer(serverId);
     }
 
     /**
-     * The server to resolve dependencies from. Independent of the deploy server (serverId) - no
-     * fallback; JFrog Resolve Server must be explicitly selected whenever Resolve Repository is
-     * used.
+     * Independent of the deploy server — no fallback between the two.
      */
     public JFrogPlatformInstance findResolveServer() {
         return findServer(resolveServerId);
+    }
+
+    public boolean publishesBuildInfoNatively() {
+        return publishBuildInfo && StringUtils.isNotBlank(serverId);
     }
 
     static JFrogPlatformInstance findServer(String id) {
@@ -259,63 +169,54 @@ public class MavenArtifactoryReporter extends MavenReporter {
     @Symbol("jfrogMavenArtifactory")
     public static final class DescriptorImpl extends MavenReporterDescriptor {
 
+        private static final HttpClient REPO_LIST_CLIENT = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+
         @Nonnull
         @Override
         public String getDisplayName() {
-            return "JFrog Artifactory (Maven Native Reporter)";
+            return "JFrog Artifactory for Maven";
         }
 
         @POST
         @SuppressWarnings("unused")
         public ListBoxModel doFillServerIdItems(@AncestorInPath Item item) {
-            checkConfigurePermission(item);
-            ListBoxModel items = new ListBoxModel();
-            items.add("— Select a server —", "");
-            List<JFrogPlatformInstance> instances = JFrogPlatformBuilder.getJFrogPlatformInstances();
-            if (instances != null) {
-                for (JFrogPlatformInstance instance : instances) {
-                    items.add(instance.getId(), instance.getId());
-                }
-            }
-            return items;
+            return fillServerItems(item);
         }
 
         @POST
         @SuppressWarnings("unused")
         public ComboBoxModel doFillReleaseRepoItems(@AncestorInPath Item item, @QueryParameter String serverId) {
-            checkConfigurePermission(item);
-            return listRepoKeys(item, serverId, "local");
+            return fillRepos(item, serverId, "local");
         }
 
         @POST
         @SuppressWarnings("unused")
         public ComboBoxModel doFillSnapshotRepoItems(@AncestorInPath Item item, @QueryParameter String serverId) {
-            checkConfigurePermission(item);
-            return listRepoKeys(item, serverId, "local");
+            return fillRepos(item, serverId, "local");
         }
 
         @POST
         @SuppressWarnings("unused")
         public ComboBoxModel doFillResolveRepoItems(@AncestorInPath Item item, @QueryParameter String resolveServerId) {
-            checkConfigurePermission(item);
-            return listRepoKeys(item, resolveServerId, "virtual");
+            return fillRepos(item, resolveServerId, "virtual");
         }
 
         @POST
         @SuppressWarnings("unused")
         public ComboBoxModel doFillResolveSnapshotRepoItems(@AncestorInPath Item item,
                                                              @QueryParameter String resolveServerId) {
+            return fillRepos(item, resolveServerId, "virtual");
+        }
+
+        private ComboBoxModel fillRepos(Item item, String serverId, String repoType) {
             checkConfigurePermission(item);
-            return listRepoKeys(item, resolveServerId, "virtual");
+            return listRepoKeys(item, serverId, repoType);
         }
 
         /**
-         * Lists Maven-package-type repository keys of the given {@code repoType} ("local" for
-         * deploy targets, "virtual" for resolution) from the given server, for the repo combo
-         * boxes above. Best-effort: an empty list on any failure (server not yet chosen or
-         * unresolvable, credentials not readable, network error) just leaves the combo box with no
-         * suggestions - {@code f:combobox} (unlike a strict dropdown) still accepts free typing, so
-         * users are never blocked from entering a repo key manually.
+         * Best-effort Maven repo suggestions. Failures leave the combobox empty; users can still type a key.
          */
         private static ComboBoxModel listRepoKeys(Item item, String serverId, String repoType) {
             ComboBoxModel keys = new ComboBoxModel();
@@ -331,7 +232,9 @@ public class MavenArtifactoryReporter extends MavenReporter {
                 String credentialsId = credentialsConfig.getCredentialsId();
                 String apiUrl = StringUtils.removeEnd(server.inferArtifactoryUrl(), "/") +
                         "/api/repositories?type=" + repoType;
-                HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(URI.create(apiUrl)).GET();
+                HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(URI.create(apiUrl))
+                        .timeout(Duration.ofSeconds(15))
+                        .GET();
                 StringCredentials accessTokenCredentials = PluginsUtils.accessTokenCredentialsLookup(credentialsId, item);
                 if (accessTokenCredentials != null) {
                     requestBuilder.header("Authorization", "Bearer " + accessTokenCredentials.getSecret().getPlainText());
@@ -344,8 +247,8 @@ public class MavenArtifactoryReporter extends MavenReporter {
                             ":" + credentials.getPlainTextPassword()).getBytes(StandardCharsets.UTF_8));
                     requestBuilder.header("Authorization", "Basic " + basicAuth);
                 }
-                HttpResponse<String> response = HttpClient.newHttpClient()
-                        .send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
+                HttpResponse<String> response = REPO_LIST_CLIENT.send(
+                        requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
                 if (response.statusCode() != 200) {
                     return keys;
                 }
@@ -357,8 +260,10 @@ public class MavenArtifactoryReporter extends MavenReporter {
                     }
                 }
                 keys.addAll(mavenRepoKeys);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             } catch (Exception ignored) {
-                // Best-effort only.
+                // Best-effort suggestions only; the combobox still accepts typed values.
             }
             return keys;
         }
@@ -370,12 +275,7 @@ public class MavenArtifactoryReporter extends MavenReporter {
                                                @QueryParameter boolean publishBuildInfo) {
             checkConfigurePermission(item);
             if (StringUtils.isBlank(value)) {
-                // Required whenever Deploy Artifacts or Capture and publish build info is checked -
-                // both need somewhere to deploy/publish to. Only optional when neither is checked
-                // (resolution-only use, matching the legacy plugin's posture of the deploy publisher
-                // being an entirely separate, optional block from the resolver wrapper). Deliberately
-                // NOT keyed off Resolve Repository (a different, earlier section) - keeping this
-                // check scoped to same-section sibling fields keeps live re-validation reliable.
+                // Required when deploying or publishing; optional for resolution-only jobs.
                 if (deployArtifacts || publishBuildInfo) {
                     List<JFrogPlatformInstance> instances = JFrogPlatformBuilder.getJFrogPlatformInstances();
                     if (instances == null || instances.isEmpty()) {
@@ -397,55 +297,35 @@ public class MavenArtifactoryReporter extends MavenReporter {
         public FormValidation doCheckReleaseRepo(@AncestorInPath Item item, @QueryParameter String value,
                                                   @QueryParameter boolean deployArtifacts) {
             checkConfigurePermission(item);
-            if (StringUtils.isBlank(value)) {
-                return deployArtifacts
-                        ? FormValidation.error("Repository must not be empty when Deploy Artifacts is enabled")
-                        : FormValidation.ok();
-            }
-            if (value.length() > MAX_FIELD_LENGTH) {
-                return FormValidation.error("Repository path too long");
-            }
-            if (value.contains("..") || value.contains("\\") || !value.matches(REPO_PATTERN)) {
-                return FormValidation.error("Repository may contain letters, digits, '.', '_', '-', '/', and ${ENV} only");
-            }
-            return FormValidation.ok();
+            return checkRepo(value, deployArtifacts
+                    ? "Repository must not be empty when Deploy Artifacts is enabled"
+                    : null);
         }
 
         @POST
         @SuppressWarnings("unused")
         public FormValidation doCheckResolveRepo(@AncestorInPath Item item, @QueryParameter String value) {
             checkConfigurePermission(item);
-            if (StringUtils.isBlank(value)) {
-                return FormValidation.ok();
-            }
-            if (value.length() > MAX_FIELD_LENGTH) {
-                return FormValidation.error("Repository path too long");
-            }
-            if (value.contains("..") || value.contains("\\") || !value.matches(REPO_PATTERN)) {
-                return FormValidation.error("Repository may contain letters, digits, '.', '_', '-', '/', and ${ENV} only");
-            }
-            return FormValidation.ok();
+            return checkRepo(value, "Resolve Repository is required.");
         }
 
         @POST
         @SuppressWarnings("unused")
         public FormValidation doCheckSnapshotRepo(@AncestorInPath Item item, @QueryParameter String value) {
             checkConfigurePermission(item);
-            return checkOptionalRepo(value);
+            return checkRepo(value, null);
         }
 
         @POST
         @SuppressWarnings("unused")
         public FormValidation doCheckResolveSnapshotRepo(@AncestorInPath Item item, @QueryParameter String value) {
             checkConfigurePermission(item);
-            return checkOptionalRepo(value);
+            return checkRepo(value, null);
         }
 
-        private static FormValidation checkOptionalRepo(String value) {
+        private static FormValidation checkRepo(String value, String emptyError) {
             if (StringUtils.isBlank(value)) {
-                // Optional: leaving it empty falls back to the corresponding release repo field
-                // (or, for resolve fields left entirely empty, to Maven's own settings.xml).
-                return FormValidation.ok();
+                return emptyError == null ? FormValidation.ok() : FormValidation.error(emptyError);
             }
             if (value.length() > MAX_FIELD_LENGTH) {
                 return FormValidation.error("Repository path too long");
@@ -459,6 +339,10 @@ public class MavenArtifactoryReporter extends MavenReporter {
         @POST
         @SuppressWarnings("unused")
         public ListBoxModel doFillResolveServerIdItems(@AncestorInPath Item item) {
+            return fillServerItems(item);
+        }
+
+        private ListBoxModel fillServerItems(Item item) {
             checkConfigurePermission(item);
             ListBoxModel items = new ListBoxModel();
             items.add("— Select a server —", "");
@@ -476,13 +360,9 @@ public class MavenArtifactoryReporter extends MavenReporter {
         public FormValidation doCheckResolveServerId(@AncestorInPath Item item, @QueryParameter String value,
                                                       @QueryParameter String resolveRepo) {
             checkConfigurePermission(item);
+            // resolveRepo is unused here but required so checkDependsOn re-runs this when the repo changes.
             if (StringUtils.isBlank(value)) {
-                // Required only when Resolve Repository has a value - i.e., when resolution is in use.
-                // No fallback to JFrog Artifactory Server; the two are entirely independent.
-                if (StringUtils.isNotBlank(resolveRepo)) {
-                    return FormValidation.error("JFrog Resolve Server must be selected when resolving dependencies.");
-                }
-                return FormValidation.ok();
+                return FormValidation.error("JFrog Resolve Server is required.");
             }
             if (findServer(value) == null) {
                 return FormValidation.error("Unknown JFrog Platform server: " + value);

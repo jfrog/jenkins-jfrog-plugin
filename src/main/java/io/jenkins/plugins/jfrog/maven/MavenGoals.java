@@ -12,7 +12,8 @@ final class MavenGoals {
 
     static boolean allowsArtifactoryPublish(String goals) {
         if (StringUtils.isBlank(goals)) {
-            return false;
+            // Jenkins Maven Project default for an empty Goals field is install.
+            return true;
         }
         for (String token : goals.split("\\s+")) {
             // Skip CLI options (e.g. -Dmaven.deploy.skip=true, -Pdeploy-profile) - only match an

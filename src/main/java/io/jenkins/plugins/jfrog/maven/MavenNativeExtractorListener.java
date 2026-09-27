@@ -44,31 +44,19 @@ public class MavenNativeExtractorListener extends RunListener<AbstractBuild> {
         return ((MavenModuleSetBuild) build).getProject().getReporters().get(MavenArtifactoryReporter.class);
     }
 
-    /**
-     * Passes the properties-file path as one {@code -D} token so workspace paths with spaces
-     * survive Jenkins Maven argument splitting. Encryption key/IV stay in the environment
-     * only — they must not appear on the {@code Executing Maven:} log line.
-     */
     static void addExtractorLaunchArguments(ArgumentListBuilder args, String propsPath) {
         if (StringUtils.isBlank(propsPath)) {
             return;
         }
+        // One -D token so workspace paths with spaces survive Maven argument splitting.
         args.add("-D" + BuildInfoConfigProperties.PROP_PROPS_FILE + "=" + propsPath);
         args.add("-D" + BuildInfoConfigProperties.ACTIVATE_RECORDER + "=true");
     }
 
     /**
-     * Jenkins Maven launches {@code java Maven35Main} and tokenizes job Maven opts on spaces.
-     * {@link ArgumentListBuilder#add(String)} keeps {@code -Dkey=value} as one token.
-     * <p>
-     * Holds the properties-file path set directly by {@link MavenNativeExtractorEnvironment}
-     * once it's resolved. {@code intercept()} deliberately does NOT call
-     * {@code build.getEnvironment()} to re-derive this - that call re-invokes every registered
-     * {@code Environment.buildEnvVars()} (including the one that populates this very path), which
-     * both duplicates a full environment resolution on every build and, worse, would silently
-     * swallow a configuration error {@code buildEnvVars()} is meant to fail the build on, since
-     * the re-invocation happens deep inside this class's own try/catch rather than Jenkins core's
-     * build-setup path.
+     * Holds the properties-file path set by {@link MavenNativeExtractorEnvironment}.
+     * {@code intercept()} must not call {@code build.getEnvironment()} — that re-invokes
+     * {@code buildEnvVars()} and can swallow a configuration error as a logged exception.
      */
     static final class MavenExtractorArguments extends InvisibleAction implements MavenArgumentInterceptorAction {
 

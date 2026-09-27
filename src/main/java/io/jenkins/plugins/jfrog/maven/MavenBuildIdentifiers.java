@@ -42,10 +42,8 @@ final class MavenBuildIdentifiers {
     }
 
     static String sanitizeBuildName(String jobName) {
-        // Keep '/' as-is for folder jobs (e.g. "myfolder/myapp") - CliEnvConfigurator uses the
-        // raw JOB_NAME env var for the same default, with no separator substitution. Migrating a
-        // folder job from the CLI publish path to this reporter must resolve to the same build
-        // name, or it silently starts a disconnected build-info history in Artifactory.
+        // Keep '/' for folder jobs (e.g. "myfolder/myapp") so CLI and native capture use the same
+        // Artifactory build name.
         if (StringUtils.isBlank(jobName)) {
             return "unknown-build";
         }

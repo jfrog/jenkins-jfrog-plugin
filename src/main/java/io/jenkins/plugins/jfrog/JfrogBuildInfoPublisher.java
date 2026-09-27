@@ -15,6 +15,7 @@ import hudson.tasks.Publisher;
 import hudson.util.ArgumentListBuilder;
 import hudson.util.ListBoxModel;
 import io.jenkins.plugins.jfrog.actions.JFrogCliConfigEncryption;
+import io.jenkins.plugins.jfrog.maven.MavenArtifactoryReporter;
 import io.jenkins.plugins.jfrog.maven.MavenNativeExtractorListener;
 import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.Symbol;
@@ -68,15 +69,14 @@ public class JfrogBuildInfoPublisher extends Notifier {
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
             throws InterruptedException, IOException {
-        // Only skip CLI publish when the native Maven reporter is actually configured.
-        // Existing Maven jobs that still rely on this publisher (without the new reporter)
-        // must keep publishing after upgrade. Also keep running when publishOnlyOnSuccess is
-        // explicitly false: that setting means the job wants a publish attempt even on a failed
-        // build, a guarantee the native reporter's in-process, goal-driven capture cannot
-        // replicate (it has no separate "did the overall build succeed" gate to honor).
+        // Skip CLI publish only when native capture will actually publish build info.
+        // Existing Maven jobs without this reporter, resolution-only jobs, and
+        // publishOnlyOnSuccess=false (publish even on failure) must still run CLI publish.
+        MavenArtifactoryReporter reporter = MavenNativeExtractorListener.findReporter(build);
         if (isMavenProjectJob(build.getProject().getClass())
                 && publishOnlyOnSuccess
-                && MavenNativeExtractorListener.findReporter(build) != null) {
+                && reporter != null
+                && reporter.publishesBuildInfoNatively()) {
             listener.getLogger().println("[JFrog Build Info] Skipping CLI publish for Maven Project jobs. " +
                     "Native Build Settings already publishes build info.");
             return true;

@@ -186,11 +186,9 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <!-- Official Maven3 extractor (RTECO-1662). Jenkins-side code only needs BuildInfoRecorder
-             for Which.jarFile(). generate-resources copies the full jar (including Artifactory
-             resolver classes) into maven-extractor-lib/ for the forked Maven JVM so Resolve
-             Repository works. Optional Maven Integration plugin is required only at runtime on
-             controllers that actually have Maven Project jobs. -->
+        <!-- Official Maven3 extractor (RTECO-1662). generate-resources copies the jar into
+             maven-extractor-lib/ for the forked Maven JVM. Optional Maven Integration plugin
+             is required only at runtime on controllers that have Maven Project jobs. -->
         <dependency>
             <groupId>org.jfrog.buildinfo</groupId>
             <artifactId>build-info-extractor-maven3</artifactId>
