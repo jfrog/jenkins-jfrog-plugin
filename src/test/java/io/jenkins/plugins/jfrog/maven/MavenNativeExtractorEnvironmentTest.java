@@ -1,5 +1,6 @@
 package io.jenkins.plugins.jfrog.maven;
 
+import hudson.FilePath;
 import hudson.model.Action;
 import io.jenkins.plugins.jfrog.actions.BuildInfoBuildBadgeAction;
 import org.junit.jupiter.api.Test;
@@ -9,12 +10,14 @@ import org.jfrog.build.extractor.clientConfiguration.ArtifactoryClientConfigurat
 import org.jfrog.build.extractor.clientConfiguration.IncludeExcludePatterns;
 import org.jfrog.build.extractor.clientConfiguration.PatternMatcher;
 
+import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -126,6 +129,17 @@ class MavenNativeExtractorEnvironmentTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> MavenNativeExtractorEnvironment.requireMavenVersionForResolution(null));
         assertTrue(ex.getMessage().contains("could not determine"));
+    }
+
+    @Test
+    void propertiesDirectoryPrefersNodeRootSoScmCheckoutCannotDeleteIt() {
+        FilePath nodeRoot = new FilePath(new File("/tmp/jfrog-node-root"));
+        FilePath workspace = new FilePath(new File("/tmp/jfrog-workspace"));
+
+        assertEquals(nodeRoot, MavenNativeExtractorEnvironment.propertiesDirectory(workspace, nodeRoot));
+        assertEquals(nodeRoot, MavenNativeExtractorEnvironment.propertiesDirectory(null, nodeRoot));
+        assertEquals(workspace, MavenNativeExtractorEnvironment.propertiesDirectory(workspace, null));
+        assertNull(MavenNativeExtractorEnvironment.propertiesDirectory(null, null));
     }
 
     @Test

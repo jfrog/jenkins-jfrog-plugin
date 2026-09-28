@@ -103,17 +103,29 @@ public class MavenNativeExtractorEnvironment extends Environment {
         }
 
         FilePath workspace = build.getWorkspace();
-        if (workspace == null) {
-            // Called again later in the build lifecycle once the workspace exists.
+        FilePath nodeRoot = null;
+        Node node = build.getBuiltOn();
+        if (node != null) {
+            nodeRoot = node.getRootPath();
+        }
+        FilePath propertiesDir = propertiesDirectory(workspace, nodeRoot);
+        if (propertiesDir == null) {
+            // Called again later in the build lifecycle once the node or workspace exists.
             return;
         }
 
         try {
+            if (propertiesFile != null && !propertiesFile.exists()) {
+                // First-build SCM checkout can wipe a file written during earlier env setup.
+                propertiesFile = null;
+                propertiesFileKey = null;
+                propertiesFileKeyIv = null;
+            }
             if (propertiesFile == null) {
                 // Must not call build.getEnvironment(listener) here — that re-invokes every
                 // Environment.buildEnvVars(), including this one, and recurses until the stack overflows.
                 ArtifactoryClientConfiguration configuration = buildClientConfiguration(server, new EnvVars(env));
-                propertiesFile = workspace.createTextTempFile("jfrog-buildinfo", ".properties", "");
+                propertiesFile = propertiesDir.createTextTempFile("jfrog-buildinfo", ".properties", "");
                 configuration.setPropertiesFile(propertiesFile.getRemote());
                 try (OutputStream out = propertiesFile.write()) {
                     EncryptionKeyPair keyPair = configuration.persistToEncryptedPropertiesFile(out);
@@ -135,7 +147,6 @@ public class MavenNativeExtractorEnvironment extends Environment {
                     build.getAction(MavenNativeExtractorListener.MavenExtractorArguments.class);
             if (extractorArguments != null) {
                 extractorArguments.setPropsPath(propsPath);
-                extractorArguments.setActivateRecorder(intendsToPublish);
             }
             if (StringUtils.isNotBlank(propertiesFileKey) && StringUtils.isNotBlank(propertiesFileKeyIv)) {
                 // Encryption key/IV stay in the environment, never on the Executing Maven: log line.
@@ -424,6 +435,17 @@ public class MavenNativeExtractorEnvironment extends Environment {
         }
     }
 
+    /**
+     * Keep the encrypted properties file on the node root. A first-build SCM checkout often
+     * replaces the workspace after env setup has already written the file there.
+     */
+    static FilePath propertiesDirectory(FilePath workspace, FilePath nodeRoot) {
+        if (nodeRoot != null) {
+            return nodeRoot;
+        }
+        return workspace;
+    }
+
     private static IllegalStateException fail(String message) {
         return fail(message, null);
     }
@@ -467,7 +489,12 @@ public class MavenNativeExtractorEnvironment extends Environment {
             if (StringUtils.isBlank(home)) {
                 return null;
             }
-            FilePath homePath = new FilePath(build.getWorkspace().getChannel(), home);
+            FilePath channelBase = propertiesDirectory(build.getWorkspace(),
+                    node != null ? node.getRootPath() : null);
+            if (channelBase == null) {
+                return null;
+            }
+            FilePath homePath = new FilePath(channelBase.getChannel(), home);
             FilePath[] coreJars = homePath.child("lib").list("maven-core-*.jar");
             if (coreJars == null || coreJars.length == 0) {
                 return null;

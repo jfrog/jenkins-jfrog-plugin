@@ -70,13 +70,10 @@ public class JfrogBuildInfoPublisher extends Notifier {
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
             throws InterruptedException, IOException {
         // Skip CLI publish only when native capture will actually publish build info.
-        // Existing Maven jobs without this reporter, resolution-only jobs, and
-        // publishOnlyOnSuccess=false (publish even on failure) must still run CLI publish.
-        MavenArtifactoryReporter reporter = MavenNativeExtractorListener.findReporter(build);
-        if (isMavenProjectJob(build.getProject().getClass())
-                && publishOnlyOnSuccess
-                && reporter != null
-                && reporter.publishesBuildInfoNatively()) {
+        // Detect Maven jobs by class name first so Freestyle never loads hudson.maven
+        // types (Maven Integration may be absent). Resolution-only jobs and
+        // publishOnlyOnSuccess=false must still run CLI publish.
+        if (publishOnlyOnSuccess && nativePublishWillRun(build)) {
             listener.getLogger().println("[JFrog Build Info] Skipping CLI publish for Maven Project jobs. " +
                     "Native Build Settings already publishes build info.");
             return true;
@@ -219,11 +216,7 @@ public class JfrogBuildInfoPublisher extends Notifier {
 
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> jobType) {
-            // Hidden on Maven Project jobs: deploy and publish live under Build Settings
-            // (MavenArtifactoryReporter). Freestyle still offers this post-build action.
-            // Already-saved publishers keep running; perform() no-ops when native
-            // capture is actually publishing.
-            return !isMavenProjectJob(jobType);
+            return true;
         }
 
         /**
@@ -248,11 +241,23 @@ public class JfrogBuildInfoPublisher extends Notifier {
     }
 
     /**
-     * Used to detect Maven Project jobs. Walks class names so this always-loaded publisher
-     * does not initialize Maven Integration. CLI publish is skipped only when a
-     * {@code MavenArtifactoryReporter} is also configured on the job.
+     * True when native Maven capture will publish build info for this run.
+     * Must not be inlined into {@link #perform}: resolving {@code MavenArtifactoryReporter}
+     * loads {@code hudson.maven} types, which are absent without Maven Integration.
      */
-    static boolean isMavenProjectJob(Class<?> jobType) {
+    private boolean nativePublishWillRun(AbstractBuild<?, ?> build) {
+        if (build == null || build.getProject() == null || !isMavenProjectJob(build.getProject().getClass())) {
+            return false;
+        }
+        MavenArtifactoryReporter reporter = MavenNativeExtractorListener.findReporter(build);
+        return reporter != null && reporter.publishesBuildInfoNatively();
+    }
+
+    /**
+     * Used to detect Maven Project jobs. Walks class names so always-loaded classes
+     * do not resolve Maven Integration types on Freestyle or Pipeline jobs.
+     */
+    public static boolean isMavenProjectJob(Class<?> jobType) {
         for (Class<?> type = jobType; type != null; type = type.getSuperclass()) {
             String name = type.getName();
             if ("hudson.maven.MavenModuleSet".equals(name) || "hudson.maven.MavenModule".equals(name)) {

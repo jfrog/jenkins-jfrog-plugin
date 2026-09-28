@@ -10,11 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JfrogBuildInfoPublisherTest {
 
     @Test
-    void isApplicableHidesPublisherOnMavenProjectJobs() throws Exception {
+    void isApplicableForFreestyleAndMavenProjectJobs() throws Exception {
         JfrogBuildInfoPublisher.DescriptorImpl descriptor = new JfrogBuildInfoPublisher.DescriptorImpl();
 
-        assertFalse(descriptor.isApplicable(mavenModuleSetClass()));
-        assertFalse(descriptor.isApplicable(mavenModuleClass()));
+        assertTrue(descriptor.isApplicable(mavenModuleSetClass()));
+        assertTrue(descriptor.isApplicable(mavenModuleClass()));
         assertTrue(descriptor.isApplicable(FreeStyleProject.class));
     }
 
