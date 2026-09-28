@@ -179,6 +179,11 @@ public class MavenNativeExtractorEnvironment extends Environment {
         return true;
     }
 
+    /**
+     * Pattern to extract build-info URLs logged by the Maven extractor.
+     * Uses a generic prefix that is version-independent and works across extractor versions.
+     * The URL is then converted to Platform UI format via {@link #toPlatformUiBuildInfoUrl(String)}.
+     */
     private static final Pattern BUILD_INFO_URL_PATTERN = Pattern.compile("Browse it in Artifactory under (\\S+)");
 
     /**
@@ -469,6 +474,16 @@ public class MavenNativeExtractorEnvironment extends Environment {
      * Reads maven-core-&lt;version&gt;.jar from the Maven tool home.
      * Do not pass an EnvVars obtained via {@code build.getEnvironment()} from inside
      * {@link #buildEnvVars(Map)} — that re-enters this Environment and recurses.
+     */
+    /**
+     * Detect the Maven version by inspecting maven-core-*.jar in the Maven home lib directory.
+     *
+     * <p><strong>Recursion Safety:</strong> When called from {@code PlexusModuleContributorFactory.createFor()},
+     * which is invoked during build environment setup before {@code buildEnvVars()} is called,
+     * the call to {@code build.getEnvironment(TaskListener.NULL)} here is safe.
+     * {@code PlexusModuleContributorFactory} runs after environment setup is complete but before
+     * the build launches, so it does not trigger a re-entrant call to {@code buildEnvVars()}.
+     * Always pass a pre-computed {@code EnvVars} to avoid calling {@code build.getEnvironment()} again.</p>
      */
     static String detectMavenVersion(AbstractBuild<?, ?> build, EnvVars env, TaskListener listener) {
         if (!(build instanceof MavenModuleSetBuild)) {

@@ -69,11 +69,12 @@ public class JfrogBuildInfoPublisher extends Notifier {
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
             throws InterruptedException, IOException {
-        // Skip CLI publish only when native capture will actually publish build info.
+        // Skip CLI publish only when native capture will actually publish build info AND
+        // we are not forcing publish on failure (publishOnlyOnSuccess=true).
         // Detect Maven jobs by class name first so Freestyle never loads hudson.maven
-        // types (Maven Integration may be absent). Resolution-only jobs and
-        // publishOnlyOnSuccess=false must still run CLI publish.
-        if (publishOnlyOnSuccess && nativePublishWillRun(build)) {
+        // types (Maven Integration may be absent). If publishOnlyOnSuccess=false,
+        // native reporter runs its post-build publish, so CLI must not also run to avoid double-publish.
+        if (nativePublishWillRun(build) && publishOnlyOnSuccess) {
             listener.getLogger().println("[JFrog Build Info] Skipping CLI publish for Maven Project jobs. " +
                     "Native Build Settings already publishes build info.");
             return true;

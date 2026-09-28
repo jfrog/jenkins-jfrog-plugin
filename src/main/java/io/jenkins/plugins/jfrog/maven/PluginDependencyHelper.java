@@ -39,9 +39,17 @@ public class PluginDependencyHelper {
         remoteDependencyDir.mkdirs();
 
         FilePath remoteDependencyMark = new FilePath(remoteDependencyDir, "done");
+        // Invalidate cache if:
+        // 1. The "done" mark does not exist (first extraction)
+        // 2. The cached plugin version differs from the current version (plugin was upgraded)
+        // This ensures plugin upgrades refresh cached extractor jars without time-dependency flakiness.
         if (!remoteDependencyMark.exists()) {
             copyExtractorLibResources(remoteDependencyDir);
-            remoteDependencyMark.touch(currentTime);
+            writeCacheVersionMark(remoteDependencyMark, rawVersion);
+        } else if (cacheVersionChanged(remoteDependencyMark, rawVersion)) {
+            deleteDirectoryContents(remoteDependencyDir);
+            copyExtractorLibResources(remoteDependencyDir);
+            writeCacheVersionMark(remoteDependencyMark, rawVersion);
         }
         if (isSnapshot) {
             remoteDependencyDir.act(new DeleteOnExitCallable());
@@ -49,8 +57,45 @@ public class PluginDependencyHelper {
         return remoteDependencyDir;
     }
 
+    private static void writeCacheVersionMark(FilePath mark, String version) {
+        try {
+            // Write the current plugin version to the mark file for future comparison
+            String content = StringUtils.defaultIfBlank(version, "unknown");
+            mark.write(content, StandardCharsets.UTF_8.name());
+        } catch (Exception e) {
+            // If we cannot write the mark, the cache will be invalidated on next run
+        }
+    }
+
+    private static boolean cacheVersionChanged(FilePath mark, String currentVersion) {
+        try {
+            String cachedVersion = mark.readToString();
+            String current = StringUtils.defaultIfBlank(currentVersion, "unknown");
+            // Invalidate if cached version differs from current version
+            return !current.equals(cachedVersion);
+        } catch (Exception e) {
+            // If we cannot read the mark, assume cache is stale
+            return true;
+        }
+    }
+
+    private static void deleteDirectoryContents(FilePath dir) {
+        try {
+            for (FilePath child : dir.list()) {
+                if (!child.getName().equals("done")) {
+                    child.delete();
+                }
+            }
+        } catch (IOException | InterruptedException e) {
+            // Ignore cleanup errors; we'll overwrite the files anyway
+        }
+    }
+
     static String cacheVersion(String pluginVersion, long timestamp) {
         if (StringUtils.isBlank(pluginVersion)) {
+            // When version is unknown, use a static marker. Version invalidation
+            // (cacheVersionChanged) will refresh the cache if the stored version differs
+            // from the current version. This eliminates time-dependency flakiness.
             return "unknown";
         }
         if (pluginVersion.contains(" ")) {
