@@ -21,11 +21,11 @@ public class CliEnvConfigurator {
     private static final Logger logger = Logger.getLogger(CliEnvConfigurator.class.getName());
     static final String JFROG_CLI_DEFAULT_EXCLUSIONS = "*password*;*psw*;*secret*;*key*;*token*;*auth*";
     static final String JFROG_CLI_ENCRYPTION_KEY = "JFROG_CLI_ENCRYPTION_KEY";
-    static final String JFROG_CLI_BUILD_NUMBER = "JFROG_CLI_BUILD_NUMBER";
+    public static final String JFROG_CLI_BUILD_NUMBER = "JFROG_CLI_BUILD_NUMBER";
     public static final String JFROG_CLI_HOME_DIR = "JFROG_CLI_HOME_DIR";
     static final String JFROG_CLI_ENV_EXCLUDE = "JFROG_CLI_ENV_EXCLUDE";
-    static final String JFROG_CLI_BUILD_NAME = "JFROG_CLI_BUILD_NAME";
-    static final String JFROG_CLI_BUILD_URL = "JFROG_CLI_BUILD_URL";
+    public static final String JFROG_CLI_BUILD_NAME = "JFROG_CLI_BUILD_NAME";
+    public static final String JFROG_CLI_BUILD_URL = "JFROG_CLI_BUILD_URL";
     static final String HTTPS_PROXY_ENV = "HTTPS_PROXY";
     static final String HTTP_PROXY_ENV = "HTTP_PROXY";
     static final String NO_PROXY = "NO_PROXY";
@@ -105,7 +105,7 @@ public class CliEnvConfigurator {
      * @param noProxy - A string representing the list of No Proxy Hosts.
      * @return A comma-separated string of No Proxy Hosts.
      */
-    static String createNoProxyValue(String noProxy) {
+    public static String createNoProxyValue(String noProxy) {
         if (StringUtils.isBlank(noProxy)) {
             return "";
         }

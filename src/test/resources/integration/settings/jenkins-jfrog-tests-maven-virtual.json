@@ -1,0 +1,6 @@
+{
+  "packageType": "maven",
+  "rclass": "virtual",
+  "repoLayoutRef": "maven-2-default",
+  "repositories": ["${MAVEN_LOCAL_REPO_KEY}", "${MAVEN_REMOTE_REPO_KEY}"]
+}

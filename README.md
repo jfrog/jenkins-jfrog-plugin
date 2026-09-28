@@ -24,6 +24,7 @@
     - [Publishing and accessing the build-info](#publishing-and-accessing-the-build-info)
     - [Capturing the output of JFrog CLI commands](#capturing-the-output-of-jfrog-cli-commands)
 - [Using JFrog CLI in Freestyle jobs](#using-jfrog-cli-in-freestyle-jobs)
+- [Using JFrog in Maven Project jobs](#using-jfrog-in-maven-project-jobs)
 - [Using HTTP/s proxy](#using-https-proxy)
 - [Jenkins Configuration as Code](#jenkins-configuration-as-code)
 - [Examples](#examples)
@@ -385,6 +386,23 @@ jf rt bp
 - Build info is automatically collected during `jf rt upload`, `jf mvn`, `jf gradle`, etc.
 - Make sure JFrog CLI is configured as a tool in Jenkins (Manage Jenkins → Global Tool Configuration)
 - The JFrog Platform instance must be configured in Jenkins (Manage Jenkins → Configure System)
+
+## Using JFrog in Maven Project jobs
+
+Native Maven Project support is an add-on. Pipeline and Freestyle jobs are unchanged. Requires the
+Jenkins **Maven Integration** plugin; without it the JFrog plugin still loads and those job types
+keep working.
+
+1. Configure a JFrog Platform instance under **Manage Jenkins → System**.
+2. Open a **Maven Project** job → **Build Settings** → **JFrog Artifactory for Maven**.
+3. Set **JFrog Resolve Server** and **Resolve Repository** (required). Snapshot repo is optional.
+4. Under **Deployment**, select a server and repositories and check **Deploy Artifacts** if you
+   want artifacts deployed. Check **Capture and publish build info** if you want build info
+   published. Both are off until you enable them.
+
+Deploy and resolve servers are independent (no fallback). Resolution requires Maven 3.0.2 or
+higher. Empty Maven Goals still count as Jenkins' default `install`. Goals such as `clean package`
+skip deploy/build-info.
 
 ## Using HTTP/S proxy
 

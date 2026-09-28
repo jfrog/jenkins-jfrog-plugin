@@ -1,0 +1,88 @@
+package io.jenkins.plugins.jfrog.maven;
+
+import hudson.Extension;
+import hudson.Launcher;
+import hudson.maven.MavenArgumentInterceptorAction;
+import hudson.maven.MavenModuleSetBuild;
+import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
+import hudson.model.Environment;
+import hudson.model.InvisibleAction;
+import hudson.model.listeners.RunListener;
+import hudson.util.ArgumentListBuilder;
+import io.jenkins.plugins.jfrog.JfrogBuildInfoPublisher;
+import org.apache.commons.lang3.StringUtils;
+import org.jfrog.build.api.BuildInfoConfigProperties;
+
+import java.io.IOException;
+
+/**
+ * Runs before Jenkins launches the forked Maven process. MavenReporter hooks are too late.
+ * {@code optional = true} does not skip this listener without Maven Integration because it
+ * extends {@link RunListener}. Freestyle must return before any {@code hudson.maven} type
+ * is resolved.
+ */
+@Extension(optional = true)
+@SuppressWarnings("rawtypes")
+public class MavenNativeExtractorListener extends RunListener<AbstractBuild> {
+
+    @Override
+    public Environment setUpEnvironment(AbstractBuild build, Launcher launcher, BuildListener listener)
+            throws IOException, InterruptedException {
+        if (build == null || build.getProject() == null
+                || !JfrogBuildInfoPublisher.isMavenProjectJob(build.getProject().getClass())) {
+            return null;
+        }
+        MavenArtifactoryReporter reporter = findReporter(build);
+        if (reporter == null) {
+            return null;
+        }
+        if (build.getAction(MavenExtractorArguments.class) == null) {
+            build.addAction(new MavenExtractorArguments());
+        }
+        return new MavenNativeExtractorEnvironment(build, reporter, listener);
+    }
+
+    public static MavenArtifactoryReporter findReporter(AbstractBuild build) {
+        if (!(build instanceof MavenModuleSetBuild)) {
+            return null;
+        }
+        return ((MavenModuleSetBuild) build).getProject().getReporters().get(MavenArtifactoryReporter.class);
+    }
+
+    static void addExtractorLaunchArguments(ArgumentListBuilder args, String propsPath) {
+        if (StringUtils.isBlank(propsPath)) {
+            return;
+        }
+        // One -D token so workspace paths with spaces survive Maven argument splitting.
+        args.add("-D" + BuildInfoConfigProperties.PROP_PROPS_FILE + "=" + propsPath);
+        // Do not pass ACTIVATE_RECORDER here. That flag lives in the encrypted properties file
+        // with repo keys and deploy flags. A command-line true turns the recorder on even when
+        // Maven cannot decrypt the file, which yields "Target repository cannot be empty".
+    }
+
+    /**
+     * Holds the properties-file path set by {@link MavenNativeExtractorEnvironment}.
+     * {@code intercept()} must not call {@code build.getEnvironment()} — that re-invokes
+     * {@code buildEnvVars()} and can swallow a configuration error as a logged exception.
+     */
+    static final class MavenExtractorArguments extends InvisibleAction implements MavenArgumentInterceptorAction {
+
+        private volatile String propsPath;
+
+        void setPropsPath(String propsPath) {
+            this.propsPath = propsPath;
+        }
+
+        @Override
+        public String getGoalsAndOptions(MavenModuleSetBuild build) {
+            return null;
+        }
+
+        @Override
+        public ArgumentListBuilder intercept(ArgumentListBuilder args, MavenModuleSetBuild build) {
+            addExtractorLaunchArguments(args, propsPath);
+            return args;
+        }
+    }
+}

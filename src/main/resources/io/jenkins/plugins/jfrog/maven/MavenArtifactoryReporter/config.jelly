@@ -1,0 +1,85 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:section title="Dependency resolution">
+        <f:entry title="JFrog Resolve Server" field="resolveServerId"
+                 description="Required. Server used to resolve Maven dependencies (independent of the deploy server).">
+            <f:select clazz="required" checkDependsOn="resolveRepo"/>
+        </f:entry>
+        <f:entry title="Resolve Repository" field="resolveRepo"
+                 description="Required. Virtual repository for release dependencies. Suggestions come from JFrog Resolve Server.">
+            <f:combobox clazz="required" checkDependsOn="resolveServerId"/>
+        </f:entry>
+        <f:entry title="Resolve Snapshot Repository" field="resolveSnapshotRepo"
+                 description="Optional. Empty reuses Resolve Repository.">
+            <f:combobox checkDependsOn="resolveServerId"/>
+        </f:entry>
+    </f:section>
+
+    <f:section title="Deployment">
+        <f:entry title="JFrog Artifactory Server" field="serverId"
+                 description="Required when Deploy Artifacts or Capture and publish build info is checked. Independent of JFrog Resolve Server.">
+            <f:select checkDependsOn="deployArtifacts publishBuildInfo"/>
+        </f:entry>
+        <f:optionalBlock field="deployArtifacts" title="Deploy Artifacts"
+                          checked="${instance.deployArtifacts}" inline="true">
+            <f:entry title="Release Repository" field="releaseRepo"
+                     description="Required. Repository for release artifacts. Suggestions come from the deploy server.">
+                <f:combobox checkDependsOn="serverId"/>
+            </f:entry>
+            <f:entry title="Snapshot Repository" field="snapshotRepo"
+                     description="Optional. Empty reuses Release Repository.">
+                <f:combobox checkDependsOn="serverId"/>
+            </f:entry>
+            <f:advanced title="Extra settings">
+                <f:entry title="Artifact include patterns" field="artifactIncludePatterns"
+                         description="Optional. Ant-style patterns of artifacts to deploy. Empty deploys everything.">
+                    <f:textbox />
+                </f:entry>
+                <f:entry title="Artifact exclude patterns" field="artifactExcludePatterns"
+                         description="Optional. Applied after include patterns; excluded artifacts are also omitted from build info.">
+                    <f:textbox />
+                </f:entry>
+                <f:entry title="Deployment properties" field="deploymentProperties"
+                         description="Optional. key=value pairs separated by ';' attached to every deployed artifact.">
+                    <f:textbox />
+                </f:entry>
+            </f:advanced>
+        </f:optionalBlock>
+    </f:section>
+
+    <f:section title="Build info">
+        <f:optionalBlock field="publishBuildInfo" title="Capture and publish build info"
+                          checked="${instance.publishBuildInfo}" inline="true">
+            <f:entry title="JFrog Project" field="project"
+                     description="Optional. JFrog Platform project key (same as jf --project).">
+                <f:textbox />
+            </f:entry>
+            <f:entry title="Build Name" field="buildName"
+                     description="Optional. Empty uses JFROG_CLI_BUILD_NAME or the Jenkins job name.">
+                <f:textbox />
+            </f:entry>
+            <f:entry title="Build Number" field="buildNumber"
+                     description="Optional. Empty uses JFROG_CLI_BUILD_NUMBER or the Jenkins build number.">
+                <f:textbox />
+            </f:entry>
+            <f:entry title="Capture environment variables" field="captureEnvVars"
+                     description="Include selected environment variables in the published build info.">
+                <f:checkbox />
+            </f:entry>
+            <f:advanced title="Extra settings">
+                <f:entry title="Include patterns" field="envVarsIncludePatterns"
+                         description="Optional. Wildcard patterns separated by ';'. Defaults to * when captured.">
+                    <f:textbox />
+                </f:entry>
+                <f:entry title="Exclude patterns" field="envVarsExcludePatterns"
+                         description="Optional. Applied after include patterns. Defaults to *password*;*secret*;*key*;*token*;*auth*.">
+                    <f:textbox />
+                </f:entry>
+            </f:advanced>
+            <f:entry title="Capture Git info" field="captureVcs"
+                     description="Include GIT_COMMIT, GIT_URL, and GIT_BRANCH in build info VCS.">
+                <f:checkbox />
+            </f:entry>
+        </f:optionalBlock>
+    </f:section>
+</j:jelly>
