@@ -44,13 +44,15 @@ public class MavenNativeExtractorListener extends RunListener<AbstractBuild> {
         return ((MavenModuleSetBuild) build).getProject().getReporters().get(MavenArtifactoryReporter.class);
     }
 
-    static void addExtractorLaunchArguments(ArgumentListBuilder args, String propsPath) {
+    static void addExtractorLaunchArguments(ArgumentListBuilder args, String propsPath, boolean activateRecorder) {
         if (StringUtils.isBlank(propsPath)) {
             return;
         }
         // One -D token so workspace paths with spaces survive Maven argument splitting.
         args.add("-D" + BuildInfoConfigProperties.PROP_PROPS_FILE + "=" + propsPath);
-        args.add("-D" + BuildInfoConfigProperties.ACTIVATE_RECORDER + "=true");
+        if (activateRecorder) {
+            args.add("-D" + BuildInfoConfigProperties.ACTIVATE_RECORDER + "=true");
+        }
     }
 
     /**
@@ -61,9 +63,14 @@ public class MavenNativeExtractorListener extends RunListener<AbstractBuild> {
     static final class MavenExtractorArguments extends InvisibleAction implements MavenArgumentInterceptorAction {
 
         private volatile String propsPath;
+        private volatile boolean activateRecorder;
 
         void setPropsPath(String propsPath) {
             this.propsPath = propsPath;
+        }
+
+        void setActivateRecorder(boolean activateRecorder) {
+            this.activateRecorder = activateRecorder;
         }
 
         @Override
@@ -73,7 +80,7 @@ public class MavenNativeExtractorListener extends RunListener<AbstractBuild> {
 
         @Override
         public ArgumentListBuilder intercept(ArgumentListBuilder args, MavenModuleSetBuild build) {
-            addExtractorLaunchArguments(args, propsPath);
+            addExtractorLaunchArguments(args, propsPath, activateRecorder);
             return args;
         }
     }

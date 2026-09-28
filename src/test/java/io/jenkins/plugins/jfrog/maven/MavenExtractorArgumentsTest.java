@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MavenExtractorArgumentsTest {
@@ -16,7 +17,7 @@ class MavenExtractorArgumentsTest {
         String propsPath = "/tmp/j h-workspace/jfrog-buildinfo.properties";
 
         ArgumentListBuilder args = new ArgumentListBuilder();
-        MavenNativeExtractorListener.addExtractorLaunchArguments(args, propsPath);
+        MavenNativeExtractorListener.addExtractorLaunchArguments(args, propsPath, true);
         List<String> tokens = args.toList();
 
         // Encryption key/IV never pass through this method at all now - propsPath is the only
@@ -32,9 +33,9 @@ class MavenExtractorArgumentsTest {
         ArgumentListBuilder args = new ArgumentListBuilder();
         args.add("existing");
 
-        MavenNativeExtractorListener.addExtractorLaunchArguments(args, null);
-        MavenNativeExtractorListener.addExtractorLaunchArguments(args, "");
-        MavenNativeExtractorListener.addExtractorLaunchArguments(args, "   ");
+        MavenNativeExtractorListener.addExtractorLaunchArguments(args, null, true);
+        MavenNativeExtractorListener.addExtractorLaunchArguments(args, "", false);
+        MavenNativeExtractorListener.addExtractorLaunchArguments(args, "   ", true);
 
         assertEquals(List.of("existing"), args.toList());
     }
@@ -46,9 +47,26 @@ class MavenExtractorArgumentsTest {
         String propsPath = "/tmp/workspace/jfrog-buildinfo.properties";
 
         action.setPropsPath(propsPath);
+        action.setActivateRecorder(true);
         ArgumentListBuilder args = action.intercept(new ArgumentListBuilder(), null);
 
         assertTrue(args.toList().stream().anyMatch(token ->
                 token.equals("-D" + BuildInfoConfigProperties.PROP_PROPS_FILE + "=" + propsPath)));
+        assertTrue(args.toList().stream().anyMatch(token ->
+                token.equals("-D" + BuildInfoConfigProperties.ACTIVATE_RECORDER + "=true")));
+    }
+
+    @Test
+    void doesNotActivateRecorderWhenResolutionOnly() {
+        String propsPath = "/tmp/jfrog-buildinfo.properties";
+        ArgumentListBuilder args = new ArgumentListBuilder();
+
+        MavenNativeExtractorListener.addExtractorLaunchArguments(args, propsPath, false);
+        List<String> tokens = args.toList();
+
+        assertTrue(tokens.stream().anyMatch(token ->
+                token.equals("-D" + BuildInfoConfigProperties.PROP_PROPS_FILE + "=" + propsPath)));
+        assertFalse(tokens.stream().anyMatch(token ->
+                token.contains(BuildInfoConfigProperties.ACTIVATE_RECORDER)));
     }
 }

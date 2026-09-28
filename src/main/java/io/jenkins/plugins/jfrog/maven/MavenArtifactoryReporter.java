@@ -139,6 +139,14 @@ public class MavenArtifactoryReporter extends MavenReporter {
     public boolean isPublishBuildInfo() { return publishBuildInfo; }
     @DataBoundSetter public void setPublishBuildInfo(boolean publishBuildInfo) { this.publishBuildInfo = publishBuildInfo; }
 
+    /**
+     * True when Deploy Artifacts or Capture and publish build info is checked.
+     * A leftover deploy server in the UI must not enable publisher/recorder settings.
+     */
+    public boolean shouldConfigurePublisher() {
+        return deployArtifacts || publishBuildInfo;
+    }
+
     public JFrogPlatformInstance findDeployServer() {
         return findServer(serverId);
     }

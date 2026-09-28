@@ -86,7 +86,7 @@ public class MavenNativeExtractorEnvironment extends Environment {
         }
 
         // Goals only matter when deploying or publishing; resolution-only jobs can use any goals.
-        boolean intendsToPublish = StringUtils.isNotBlank(reporter.getServerId());
+        boolean intendsToPublish = reporter.shouldConfigurePublisher();
         if (intendsToPublish && build instanceof MavenModuleSetBuild) {
             String goals = ((MavenModuleSetBuild) build).getProject().getGoals();
             if (!MavenGoals.allowsArtifactoryPublish(goals)) {
@@ -96,7 +96,7 @@ public class MavenNativeExtractorEnvironment extends Environment {
             }
         }
 
-        JFrogPlatformInstance server = reporter.findDeployServer();
+        JFrogPlatformInstance server = intendsToPublish ? reporter.findDeployServer() : null;
         if (intendsToPublish && server == null) {
             throw fail("server ID '" + reporter.getServerId() +
                     "' is not configured under Manage Jenkins -> System -> JFrog Platform.");
@@ -135,6 +135,7 @@ public class MavenNativeExtractorEnvironment extends Environment {
                     build.getAction(MavenNativeExtractorListener.MavenExtractorArguments.class);
             if (extractorArguments != null) {
                 extractorArguments.setPropsPath(propsPath);
+                extractorArguments.setActivateRecorder(intendsToPublish);
             }
             if (StringUtils.isNotBlank(propertiesFileKey) && StringUtils.isNotBlank(propertiesFileKeyIv)) {
                 // Encryption key/IV stay in the environment, never on the Executing Maven: log line.
@@ -313,7 +314,7 @@ public class MavenNativeExtractorEnvironment extends Environment {
             setIfPresent(configuration.info::setBuildUrl, MavenBuildIdentifiers.resolveBuildUrl(env));
             setIfPresent(configuration.info::setProject, expand(env, reporter.getProject()));
         }
-        configuration.setActivateRecorder(Boolean.TRUE);
+        configuration.setActivateRecorder(reporter.shouldConfigurePublisher());
         return configuration;
     }
 

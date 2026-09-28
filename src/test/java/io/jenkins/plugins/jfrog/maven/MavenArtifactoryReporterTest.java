@@ -35,6 +35,21 @@ class MavenArtifactoryReporterTest {
     }
 
     @Test
+    void shouldConfigurePublisherOnlyWhenDeployOrPublishIsEnabled() {
+        MavenArtifactoryReporter reporter = new MavenArtifactoryReporter();
+        reporter.setServerId("prod");
+
+        assertFalse(reporter.shouldConfigurePublisher());
+
+        reporter.setDeployArtifacts(true);
+        assertTrue(reporter.shouldConfigurePublisher());
+
+        reporter.setDeployArtifacts(false);
+        reporter.setPublishBuildInfo(true);
+        assertTrue(reporter.shouldConfigurePublisher());
+    }
+
+    @Test
     void doCheckRequiresConfiguredServerWhenDeployOrPublishBuildInfoIsChecked(JenkinsRule jenkinsRule) {
         MavenArtifactoryReporter.DescriptorImpl descriptor = new MavenArtifactoryReporter.DescriptorImpl();
 
