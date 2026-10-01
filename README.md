@@ -730,3 +730,5 @@ the [JFrog CLI documentation](https://www.jfrog.com/confluence/display/CLI/JFrog
 
 We welcome pull requests from the community. To help us improve this project, please read
 our [Contribution](./CONTRIBUTING.md#-guidelines) guide.
+
+<!-- dummy -->
