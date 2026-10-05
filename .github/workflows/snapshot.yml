@@ -1,0 +1,45 @@
+# Ported from .jfrog-pipelines/pipelines.snapshot.yml (JFrog Pipelines is EOL)
+name: Snapshot
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    env:
+      JFROG_CLI_BUILD_NAME: ecosystem-jfrog-jenkins-plugin-dev
+      JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
+      JFROG_CLI_BUILD_PROJECT: ecosys
+      ARTIFACTORY_URL: ${{ secrets.ARTIFACTORY_URL }}
+      ARTIFACTORY_USER: ${{ secrets.ARTIFACTORY_USER }}
+      ARTIFACTORY_APIKEY: ${{ secrets.ARTIFACTORY_APIKEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "11"
+          distribution: "temurin"
+
+      - name: Cache Maven local repo
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+
+      - name: Run snapshot
+        run: .github/scripts/snapshot.sh
+
+      - name: Cleanup JFrog CLI config
+        if: always()
+        run: jf c rm --quiet
